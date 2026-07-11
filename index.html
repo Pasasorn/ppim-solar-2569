@@ -85,8 +85,10 @@ header .datebox{background:#F5F1FA;border:1px solid var(--pea-light);color:var(-
 @media(max-width:900px){.sla-split{grid-template-columns:1fr}}
 .hub-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:.8rem}
 .hub-name{width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
-.hub-bar{flex:1;background:#EEF1F5;border-radius:4px;height:18px;overflow:hidden}
-.hub-fill{background:var(--green);height:100%;border-radius:4px;min-width:2px}
+.hub-bar{flex:1;background:#EEF1F5;border-radius:4px;height:18px;overflow:hidden;display:flex}
+.hub-fill{background:var(--green);height:100%}
+.hub-fill.fail{background:var(--danger)}
+.hub-fill.wait{background:#C2CAD6}
 .hub-count{width:70px;text-align:right;font-weight:700;color:var(--green);white-space:nowrap}
 /* charts */
 .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
@@ -105,8 +107,6 @@ tr:hover td{background:#F4F7FC}
 .b4{background:#efe7f8;color:#5A2D82}.b5{background:#e7f3ec;color:#22794a}.b6{background:#e2ecf9;color:#2c66ad}
 .b7{background:#dff3f5;color:#127c8a}.b8{background:#fdeee0;color:#b25e12}.b9{background:#dff5e7;color:#1d8047}
 .b0{background:#fdecec;color:#D64545}.bx{background:#eef0f2;color:#6b7280}
-.overdue-cell{color:var(--danger);font-weight:700}
-.near-cell{color:var(--warn);font-weight:700}
 .pagination{display:flex;gap:6px;justify-content:center;margin-top:10px;align-items:center;font-size:.8rem}
 .pagination button{padding:4px 10px;border:1px solid var(--border);background:#fff;border-radius:5px;cursor:pointer}
 .pagination button.cur{background:var(--navy);color:#fff;border-color:var(--navy)}
@@ -123,14 +123,14 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
 <header>
   <div>
     <h1><span class="logo">⚡ PEA</span>รายงานสถานะคำขอขนานไฟฟ้า (ขายไฟฟ้า/เชื่อมต่อ)</h1>
-    <div class="sub">โครงการ Solar ภาคประชาชน ปี 2569 — ประมวลผลจากไฟล์ Export ระบบ PPIM</div>
+    <div class="sub">โครงการ Solar ภาคประชาชน ปี 2569 — ประมวลผลจากระบบ PPIM</div>
   </div>
   <div class="datebox" id="lastUpdate">ยังไม่มีข้อมูล</div>
 </header>
 
 <div class="container">
 
-  <!-- UPLOAD -->
+  <!-- UPLOAD (ซ่อนเป็นค่าเริ่มต้น) -->
   <div class="card purple no-print" id="uploadCard">
     <h2 id="uploadHead" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:8px">
       <span>1) นำเข้าข้อมูล <span style="font-weight:400;font-size:.75rem;opacity:.85">— ระบบโหลดจาก Google Sheets ให้อัตโนมัติ (คลิกที่นี่หากต้องการนำเข้าไฟล์เอง)</span></span>
@@ -147,7 +147,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <button class="btn btn-outline btn-sm" id="btnSample">ดูตัวอย่างด้วยข้อมูลจำลอง</button>
       <button class="btn btn-outline btn-sm" id="btnClear">ล้างข้อมูล</button>
       <button class="btn btn-outline btn-sm no-print" onclick="window.print()">🖨 พิมพ์รายงาน</button>
-      <span class="note">🔒 ข้อมูลประมวลผลในเครื่องนี้เท่านั้น ไม่ถูกส่งขึ้นอินเทอร์เน็ต (สอดคล้อง PDPA) และถูกจำไว้ในเบราว์เซอร์นี้จนกว่าจะกดล้างข้อมูล</span>
+      <span class="note">🔒 ข้อมูลประมวลผลในเครื่องนี้เท่านั้น ไม่ถูกส่งขึ้นอินเทอร์เน็ต (สอดคล้อง PDPA)</span>
     </div>
     <div id="mapPanel" class="hidden" style="margin-top:14px">
       <details open>
@@ -193,7 +193,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <details class="no-print" style="margin-bottom:10px">
         <summary>⚙ ตั้งค่าจับคู่ กฟฟ.พื้นที่ → จุดรวมงาน (มีค่าเริ่มต้นของ กฟน.1 ครบทุก กฟฟ. แล้ว — แก้เฉพาะที่ต้องการ)</summary>
         <div class="note" style="margin:6px 0">ระบบฝังตารางจับคู่ของ กฟน.1 ไว้แล้ว หากต้องการแก้/เพิ่ม พิมพ์บรรทัดละ 1 จุดรวมงาน รูปแบบ: <b>ชื่อจุดรวมงาน = กฟฟ.ย่อย1, กฟฟ.ย่อย2, ...</b> (จะทับค่าเริ่มต้นเฉพาะ กฟฟ. ที่ระบุ) · กฟฟ.ที่ไม่อยู่ในตารางจะแสดงเป็นจุดของตัวเอง</div>
-        <textarea id="hubCfg" style="width:100%;min-height:150px;border:1px solid var(--border);border-radius:6px;padding:8px;font-family:inherit;font-size:.8rem" placeholder="กฟจ.เชียงใหม่ = กฟจ.เชียงใหม่, กฟส.แม่ริม&#10;กฟจ.เชียงราย = กฟจ.เชียงราย, กฟส.แม่ฟ้าหลวง, กฟส.นางแล"></textarea>
+        <textarea id="hubCfg" style="width:100%;min-height:150px;border:1px solid var(--border);border-radius:6px;padding:8px;font-family:inherit;font-size:.8rem" placeholder="กฟจ.เชียงใหม่ = กฟจ.เชียงใหม่, กฟส.แม่ริม"></textarea>
         <div class="toolbar">
           <button class="btn btn-primary btn-sm" id="btnHubSave">บันทึกการจับคู่</button>
           <button class="btn btn-outline btn-sm" id="btnHubFill">ดึงรายชื่อ กฟฟ. จากไฟล์ที่โหลดมาช่วยกรอก</button>
@@ -287,20 +287,19 @@ function fmtD(d){ if(!d) return '-'; return d.getDate()+' '+THMON[d.getMonth()]+
 function parseDate(v){
   if(v==null||v==='') return null;
   if(v instanceof Date) return isNaN(v)?null:v;
-  if(typeof v==='number'){ // Excel serial
+  if(typeof v==='number'){
     const d = new Date(Math.round((v-25569)*86400*1000));
     return isNaN(d)?null:d;
   }
   const s = String(v).trim();
   if(s==='-'||s==='') return null;
-  // ISO ก่อนเสมอ เช่น "2024-01-15 16:55:13"
   let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if(m){ let yy=+m[1]; if(yy>2400)yy-=543; const d=new Date(yy,+m[2]-1,+m[3]); return isNaN(d)?null:d; }
   m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
   if(m){
     let dd=+m[1], mm=+m[2], yy=+m[3];
-    if(yy<100) yy+=2500; // สองหลัก ถือเป็น พ.ศ.
-    if(yy>2400) yy-=543;  // พ.ศ. -> ค.ศ.
+    if(yy<100) yy+=2500;
+    if(yy>2400) yy-=543;
     const d = new Date(yy,mm-1,dd);
     return isNaN(d)?null:d;
   }
@@ -309,7 +308,6 @@ function parseDate(v){
 function classifyStatus(txt){
   const t = String(txt||'').toLowerCase().trim();
   if(!t) return null;
-  // ตรวจ "ไม่ผ่าน/ยกเลิก" ก่อน เพื่อไม่ให้ชนกับคำอื่น
   for(const st of [STEPS[9],...STEPS.slice(0,9).reverse()]){
     if(st.kw.some(k=>t.includes(k.toLowerCase()))) return st.id;
   }
@@ -319,7 +317,6 @@ function daysBetween(a,b){ return Math.floor((b-a)/86400000); }
 function addD(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); x.setHours(0,0,0,0); return x; }
 
 /* ================= FILE LOADING ================= */
-// พับ/กางช่องนำเข้าข้อมูล (ซ่อนเป็นค่าเริ่มต้น)
 $('#uploadHead').onclick = ()=>{
   const b = $('#uploadBody');
   b.classList.toggle('hidden');
@@ -332,7 +329,6 @@ dz.ondragleave = ()=>dz.classList.remove('drag');
 dz.ondrop = e=>{e.preventDefault();dz.classList.remove('drag'); if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);};
 fi.onchange = ()=>{ if(fi.files[0]) loadFile(fi.files[0]); };
 
-// Parser CSV รองรับ delimiter ใดก็ได้ + เซลล์ในเครื่องหมายคำพูดที่มีหลายบรรทัด
 function parseDelimited(txt, delim){
   const rows=[]; let row=[], cell='', inQ=false;
   txt = txt.replace(/^﻿/,'');
@@ -362,12 +358,10 @@ function loadFile(file){
     try{
       let data, hdrs;
       if(/\.(csv|txt)$/i.test(file.name)){
-        // ลอง UTF-8 ก่อน ถ้าอ่านภาษาไทยไม่ออก สลับเป็น Windows-874 (TIS-620)
         let txt = new TextDecoder('utf-8').decode(e.target.result);
         if(txt.includes('�')){
           try{ txt = new TextDecoder('windows-874').decode(e.target.result); }catch(_){}
         }
-        // ตรวจ delimiter จากบรรทัดแรก: | , แท็บ ;
         const nl = txt.indexOf('\n');
         const first = nl>0 ? txt.slice(0,nl) : txt.slice(0,2000);
         const delim = ['|',',','\t',';'].reduce((a,b)=>
@@ -403,7 +397,6 @@ function applySheetData(r){
   autoMap(); renderMapPanel(); process(); save();
   $('#lastUpdate').textContent = 'Google Sheets · '+rows.length+' รายการ · อัปเดต '+new Date().toLocaleString('th-TH');
 }
-// วิธีที่ 1: fetch CSV ตรงๆ (เร็วสุด แต่บางเครื่อง/บางเครือข่ายโดน CORS บล็อก)
 async function tryFetchCsv(){
   const res = await fetch(SHEET_CSV);
   if(!res.ok) throw new Error('HTTP '+res.status);
@@ -417,7 +410,6 @@ async function tryFetchCsv(){
   });
   return {data, hdrs};
 }
-// วิธีที่ 2 (สำรอง): โหลดผ่าน <script> แบบ JSONP — ไม่ติด CORS แม้เปิดไฟล์จากในเครื่อง
 function tryJsonp(){
   return new Promise((resolve,reject)=>{
     window.google = window.google || {};
@@ -458,7 +450,6 @@ async function loadFromSheet(silent){
     return true;
   }catch(err){
     $('#lastUpdate').textContent = 'โหลดจาก Google Sheets ไม่สำเร็จ';
-    // กางช่องนำเข้าข้อมูลให้อัตโนมัติ เพื่อให้ลากไฟล์ CSV ใส่แทนได้
     $('#uploadBody').classList.remove('hidden');
     $('#uploadArrow').textContent = '▾';
     if(!silent) alert('โหลดจาก Google Sheets ไม่ได้: '+err.message
@@ -474,7 +465,6 @@ function autoMap(){
   const used = new Set();
   for(const f of FIELDS){
     let hit = null;
-    // 1) ตรงทั้งคำ  2) ขึ้นต้นด้วย  3) มีคำอยู่ข้างใน (เรียงตามลำดับ keyword)
     for(const k of f.kw){ hit = headers.find(h=>!used.has(h)&&norm(h)===norm(k)); if(hit)break; }
     if(!hit) for(const k of f.kw){ hit = headers.find(h=>!used.has(h)&&norm(h).startsWith(norm(k))); if(hit)break; }
     if(!hit) for(const k of f.kw){ hit = headers.find(h=>!used.has(h)&&norm(h).includes(norm(k))); if(hit)break; }
@@ -520,18 +510,15 @@ function process(){
     };
     o.gridPass = o.gridChk.includes('ผ่าน') && !o.gridChk.includes('ไม่ผ่าน');
     o.step = classifyStatus(o.statusTxt);
-    // SLA evaluation — 2 จุดควบคุม
+    // SLA — 2 จุดควบคุม
     o.sla = {phase:null, band:null, elapsed:null, due:null, label:''};
     if(o.step===1||o.step===2){
-      // ขั้นตอนที่ 1→2 : ตรวจสอบเอกสาร/เทคนิค นับจากวันยื่นคำขอ
       if(o.dSubmit){
         o.sla.phase='review'; o.sla.label='ตรวจสอบเอกสาร/เทคนิค';
         o.sla.due = addD(o.dSubmit,SLA.reviewDays);
         o.sla.elapsed = Math.max(0,daysBetween(o.dSubmit,today));
       }
     } else if(o.step===3){
-      // ขั้นตอนที่ 2→5 : ทำสัญญา นับจากวันประกาศผล
-      // (ถ้าไฟล์ไม่มีวันประกาศผล ใช้วันอนุมัติเชื่อมต่อแทน)
       const base = o.dAnnounce || o.dConnApprove;
       if(base){
         o.sla.phase='contract'; o.sla.label='ทำสัญญา/ชำระเงิน';
@@ -554,33 +541,8 @@ function process(){
 /* ================= RENDER ================= */
 function renderAll(){ renderKpis(); renderPipeline(); renderSla(); renderHubOverview(); renderHubs(); renderCharts(); buildFilterOptions(); renderTable(); }
 
-function renderHubOverview(){
-  const el = $('#hubOverview'); if(!el) return;
-  const map = hubMapping();
-  const counts = {};
-  rows.forEach(r=>{
-    const hub = r.hub || map[r.area] || r.area;
-    counts[hub] = (counts[hub]||0)+1;
-  });
-  const keys = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
-  if(!keys.length){ el.innerHTML='<div class="note">ยังไม่มีข้อมูล</div>'; return; }
-  const max = counts[keys[0]];
-  el.innerHTML = keys.map(k=>`
-    <div class="hub-row" title="${k}: ${counts[k]} งาน">
-      <span class="hub-name">${k}</span>
-      <div class="hub-bar"><div class="hub-fill" style="width:${Math.round(counts[k]/max*100)}%"></div></div>
-      <span class="hub-count">${fmtN(counts[k])} งาน</span>
-    </div>`).join('')
-  + `<div class="hub-row" style="border-top:1px solid var(--border);padding-top:6px;margin-top:6px">
-      <span class="hub-name">รวม ${keys.length} จุด</span>
-      <div class="hub-bar" style="visibility:hidden"></div>
-      <span class="hub-count">${fmtN(rows.length)} งาน</span>
-    </div>`;
-}
-
 /* ================= จุดรวมงาน ================= */
 const HUB_KEY = 'ppim_hub_map_v1';
-// ค่าเริ่มต้น: ตารางจับคู่ กฟฟ.พื้นที่ → จุดรวมงาน ของ กฟน.1 (ฝังไว้ในไฟล์ ไม่ต้องตั้งค่าเอง)
 const DEFAULT_HUB_MAP = {
   'กฟจ.พะเยา':'กฟจ.พะเยา','กฟย.แม่กา':'กฟจ.พะเยา','กฟอ.จุน':'กฟจ.พะเยา','กฟอ.เชียงคำ':'กฟจ.พะเยา',
   'กฟอ.เชียงม่วน':'กฟจ.พะเยา','กฟอ.ดอกคำใต้':'กฟจ.พะเยา','กฟอ.ปง':'กฟจ.พะเยา','กฟอ.ภูกามยาว':'กฟจ.พะเยา',
@@ -626,6 +588,46 @@ function hubMapping(){
   });
   return map;
 }
+function renderHubOverview(){
+  const el = $('#hubOverview'); if(!el) return;
+  const map = hubMapping();
+  const g = {};
+  rows.forEach(r=>{
+    const hub = r.hub || map[r.area] || r.area;
+    const o = g[hub] = g[hub] || {n:0,pass:0,fail:0,wait:0};
+    o.n++;
+    const failed = r.step===0 || (r.gridChk && r.gridChk.includes('ไม่ผ่าน'));
+    if(failed) o.fail++;
+    else if(r.gridPass) o.pass++;
+    else o.wait++;
+  });
+  const keys = Object.keys(g).sort((a,b)=>g[b].n-g[a].n);
+  if(!keys.length){ el.innerHTML='<div class="note">ยังไม่มีข้อมูล</div>'; return; }
+  const max = g[keys[0]].n;
+  const t = {n:0,pass:0,fail:0,wait:0};
+  keys.forEach(k=>{ for(const f in t) t[f]+=g[k][f]; });
+  const seg = (v,cls)=> v>0 ? `<div class="hub-fill ${cls}" style="width:${(v/max*100).toFixed(1)}%"></div>` : '';
+  el.innerHTML =
+    `<div class="note" style="margin-bottom:8px">
+      <span style="color:var(--green);font-weight:700">■ ผ่าน</span> ·
+      <span style="color:var(--danger);font-weight:700">■ ไม่ผ่าน/ยกเลิก</span> ·
+      <span style="color:#8896A5;font-weight:700">■ รอผล</span>
+    </div>`
+    + keys.map(k=>{ const o=g[k]; return `
+    <div class="hub-row" title="${k}: ทั้งหมด ${o.n} งาน · ผ่าน ${o.pass} · ไม่ผ่าน/ยกเลิก ${o.fail} · รอผล ${o.wait}">
+      <span class="hub-name">${k}</span>
+      <div class="hub-bar">${seg(o.pass,'')}${seg(o.fail,'fail')}${seg(o.wait,'wait')}</div>
+      <span class="hub-count">${fmtN(o.n)} งาน</span>
+    </div>`; }).join('')
+    + `<div class="hub-row" style="border-top:1px solid var(--border);padding-top:6px;margin-top:6px;font-weight:700">
+      <span class="hub-name">รวม ${keys.length} จุด</span>
+      <span style="flex:1;font-size:.75rem;color:var(--gray)">
+        <span style="color:var(--green)">ผ่าน ${fmtN(t.pass)}</span> ·
+        <span style="color:var(--danger)">ไม่ผ่าน/ยกเลิก ${fmtN(t.fail)}</span> ·
+        รอผล ${fmtN(t.wait)}</span>
+      <span class="hub-count">${fmtN(t.n)} งาน</span>
+    </div>`;
+}
 function renderHubs(){
   const el = $('#hubBody'); if(!el) return;
   const map = hubMapping();
@@ -659,7 +661,7 @@ function renderHubs(){
     <td>${t.cod}</td><td>${t.cancel}</td></tr>`;
 }
 $('#hubCfg').value = localStorage.getItem(HUB_KEY)||'';
-$('#btnHubSave').onclick = ()=>{ localStorage.setItem(HUB_KEY, $('#hubCfg').value); renderHubs(); };
+$('#btnHubSave').onclick = ()=>{ localStorage.setItem(HUB_KEY, $('#hubCfg').value); renderHubOverview(); renderHubs(); };
 $('#btnHubFill').onclick = ()=>{
   if(!rows.length){ alert('โหลดไฟล์ข้อมูลก่อน แล้วระบบจะดึงรายชื่อ กฟฟ. มาให้'); return; }
   const areas = [...new Set(rows.map(r=>r.area))].sort();
@@ -748,7 +750,6 @@ function bcls(s){ return s===null?'bx':'b'+s; }
 function renderCharts(){
   Object.values(charts).forEach(c=>c.destroy()); charts={};
   const colors = ['#8896A5','#2F5FA8','#2F7FD1','#F2C230','#8E6BB5','#7BA23F','#2C66AD','#127C8A','#E8862E','#1E7A3C','#D64545'];
-  // status doughnut
   const labels=[], data=[], bg=[];
   const order=[null,...STEPS.map(s=>s.id)];
   order.forEach((id,ix)=>{
@@ -757,7 +758,6 @@ function renderCharts(){
   });
   charts.st = new Chart($('#chStatus'),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:bg}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:12}}}}});
-  // by area
   const areas = {};
   rows.forEach(r=>{ areas[r.area]=areas[r.area]||{n:0,kw:0}; areas[r.area].n++; areas[r.area].kw+=r.kw; });
   const aKeys = Object.keys(areas).sort((a,b)=>areas[b].n-areas[a].n).slice(0,15);
@@ -767,7 +767,6 @@ function renderCharts(){
       {label:'kW',data:aKeys.map(k=>+areas[k].kw.toFixed(1)),backgroundColor:'#F2C230',yAxisID:'y1'}]},
     options:{responsive:true,maintainAspectRatio:false,
       scales:{y:{position:'left',title:{display:true,text:'ราย'}},y1:{position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'kW'}},x:{ticks:{font:{size:10}}}}}});
-  // timeline cumulative
   const byDay = {};
   rows.forEach(r=>{ if(r.dSubmit){ const k=r.dSubmit.toISOString().slice(0,10); byDay[k]=(byDay[k]||0)+1; }});
   const days = Object.keys(byDay).sort();
@@ -839,7 +838,6 @@ function renderTable(){
       <td>${fmtD(r.dSubmit)}</td><td>${r.pendDays??'-'}</td>
       <td>${fmtD(r.sla.due)}</td><td>${slaCell}</td></tr>`;
   }).join('');
-  // pager
   const pgEl = $('#pager'); pgEl.innerHTML='';
   if(pages>1){
     const mk=(n,txt,cur)=>{const b=document.createElement('button');b.textContent=txt||n;if(cur)b.className='cur';b.onclick=()=>{page=n;renderTable();};return b;};
@@ -869,7 +867,7 @@ $('#btnExport').onclick = ()=>{
 
 /* ================= PERSIST ================= */
 function save(){
-  try{ localStorage.setItem(LS_KEY, JSON.stringify({raw,headers,mapping,ts:Date.now()})); }catch(e){/* ไฟล์ใหญ่เกิน quota — ข้าม */}
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({raw,headers,mapping,ts:Date.now()})); }catch(e){}
 }
 function restore(){
   try{
@@ -890,12 +888,11 @@ $('#btnClear').onclick = ()=>{
 
 /* ================= SAMPLE DATA ================= */
 $('#btnSample').onclick = ()=>{
-  const areas = ['กฟจ.เชียงใหม่','กฟจ.เชียงราย','กฟจ.ลำปาง','กฟส.สันทราย','กฟอ.ฝาง','กฟจ.น่าน','กฟส.แม่ริม'];
-  const sts = ['ยื่นคำขอขายไฟฟ้า','อยู่ระหว่างตรวจสอบเอกสาร','รอชำระเงิน','ลงนามสัญญาแล้ว','ยื่นขอเชื่อมต่อ','รอดำเนินการหลังอนุมัติเชื่อมต่อ / รับพิจารณา','นัดหมายเปลี่ยนมิเตอร์','เชื่อมต่อเรียบร้อยแล้ว','ยกเลิก'];
-  const names = ['สมชาย ใจดี','สมหญิง รักษ์พลังงาน','วิชัย แสงตะวัน','นภา สุขสว่าง','ประเสริฐ พอเพียง','บจก. กรีนโฮม','มานี มีแดด','อาทิตย์ เรืองรอง'];
+  const areas = ['กฟจ.เชียงใหม่','กฟจ.เชียงราย','กฟจ.ลำปาง','กฟอ.สันทราย','กฟอ.ฝาง','กฟจ.ลำพูน','กฟอ.แม่ริม'];
+  const sts = ['ยื่นคำขอขายไฟฟ้า','รอตรวจสอบคำขอ','รอชำระเงิน','ทำสัญญาเรียบร้อยแล้ว','ยื่นขอเชื่อมต่อ','รอดำเนินการหลังอนุมัติเชื่อมต่อ / รับพิจารณา','นัดหมายเปลี่ยนมิเตอร์','เชื่อมต่อเรียบร้อยแล้ว','ยกเลิก'];
   const rnd = a=>a[Math.floor(Math.random()*a.length)];
   const data=[];
-  const start = new Date(2026,6,1); // 1 ก.ค. 2569
+  const start = new Date(2026,6,1);
   const iso = d => d.toISOString().slice(0,10)+' 09:00:00';
   for(let i=1;i<=120;i++){
     const sub = new Date(start.getTime()+Math.random()*86400000*3);
@@ -905,10 +902,9 @@ $('#btnSample').onclick = ()=>{
       'สถานะคำขอ':st,
       'วันที่ยื่นคำขอ':iso(sub),
       'วันที่ชำระเงิน':'-','วันที่อนุมัติเชื่อมต่อ':'-','วันที่เชื่อมต่อเข้าระบบ':'-',
-      'หมายเลขผู้ใช้ไฟ':'02'+String(10000000+Math.floor(Math.random()*8999999)),
-      'ผู้ยื่นคำขอ':rnd(names),
       'กำลังการผลิตที่ขอ (kW)':(Math.round(Math.random()*8+2)/2).toFixed(1),
-      'กฟฟ.พื้นที่':rnd(areas)
+      'กฟฟ.พื้นที่':rnd(areas),
+      'ผลการตรวจสอบ Grid Capacity': st==='ยกเลิก'?'ยกเลิก':(Math.random()<0.9?'ผ่าน':'ยังไม่ทราบผล')
     };
     const ix = sts.indexOf(st);
     if(ix>=2){ row['วันที่อนุมัติเชื่อมต่อ'] = iso(addD(sub,5+Math.floor(Math.random()*20))); }
