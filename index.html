@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>รายงานสถานะคำขอขนานไฟฟ้า — Solar ภาคประชาชน 2569 (PPIM)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --pea:#5A2D82; --pea-light:#7B4BA8; --pea-bg:#EDF0F5;
+  --navy:#1F4E9C; --navy-dark:#173B77; --green:#1E7A3C;
+  --ok:#2E9E5B; --warn:#E8A100; --danger:#D64545; --info:#2F7FD1;
+  --gray:#6b7280; --border:#D7DEEA; --card:#ffffff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',Tahoma,'Leelawadee UI',sans-serif;background:var(--pea-bg);color:#1f2937;font-size:14px}
+header{background:#fff;color:#1f2937;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border-bottom:4px solid var(--pea);box-shadow:0 1px 4px rgba(0,0,0,.06)}
+header h1{font-size:1.25rem;font-weight:800;color:#111827}
+header h1 .logo{color:var(--pea);font-weight:800;margin-right:10px}
+header .sub{font-size:.8rem;color:var(--gray)}
+header .datebox{background:#F5F1FA;border:1px solid var(--pea-light);color:var(--pea);padding:6px 12px;border-radius:8px;font-size:.78rem;font-weight:700;max-width:340px}
+.container{max-width:1400px;margin:0 auto;padding:16px 24px}
+.card{background:var(--card);border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:16px;border:1px solid var(--border)}
+.card h2{background:var(--navy);color:#fff;font-size:.95rem;font-weight:700;margin:-16px -16px 14px;padding:10px 16px;border-radius:9px 9px 0 0}
+.card h2 .note{color:#dbe4f3}
+.card.green h2{background:var(--green)}
+.card.purple h2{background:var(--pea)}
+/* upload */
+#dropzone{border:2px dashed var(--navy);border-radius:10px;padding:28px;text-align:center;cursor:pointer;transition:.2s;background:#F4F7FC}
+#dropzone.drag{background:#E3EBF7}
+#dropzone p{color:var(--gray);margin-top:6px;font-size:.85rem}
+.btn{display:inline-block;border:none;border-radius:6px;padding:8px 16px;font-size:.85rem;cursor:pointer;font-family:inherit}
+.btn-primary{background:var(--navy);color:#fff}
+.btn-outline{background:#fff;color:var(--navy);border:1px solid var(--navy)}
+.btn-sm{padding:4px 10px;font-size:.78rem}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.note{font-size:.75rem;color:var(--gray)}
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi{background:var(--card);border-radius:10px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);border:1.5px solid #B9C6E0;text-align:center}
+.kpi .v{font-size:1.6rem;font-weight:800;color:var(--navy)}
+.kpi .l{font-size:.75rem;color:var(--gray);margin-top:2px}
+.kpi.ok{border-color:#9FD4B4} .kpi.ok .v{color:var(--green)}
+.kpi.warn{border-color:#EED49A} .kpi.warn .v{color:#B07C00}
+.kpi.danger{border-color:#EBAFAF} .kpi.danger .v{color:var(--danger)}
+.kpi.info{border-color:#A9C8EA} .kpi.info .v{color:var(--info)}
+/* pipeline */
+.pipeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}
+.step{background:#fff;border:1.5px solid #B9C6E0;border-radius:8px;padding:10px 8px;text-align:center;cursor:pointer;transition:.15s;position:relative}
+.step:hover{border-color:var(--navy)}
+.step.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+.step.active .sc{color:#fff}
+.step .sn{font-size:.68rem;color:inherit;line-height:1.3;min-height:2.6em;display:flex;align-items:center;justify-content:center}
+.step .sc{font-size:1.3rem;font-weight:800;color:var(--navy)}
+.step .num{position:absolute;top:4px;left:6px;font-size:.65rem;color:var(--gray)}
+.step.active .num{color:#cfdcf5}
+.step.rejected .sc{color:var(--danger)}
+/* SLA */
+.sla-item{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:6px;margin-bottom:6px;font-size:.82rem;gap:8px;flex-wrap:wrap}
+.sla-item.green{background:#e9f6ee;border-left:3px solid var(--ok)}
+.sla-item.yellow{background:#fdf6e3;border-left:3px solid var(--warn)}
+.sla-item.red{background:#fdecec;border-left:3px solid var(--danger)}
+.sla-item.over{background:#f6dcdc;border-left:3px solid #8f1f1f}
+.sla-badge{font-weight:700;white-space:nowrap}
+.sla-item.green .sla-badge{color:var(--ok)}
+.sla-item.yellow .sla-badge{color:#b07c00}
+.sla-item.red .sla-badge{color:var(--danger)}
+.sla-item.over .sla-badge{color:#8f1f1f}
+.cell-green{color:var(--ok);font-weight:700}
+.cell-yellow{color:#b07c00;font-weight:700}
+.cell-red{color:var(--danger);font-weight:700}
+.cell-over{color:#8f1f1f;font-weight:800}
+.sla-group{margin-bottom:14px}
+.sla-group h3{font-size:.85rem;color:#374151;margin-bottom:6px}
+.sla-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;font-size:.78rem}
+.chip{padding:3px 10px;border-radius:12px;font-weight:600}
+.chip.green{background:#e9f6ee;color:var(--ok)}
+.chip.yellow{background:#fdf6e3;color:#b07c00}
+.chip.red{background:#fdecec;color:var(--danger)}
+.chip.over{background:#f6dcdc;color:#8f1f1f}
+.pay-note{background:#efe7f8;color:var(--pea);padding:6px 10px;border-radius:6px;font-size:.8rem;font-weight:600;margin-bottom:8px;display:inline-block}
+/* split SLA / hub overview */
+.sla-split{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media(max-width:900px){.sla-split{grid-template-columns:1fr}}
+.hub-row{display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:.8rem}
+.hub-name{width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.hub-bar{flex:1;background:#EEF1F5;border-radius:4px;height:18px;overflow:hidden}
+.hub-fill{background:var(--green);height:100%;border-radius:4px;min-width:2px}
+.hub-count{width:70px;text-align:right;font-weight:700;color:var(--green);white-space:nowrap}
+/* charts */
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.chart-box{position:relative;height:260px}
+/* filters + table */
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+.filters input,.filters select{padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:.83rem;font-family:inherit}
+.filters input{flex:1;min-width:180px}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th{background:var(--navy);color:#fff;padding:8px;text-align:left;cursor:pointer;white-space:nowrap;user-select:none}
+th .arrow{font-size:.7rem;opacity:.8}
+td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:hover td{background:#F4F7FC}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.72rem;white-space:nowrap}
+.b1{background:#e8eef7;color:#2f5fa8}.b2{background:#e5f0fb;color:#2F7FD1}.b3{background:#fdf2df;color:#b07c00}
+.b4{background:#efe7f8;color:#5A2D82}.b5{background:#e7f3ec;color:#22794a}.b6{background:#e2ecf9;color:#2c66ad}
+.b7{background:#dff3f5;color:#127c8a}.b8{background:#fdeee0;color:#b25e12}.b9{background:#dff5e7;color:#1d8047}
+.b0{background:#fdecec;color:#D64545}.bx{background:#eef0f2;color:#6b7280}
+.overdue-cell{color:var(--danger);font-weight:700}
+.near-cell{color:var(--warn);font-weight:700}
+.pagination{display:flex;gap:6px;justify-content:center;margin-top:10px;align-items:center;font-size:.8rem}
+.pagination button{padding:4px 10px;border:1px solid var(--border);background:#fff;border-radius:5px;cursor:pointer}
+.pagination button.cur{background:var(--navy);color:#fff;border-color:var(--navy)}
+/* mapping */
+.map-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.map-grid label{font-size:.75rem;color:var(--gray);display:block;margin-bottom:2px}
+.map-grid select{width:100%;padding:6px;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.8rem}
+.hidden{display:none}
+details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:600;margin-bottom:8px}
+@media print{.no-print{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1><span class="logo">⚡ PEA</span>รายงานสถานะคำขอขนานไฟฟ้า (ขายไฟฟ้า/เชื่อมต่อ)</h1>
+    <div class="sub">โครงการ Solar ภาคประชาชน ปี 2569 — ประมวลผลจากไฟล์ Export ระบบ PPIM</div>
+  </div>
+  <div class="datebox" id="lastUpdate">ยังไม่มีข้อมูล</div>
+</header>
+
+<div class="container">
+
+  <!-- UPLOAD -->
+  <div class="card purple no-print" id="uploadCard">
+    <h2 id="uploadHead" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:8px">
+      <span>1) นำเข้าข้อมูล <span style="font-weight:400;font-size:.75rem;opacity:.85">— ระบบโหลดจาก Google Sheets ให้อัตโนมัติ (คลิกที่นี่หากต้องการนำเข้าไฟล์เอง)</span></span>
+      <span id="uploadArrow">▸</span>
+    </h2>
+    <div id="uploadBody" class="hidden">
+    <div id="dropzone">
+      <strong>📂 ลากไฟล์มาวาง หรือคลิกเพื่อเลือกไฟล์</strong>
+      <p>รองรับ .csv (UTF-8 / TIS-620, คั่นด้วย | หรือ ,) รวมถึง .xlsx / .xls ที่ Export จากระบบ PPIM</p>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" hidden>
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-primary btn-sm" id="btnSheet">⟳ โหลดข้อมูลล่าสุดจาก Google Sheets</button>
+      <button class="btn btn-outline btn-sm" id="btnSample">ดูตัวอย่างด้วยข้อมูลจำลอง</button>
+      <button class="btn btn-outline btn-sm" id="btnClear">ล้างข้อมูล</button>
+      <button class="btn btn-outline btn-sm no-print" onclick="window.print()">🖨 พิมพ์รายงาน</button>
+      <span class="note">🔒 ข้อมูลประมวลผลในเครื่องนี้เท่านั้น ไม่ถูกส่งขึ้นอินเทอร์เน็ต (สอดคล้อง PDPA) และถูกจำไว้ในเบราว์เซอร์นี้จนกว่าจะกดล้างข้อมูล</span>
+    </div>
+    <div id="mapPanel" class="hidden" style="margin-top:14px">
+      <details open>
+        <summary>ตรวจสอบการจับคู่คอลัมน์ (ระบบเดาให้อัตโนมัติ — แก้ไขได้)</summary>
+        <div class="map-grid" id="mapGrid"></div>
+        <div class="toolbar"><button class="btn btn-primary btn-sm" id="btnApplyMap">ใช้การจับคู่นี้</button></div>
+      </details>
+    </div>
+    </div><!-- /uploadBody -->
+  </div>
+
+  <div id="dash" class="hidden">
+
+    <!-- KPI -->
+    <div class="kpis" id="kpis"></div>
+
+    <!-- PIPELINE -->
+    <div class="card">
+      <h2>2) สถานะคำขอตามขั้นตอน</h2>
+      <div class="pipeline" id="pipeline"></div>
+    </div>
+
+    <!-- SLA + HUB OVERVIEW -->
+    <div class="card green">
+      <h2>3) ⏰ การควบคุม SLA · 📍 ภาพรวมจุดรวมงาน</h2>
+      <div class="sla-split">
+        <div>
+          <div class="note" style="margin-bottom:8px">
+            เกณฑ์แถบสี: 🟢 1-10 วัน · 🟡 11-20 วัน · 🔴 21-30 วัน · ⛔ เกิน 30 วัน (หลุด SLA)
+          </div>
+          <div id="slaList"></div>
+        </div>
+        <div>
+          <h3 style="font-size:.85rem;color:#374151;margin-bottom:8px">📍 คำขอที่เข้ามาในแต่ละจุดรวมงาน</h3>
+          <div id="hubOverview"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HUB SUMMARY -->
+    <div class="card">
+      <h2>4) สรุปตามจุดรวมงาน (กฟจ./กฟส. M/L)</h2>
+      <details class="no-print" style="margin-bottom:10px">
+        <summary>⚙ ตั้งค่าจับคู่ กฟฟ.พื้นที่ → จุดรวมงาน (มีค่าเริ่มต้นของ กฟน.1 ครบทุก กฟฟ. แล้ว — แก้เฉพาะที่ต้องการ)</summary>
+        <div class="note" style="margin:6px 0">ระบบฝังตารางจับคู่ของ กฟน.1 ไว้แล้ว หากต้องการแก้/เพิ่ม พิมพ์บรรทัดละ 1 จุดรวมงาน รูปแบบ: <b>ชื่อจุดรวมงาน = กฟฟ.ย่อย1, กฟฟ.ย่อย2, ...</b> (จะทับค่าเริ่มต้นเฉพาะ กฟฟ. ที่ระบุ) · กฟฟ.ที่ไม่อยู่ในตารางจะแสดงเป็นจุดของตัวเอง</div>
+        <textarea id="hubCfg" style="width:100%;min-height:150px;border:1px solid var(--border);border-radius:6px;padding:8px;font-family:inherit;font-size:.8rem" placeholder="กฟจ.เชียงใหม่ = กฟจ.เชียงใหม่, กฟส.แม่ริม&#10;กฟจ.เชียงราย = กฟจ.เชียงราย, กฟส.แม่ฟ้าหลวง, กฟส.นางแล"></textarea>
+        <div class="toolbar">
+          <button class="btn btn-primary btn-sm" id="btnHubSave">บันทึกการจับคู่</button>
+          <button class="btn btn-outline btn-sm" id="btnHubFill">ดึงรายชื่อ กฟฟ. จากไฟล์ที่โหลดมาช่วยกรอก</button>
+        </div>
+      </details>
+      <div style="overflow-x:auto"><table><thead><tr>
+        <th>จุดรวมงาน</th><th>คำขอ (ราย)</th><th>kW รวม</th><th>ผ่าน Grid</th><th>🟢 1-10</th><th>🟡 11-20</th><th>🔴 21-30</th><th>⛔ เกิน SLA</th><th>เชื่อมต่อ/COD</th><th>ยกเลิก/ไม่ผ่าน</th>
+      </tr></thead><tbody id="hubBody"></tbody></table></div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts">
+      <div class="card"><h2>สัดส่วนตามสถานะ</h2><div class="chart-box"><canvas id="chStatus"></canvas></div></div>
+      <div class="card green"><h2>แนวโน้มคำขอรายวัน (สะสม)</h2><div class="chart-box"><canvas id="chTime"></canvas></div></div>
+    </div>
+    <div class="card"><h2>จำนวนคำขอ / kW แยกตามพื้นที่ (กฟฟ.)</h2><div class="chart-box" style="height:320px"><canvas id="chArea"></canvas></div></div>
+
+    <!-- TABLE -->
+    <div class="card">
+      <h2>5) รายละเอียดคำขอ <span class="note" id="tblCount"></span></h2>
+      <div class="filters no-print">
+        <input type="text" id="fSearch" placeholder="🔍 ค้นหา เลขที่คำขอ / พื้นที่ กฟฟ. ...">
+        <select id="fStep"><option value="">ทุกขั้นตอน</option></select>
+        <select id="fArea"><option value="">ทุกพื้นที่</option></select>
+        <select id="fSla"><option value="">SLA ทั้งหมด</option><option value="green">🟢 1-10 วัน</option><option value="yellow">🟡 11-20 วัน</option><option value="red">🔴 21-30 วัน</option><option value="over">⛔ เกิน 30 วัน</option></select>
+        <button class="btn btn-outline btn-sm" id="btnExport">⬇ Export CSV (ตามที่กรอง)</button>
+      </div>
+      <div style="overflow-x:auto">
+        <table id="tbl">
+          <thead><tr id="tblHead"></tr></thead>
+          <tbody id="tblBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pager"></div>
+    </div>
+  </div>
+
+  <div class="note" style="text-align:center;padding:8px">
+    ระบบภายในสำหรับเจ้าหน้าที่ กฟภ. ใช้ติดตามคำขอโครงการ Solar ภาคประชาชน 2569 · เป้าหมาย กฟภ. 250 MW · รับซื้อ 2.20 บาท/หน่วย (Net Billing) สัญญา 10 ปี · จัดทำโดย การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ)
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ================= CONFIG ================= */
+const STEPS = [
+  {id:1, name:'ยื่นคำขอ/รอตรวจสอบ', kw:['ยื่นคำขอ','รอตรวจ','รอการตรวจ','รับคำขอ','ยื่นแบบ']},
+  {id:2, name:'ตรวจสอบเอกสาร/เทคนิค', kw:['ตรวจสอบเอกสาร','ตรวจสอบทางเทคนิค','ระหว่างตรวจ','ตรวจสอบข้อมูล','รอ หผ','รอ ผจก','รอพิจารณา','รออนุมัติผล','รับพิจารณา']},
+  {id:3, name:'รอทำสัญญา/ชำระเงิน', kw:['รอทำสัญญา','รอสัญญา','ทำสัญญา','ชำระเงิน','ประกาศผล','ผ่านการพิจารณา','รอชำระ','รอลงนาม']},
+  {id:4, name:'ทำสัญญาเรียบร้อยแล้ว', kw:['ทำสัญญาเรียบร้อย','สัญญาเรียบร้อย','ลงนามสัญญา','ลงนามแล้ว','สัญญาสมบูรณ์','ทำสัญญาแล้ว']},
+  {id:5, name:'ติดตั้งอุปกรณ์/ระบบ', kw:['ติดตั้ง']},
+  {id:6, name:'ยื่นขอเชื่อมต่อ', kw:['ยื่นขอเชื่อมต่อ','ยื่นเชื่อมต่อ','ขออนุญาตเชื่อมต่อ','รออนุมัติเชื่อมต่อ','ใบรับรองตนเอง']},
+  {id:7, name:'อนุมัติเชื่อมต่อ', kw:['อนุมัติเชื่อมต่อ','อนุมัติการเชื่อมต่อ','รอดำเนินการหลังอนุมัติ']},
+  {id:8, name:'เปลี่ยนมิเตอร์/ทดสอบ FS', kw:['มิเตอร์','ทดสอบ','first sync','นัดหมาย']},
+  {id:9, name:'COD/เชื่อมต่อแล้ว', kw:['cod','จ่ายไฟเชิงพาณิชย์','เริ่มต้นซื้อขาย','เชื่อมต่อเรียบร้อย','เชื่อมต่อเข้าระบบแล้ว']},
+  {id:0, name:'ไม่ผ่าน/ยกเลิก', kw:['ไม่ผ่าน','ยกเลิก','ปฏิเสธ','สิ้นผล','คืนคำขอ']}
+];
+const FIELDS = [
+  {key:'reqNo',   label:'เลขที่คำขอ *',        kw:['เลขที่คำขอ','เลขคำขอ','request']},
+  {key:'area',    label:'พื้นที่ / กฟฟ.',       kw:['กฟฟ.พื้นที่','พื้นที่ กฟฟ','พื้นที่','การไฟฟ้า','สังกัด']},
+  {key:'hub',     label:'จุดรวมงาน (ถ้ามีในไฟล์)', kw:['กฟฟ.จุดรวมงาน','จุดรวมงาน','จุดร่วมงาน']},
+  {key:'gridChk', label:'ผลตรวจ Grid Capacity',   kw:['ผลการตรวจสอบ grid','grid capacity','grid']},
+  {key:'status',  label:'สถานะคำขอ *',         kw:['สถานะคำขอ','สถานะ','status']},
+  {key:'kw',      label:'กำลังไฟฟ้า (kW)',      kw:['กำลังการผลิตที่ขอ','ปริมาณเสนอขาย','เสนอขาย','กำลังไฟฟ้า','กิโลวัตต์']},
+  {key:'dSubmit', label:'วันที่ยื่นคำขอ',       kw:['วันที่ยื่นคำขอ','วันที่ยื่น','วันยื่น']},
+  {key:'dAnnounce',label:'วันที่ประกาศผล',      kw:['วันที่ประกาศผล','ประกาศ','วันที่อนุมัติผล']},
+  {key:'dSign',   label:'วันที่ลงนามสัญญา',     kw:['วันที่ลงนาม','ลงนาม','วันที่ทำสัญญา']},
+  {key:'dPay',    label:'วันที่ชำระเงิน',       kw:['วันที่ชำระเงิน','ชำระเงิน']},
+  {key:'dConnReq',label:'วันที่ยื่นขอเชื่อมต่อ', kw:['วันที่ยื่นขอเชื่อมต่อ','ยื่นขอเชื่อมต่อ','ยื่นเชื่อมต่อ']},
+  {key:'dConnApprove',label:'วันที่อนุมัติเชื่อมต่อ',kw:['วันที่อนุมัติเชื่อมต่อ','อนุมัติเชื่อมต่อ']},
+  {key:'dCod',    label:'วันที่ COD/เชื่อมต่อเข้าระบบ', kw:['วันที่เชื่อมต่อเข้าระบบ','วันที่ cod','cod','เริ่มต้นซื้อขาย']}
+];
+const SLA = {reviewDays:30, signDays:30};
+const LS_KEY = 'ppim_solar_dash_v1';
+
+/* ================= STATE ================= */
+let raw = [];
+let headers = [];
+let mapping = {};
+let rows = [];
+let sort = {col:'dSubmit', dir:-1};
+let page = 1; const PER = 25;
+let charts = {};
+let stepFilter = null;
+
+/* ================= HELPERS ================= */
+const $ = s => document.querySelector(s);
+const fmtN = n => (n==null||isNaN(n))?'-':n.toLocaleString('th-TH',{maximumFractionDigits:2});
+const THMON = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+function fmtD(d){ if(!d) return '-'; return d.getDate()+' '+THMON[d.getMonth()]+' '+(d.getFullYear()+543); }
+function parseDate(v){
+  if(v==null||v==='') return null;
+  if(v instanceof Date) return isNaN(v)?null:v;
+  if(typeof v==='number'){ // Excel serial
+    const d = new Date(Math.round((v-25569)*86400*1000));
+    return isNaN(d)?null:d;
+  }
+  const s = String(v).trim();
+  if(s==='-'||s==='') return null;
+  // ISO ก่อนเสมอ เช่น "2024-01-15 16:55:13"
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m){ let yy=+m[1]; if(yy>2400)yy-=543; const d=new Date(yy,+m[2]-1,+m[3]); return isNaN(d)?null:d; }
+  m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+  if(m){
+    let dd=+m[1], mm=+m[2], yy=+m[3];
+    if(yy<100) yy+=2500; // สองหลัก ถือเป็น พ.ศ.
+    if(yy>2400) yy-=543;  // พ.ศ. -> ค.ศ.
+    const d = new Date(yy,mm-1,dd);
+    return isNaN(d)?null:d;
+  }
+  return null;
+}
+function classifyStatus(txt){
+  const t = String(txt||'').toLowerCase().trim();
+  if(!t) return null;
+  // ตรวจ "ไม่ผ่าน/ยกเลิก" ก่อน เพื่อไม่ให้ชนกับคำอื่น
+  for(const st of [STEPS[9],...STEPS.slice(0,9).reverse()]){
+    if(st.kw.some(k=>t.includes(k.toLowerCase()))) return st.id;
+  }
+  return null;
+}
+function daysBetween(a,b){ return Math.floor((b-a)/86400000); }
+function addD(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); x.setHours(0,0,0,0); return x; }
+
+/* ================= FILE LOADING ================= */
+// พับ/กางช่องนำเข้าข้อมูล (ซ่อนเป็นค่าเริ่มต้น)
+$('#uploadHead').onclick = ()=>{
+  const b = $('#uploadBody');
+  b.classList.toggle('hidden');
+  $('#uploadArrow').textContent = b.classList.contains('hidden') ? '▸' : '▾';
+};
+const dz = $('#dropzone'), fi = $('#fileInput');
+dz.onclick = ()=>fi.click();
+dz.ondragover = e=>{e.preventDefault();dz.classList.add('drag')};
+dz.ondragleave = ()=>dz.classList.remove('drag');
+dz.ondrop = e=>{e.preventDefault();dz.classList.remove('drag'); if(e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);};
+fi.onchange = ()=>{ if(fi.files[0]) loadFile(fi.files[0]); };
+
+// Parser CSV รองรับ delimiter ใดก็ได้ + เซลล์ในเครื่องหมายคำพูดที่มีหลายบรรทัด
+function parseDelimited(txt, delim){
+  const rows=[]; let row=[], cell='', inQ=false;
+  txt = txt.replace(/^﻿/,'');
+  for(let i=0;i<txt.length;i++){
+    const c = txt[i];
+    if(inQ){
+      if(c==='"'){ if(txt[i+1]==='"'){cell+='"';i++;} else inQ=false; }
+      else cell+=c;
+    } else {
+      if(c==='"') inQ=true;
+      else if(c===delim){ row.push(cell); cell=''; }
+      else if(c==='\n'||c==='\r'){
+        if(c==='\r'&&txt[i+1]==='\n') i++;
+        row.push(cell); cell='';
+        if(row.length>1||row[0].trim()!=='') rows.push(row);
+        row=[];
+      }
+      else cell+=c;
+    }
+  }
+  if(cell!==''||row.length){ row.push(cell); if(row.length>1||row[0].trim()!=='') rows.push(row); }
+  return rows;
+}
+function loadFile(file){
+  const rd = new FileReader();
+  rd.onload = e=>{
+    try{
+      let data, hdrs;
+      if(/\.(csv|txt)$/i.test(file.name)){
+        // ลอง UTF-8 ก่อน ถ้าอ่านภาษาไทยไม่ออก สลับเป็น Windows-874 (TIS-620)
+        let txt = new TextDecoder('utf-8').decode(e.target.result);
+        if(txt.includes('�')){
+          try{ txt = new TextDecoder('windows-874').decode(e.target.result); }catch(_){}
+        }
+        // ตรวจ delimiter จากบรรทัดแรก: | , แท็บ ;
+        const nl = txt.indexOf('\n');
+        const first = nl>0 ? txt.slice(0,nl) : txt.slice(0,2000);
+        const delim = ['|',',','\t',';'].reduce((a,b)=>
+          (first.split(b).length > first.split(a).length) ? b : a);
+        const grid = parseDelimited(txt, delim);
+        if(grid.length<2){ alert('ไม่พบข้อมูลในไฟล์'); return; }
+        hdrs = grid[0].map(h=>String(h).trim());
+        data = grid.slice(1).filter(r=>r.length>=2).map(r=>{
+          const o={}; hdrs.forEach((h,ix)=>o[h]= r[ix]!=null ? String(r[ix]).trim() : ''); return o;
+        });
+      } else {
+        const wb = XLSX.read(e.target.result,{type:'array',cellDates:true});
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        data = XLSX.utils.sheet_to_json(ws,{defval:''});
+        if(!data.length){ alert('ไม่พบข้อมูลในไฟล์'); return; }
+        hdrs = Object.keys(data[0]);
+      }
+      raw = data; headers = hdrs;
+      autoMap(); renderMapPanel();
+      $('#lastUpdate').textContent = 'ไฟล์: '+file.name+' · '+data.length+' แถว · โหลดเมื่อ '+new Date().toLocaleString('th-TH');
+    }catch(err){ alert('อ่านไฟล์ไม่ได้: '+err.message); }
+  };
+  rd.readAsArrayBuffer(file);
+}
+
+/* โหลดจาก Google Sheets (ชีตต้องแชร์เป็น "ทุกคนที่มีลิงก์ - ดูได้") */
+const SHEET_ID = '1dL1S8nyDeZQRIycLIMtQu5PKaMEYRjMJBXuZTodAmTk';
+const SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1';
+const SHEET_JSON = 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:json&headers=1';
+
+function applySheetData(r){
+  raw = r.data; headers = r.hdrs;
+  autoMap(); renderMapPanel(); process(); save();
+  $('#lastUpdate').textContent = 'Google Sheets · '+rows.length+' รายการ · อัปเดต '+new Date().toLocaleString('th-TH');
+}
+// วิธีที่ 1: fetch CSV ตรงๆ (เร็วสุด แต่บางเครื่อง/บางเครือข่ายโดน CORS บล็อก)
+async function tryFetchCsv(){
+  const res = await fetch(SHEET_CSV);
+  if(!res.ok) throw new Error('HTTP '+res.status);
+  const txt = await res.text();
+  if(!txt || txt.trim().startsWith('<')) throw new Error('ไม่ได้รับข้อมูล CSV');
+  const grid = parseDelimited(txt, ',');
+  if(grid.length<2) throw new Error('ไม่พบข้อมูลในชีต');
+  const hdrs = grid[0].map(h=>String(h).trim());
+  const data = grid.slice(1).map(r=>{
+    const o={}; hdrs.forEach((h,ix)=>o[h]= r[ix]!=null ? String(r[ix]).trim() : ''); return o;
+  });
+  return {data, hdrs};
+}
+// วิธีที่ 2 (สำรอง): โหลดผ่าน <script> แบบ JSONP — ไม่ติด CORS แม้เปิดไฟล์จากในเครื่อง
+function tryJsonp(){
+  return new Promise((resolve,reject)=>{
+    window.google = window.google || {};
+    google.visualization = google.visualization || {};
+    google.visualization.Query = google.visualization.Query || {};
+    const timer = setTimeout(()=>reject(new Error('หมดเวลาเชื่อมต่อ Google Sheets')), 15000);
+    google.visualization.Query.setResponse = resp=>{
+      clearTimeout(timer);
+      try{
+        if(resp.status!=='ok') throw new Error('ชีตตอบกลับผิดพลาด (ตรวจสอบการแชร์)');
+        const cols = resp.table.cols.map(c=>String(c.label||c.id||'').trim());
+        const data = resp.table.rows.map(rw=>{
+          const o={};
+          (rw.c||[]).forEach((cell,ix)=>{
+            let v = cell ? (cell.f!=null ? cell.f : cell.v) : '';
+            if(v==null) v='';
+            v = String(v).trim();
+            const m = v.match(/^Date\((\d+),(\d+),(\d+)(?:,(\d+),(\d+))?/);
+            if(m) v = m[1]+'-'+String(+m[2]+1).padStart(2,'0')+'-'+String(+m[3]).padStart(2,'0')+' '+(m[4]||'0')+':'+(m[5]||'00');
+            o[cols[ix]] = v;
+          });
+          return o;
+        });
+        resolve({data, hdrs:cols});
+      }catch(e){ reject(e); }
+    };
+    const s = document.createElement('script');
+    s.src = SHEET_JSON;
+    s.onerror = ()=>{ clearTimeout(timer); reject(new Error('เชื่อมต่อ docs.google.com ไม่ได้ (เครือข่ายอาจบล็อก)')); };
+    document.body.appendChild(s);
+  });
+}
+async function loadFromSheet(silent){
+  $('#lastUpdate').textContent = 'กำลังโหลดข้อมูลจาก Google Sheets...';
+  try{
+    const r = await tryFetchCsv().catch(()=>tryJsonp());
+    applySheetData(r);
+    return true;
+  }catch(err){
+    $('#lastUpdate').textContent = 'โหลดจาก Google Sheets ไม่สำเร็จ';
+    // กางช่องนำเข้าข้อมูลให้อัตโนมัติ เพื่อให้ลากไฟล์ CSV ใส่แทนได้
+    $('#uploadBody').classList.remove('hidden');
+    $('#uploadArrow').textContent = '▾';
+    if(!silent) alert('โหลดจาก Google Sheets ไม่ได้: '+err.message
+      +'\n\nสาเหตุที่พบบ่อย:\n1) เครือข่าย/องค์กรบล็อก docs.google.com\n2) ชีตไม่ได้แชร์ "ทุกคนที่มีลิงก์"\n3) ไม่ได้ต่ออินเทอร์เน็ต\n\nระหว่างนี้ใช้วิธีลากไฟล์ CSV ใส่แทนได้เลย');
+    return false;
+  }
+}
+$('#btnSheet').onclick = ()=>loadFromSheet(false);
+
+function autoMap(){
+  mapping = {};
+  const norm = s=>String(s).toLowerCase().replace(/\s+/g,'');
+  const used = new Set();
+  for(const f of FIELDS){
+    let hit = null;
+    // 1) ตรงทั้งคำ  2) ขึ้นต้นด้วย  3) มีคำอยู่ข้างใน (เรียงตามลำดับ keyword)
+    for(const k of f.kw){ hit = headers.find(h=>!used.has(h)&&norm(h)===norm(k)); if(hit)break; }
+    if(!hit) for(const k of f.kw){ hit = headers.find(h=>!used.has(h)&&norm(h).startsWith(norm(k))); if(hit)break; }
+    if(!hit) for(const k of f.kw){ hit = headers.find(h=>!used.has(h)&&norm(h).includes(norm(k))); if(hit)break; }
+    if(hit){ mapping[f.key] = hit; used.add(hit); }
+  }
+}
+function renderMapPanel(){
+  const g = $('#mapGrid'); g.innerHTML='';
+  for(const f of FIELDS){
+    const d = document.createElement('div');
+    const opts = ['<option value="">— ไม่ใช้ —</option>']
+      .concat(headers.map(h=>`<option value="${h.replace(/"/g,'&quot;')}" ${mapping[f.key]===h?'selected':''}>${h}</option>`));
+    d.innerHTML = `<label>${f.label}</label><select data-f="${f.key}">${opts.join('')}</select>`;
+    g.appendChild(d);
+  }
+  $('#mapPanel').classList.remove('hidden');
+}
+$('#btnApplyMap').onclick = ()=>{
+  document.querySelectorAll('#mapGrid select').forEach(s=>{
+    if(s.value) mapping[s.dataset.f]=s.value; else delete mapping[s.dataset.f];
+  });
+  if(!mapping.reqNo || !mapping.status){ alert('ต้องระบุคอลัมน์ "เลขที่คำขอ" และ "สถานะคำขอ" เป็นอย่างน้อย'); return; }
+  process(); save();
+};
+
+/* ================= PROCESS ================= */
+function process(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  rows = raw.map((r,i)=>{
+    const get = k => mapping[k]!=null ? r[mapping[k]] : '';
+    const clean = v => { v=String(v||'').trim(); return v==='-'?'':v; };
+    const hubV = clean(get('hub'));
+    const o = {
+      i, reqNo:clean(get('reqNo')), area:clean(get('area'))||'ไม่ระบุ',
+      hub: (hubV==='#N/A'||hubV.toLowerCase()==='x') ? '' : hubV,
+      gridChk: clean(get('gridChk')),
+      statusTxt:clean(get('status')),
+      kw: parseFloat(String(get('kw')).replace(/[^\d.]/g,''))||0,
+      dSubmit:parseDate(get('dSubmit')), dAnnounce:parseDate(get('dAnnounce')),
+      dSign:parseDate(get('dSign')), dPay:parseDate(get('dPay')),
+      dConnReq:parseDate(get('dConnReq')), dConnApprove:parseDate(get('dConnApprove')),
+      dCod:parseDate(get('dCod'))
+    };
+    o.gridPass = o.gridChk.includes('ผ่าน') && !o.gridChk.includes('ไม่ผ่าน');
+    o.step = classifyStatus(o.statusTxt);
+    // SLA evaluation — 2 จุดควบคุม
+    o.sla = {phase:null, band:null, elapsed:null, due:null, label:''};
+    if(o.step===1||o.step===2){
+      // ขั้นตอนที่ 1→2 : ตรวจสอบเอกสาร/เทคนิค นับจากวันยื่นคำขอ
+      if(o.dSubmit){
+        o.sla.phase='review'; o.sla.label='ตรวจสอบเอกสาร/เทคนิค';
+        o.sla.due = addD(o.dSubmit,SLA.reviewDays);
+        o.sla.elapsed = Math.max(0,daysBetween(o.dSubmit,today));
+      }
+    } else if(o.step===3){
+      // ขั้นตอนที่ 2→5 : ทำสัญญา นับจากวันประกาศผล
+      // (ถ้าไฟล์ไม่มีวันประกาศผล ใช้วันอนุมัติเชื่อมต่อแทน)
+      const base = o.dAnnounce || o.dConnApprove;
+      if(base){
+        o.sla.phase='contract'; o.sla.label='ทำสัญญา/ชำระเงิน';
+        o.sla.due = addD(base,SLA.signDays);
+        o.sla.elapsed = Math.max(0,daysBetween(base,today));
+      }
+    }
+    if(o.sla.elapsed!=null){
+      const e = o.sla.elapsed;
+      o.sla.band = e<=10?'green' : e<=20?'yellow' : e<=30?'red' : 'over';
+    }
+    o.pendDays = o.dSubmit? daysBetween(o.dSubmit,today) : null;
+    return o;
+  }).filter(o=>o.reqNo);
+  stepFilter=null; page=1;
+  renderAll();
+  $('#dash').classList.remove('hidden');
+}
+
+/* ================= RENDER ================= */
+function renderAll(){ renderKpis(); renderPipeline(); renderSla(); renderHubOverview(); renderHubs(); renderCharts(); buildFilterOptions(); renderTable(); }
+
+function renderHubOverview(){
+  const el = $('#hubOverview'); if(!el) return;
+  const map = hubMapping();
+  const counts = {};
+  rows.forEach(r=>{
+    const hub = r.hub || map[r.area] || r.area;
+    counts[hub] = (counts[hub]||0)+1;
+  });
+  const keys = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
+  if(!keys.length){ el.innerHTML='<div class="note">ยังไม่มีข้อมูล</div>'; return; }
+  const max = counts[keys[0]];
+  el.innerHTML = keys.map(k=>`
+    <div class="hub-row" title="${k}: ${counts[k]} งาน">
+      <span class="hub-name">${k}</span>
+      <div class="hub-bar"><div class="hub-fill" style="width:${Math.round(counts[k]/max*100)}%"></div></div>
+      <span class="hub-count">${fmtN(counts[k])} งาน</span>
+    </div>`).join('')
+  + `<div class="hub-row" style="border-top:1px solid var(--border);padding-top:6px;margin-top:6px">
+      <span class="hub-name">รวม ${keys.length} จุด</span>
+      <div class="hub-bar" style="visibility:hidden"></div>
+      <span class="hub-count">${fmtN(rows.length)} งาน</span>
+    </div>`;
+}
+
+/* ================= จุดรวมงาน ================= */
+const HUB_KEY = 'ppim_hub_map_v1';
+// ค่าเริ่มต้น: ตารางจับคู่ กฟฟ.พื้นที่ → จุดรวมงาน ของ กฟน.1 (ฝังไว้ในไฟล์ ไม่ต้องตั้งค่าเอง)
+const DEFAULT_HUB_MAP = {
+  'กฟจ.พะเยา':'กฟจ.พะเยา','กฟย.แม่กา':'กฟจ.พะเยา','กฟอ.จุน':'กฟจ.พะเยา','กฟอ.เชียงคำ':'กฟจ.พะเยา',
+  'กฟอ.เชียงม่วน':'กฟจ.พะเยา','กฟอ.ดอกคำใต้':'กฟจ.พะเยา','กฟอ.ปง':'กฟจ.พะเยา','กฟอ.ภูกามยาว':'กฟจ.พะเยา',
+  'กฟอ.ภูซาง':'กฟจ.พะเยา','กฟอ.แม่ใจ':'กฟจ.พะเยา',
+  'กฟจ.แม่ฮ่องสอน':'กฟจ.แม่ฮ่องสอน','กฟอ.กัลยาณิวัฒนา':'กฟจ.แม่ฮ่องสอน','กฟอ.ขุนยวม':'กฟจ.แม่ฮ่องสอน',
+  'กฟอ.ปางมะผ้า':'กฟจ.แม่ฮ่องสอน','กฟอ.ปาย':'กฟจ.แม่ฮ่องสอน','กฟอ.แม่ลาน้อย':'กฟจ.แม่ฮ่องสอน',
+  'กฟอ.แม่สะเรียง':'กฟจ.แม่ฮ่องสอน','กฟอ.สบเมย':'กฟจ.แม่ฮ่องสอน',
+  'กฟน.1':'กฟน.1',
+  'กฟอ.เกาะคา':'กฟส.เกาะคา','กฟอ.เถิน':'กฟส.เกาะคา','กฟอ.แม่ทะ':'กฟส.เกาะคา','กฟอ.แม่พริก':'กฟส.เกาะคา',
+  'กฟอ.สบปราบ':'กฟส.เกาะคา','กฟอ.เสริมงาม':'กฟส.เกาะคา','กฟอ.ห้างฉัตร':'กฟส.เกาะคา',
+  'กฟอ.จอมทอง':'กฟส.จอมทอง','กฟอ.ดอยเต่า':'กฟส.จอมทอง','กฟอ.ดอยหล่อ':'กฟส.จอมทอง','กฟอ.แม่แจ่ม':'กฟส.จอมทอง',
+  'กฟอ.อมก๋อย':'กฟส.จอมทอง','กฟอ.ฮอด':'กฟส.จอมทอง','กฟต.บ่อหลวง':'กฟส.จอมทอง',
+  'กฟจ.เชียงราย':'กฟจ.เชียงราย','กฟต.ห้วยสัก':'กฟจ.เชียงราย','กฟส.นางแล':'กฟจ.เชียงราย',
+  'กฟอ.เวียงชัย':'กฟจ.เชียงราย','กฟอ.เวียงเชียงรุ้ง':'กฟจ.เชียงราย',
+  'กฟอ.ขุนตาล':'กฟส.เทิง','กฟอ.เชียงของ':'กฟส.เทิง','กฟอ.เทิง':'กฟส.เทิง','กฟอ.พญาเม็งราย':'กฟส.เทิง','กฟอ.เวียงแก่น':'กฟส.เทิง',
+  'กฟอ.ไชยปราการ':'กฟส.ฝาง','กฟอ.ฝาง':'กฟส.ฝาง',
+  'กฟอ.ป่าแดด':'กฟส.พาน','กฟอ.พาน':'กฟส.พาน','กฟอ.แม่ลาว':'กฟส.พาน','กฟอ.แม่สรวย':'กฟส.พาน','กฟอ.เวียงป่าเป้า':'กฟส.พาน',
+  'กฟจ.เชียงใหม่':'กฟจ.เชียงใหม่','กฟอ.สารภี':'กฟจ.เชียงใหม่',
+  'กฟจ.เชียงใหม่ 2':'กฟจ.เชียงใหม่ 2','กฟอ.ดอยสะเก็ด':'กฟจ.เชียงใหม่ 2',
+  'กฟต.ป่าแป๋':'กฟส.แม่ริม','กฟอ.เชียงดาว':'กฟส.แม่ริม','กฟอ.แม่แตง':'กฟส.แม่ริม','กฟอ.แม่ริม':'กฟส.แม่ริม',
+  'กฟอ.เวียงแหง':'กฟส.แม่ริม','กฟอ.สะเมิง':'กฟส.แม่ริม',
+  'กฟต.แม่สลองนอก':'กฟส.แม่สาย','กฟบ.เทอดไทย':'กฟส.แม่สาย','กฟฟ.ดอยตุง':'กฟส.แม่สาย','กฟส.ดอยหลวง':'กฟส.แม่สาย',
+  'กฟส.แม่ฟ้าหลวง':'กฟส.แม่สาย','กฟอ.เชียงแสน':'กฟส.แม่สาย','กฟอ.แม่จัน':'กฟส.แม่สาย','กฟอ.แม่สาย':'กฟส.แม่สาย','กฟอ.แม่อาย':'กฟส.แม่สาย',
+  'กฟจ.ลำปาง':'กฟจ.ลำปาง','กฟต.พบชส.':'กฟจ.ลำปาง','กฟอ.งาว':'กฟจ.ลำปาง','กฟอ.แจ้ห่ม':'กฟจ.ลำปาง',
+  'กฟอ.เมืองปาน':'กฟจ.ลำปาง','กฟอ.แม่เมาะ':'กฟจ.ลำปาง','กฟอ.วังเหนือ':'กฟจ.ลำปาง',
+  'กฟจ.ลำพูน':'กฟจ.ลำพูน','กฟต.นครเจดีย์':'กฟจ.ลำพูน','กฟส.ป่าซาง':'กฟจ.ลำพูน','กฟอ.ทุ่งหัวช้าง':'กฟจ.ลำพูน',
+  'กฟอ.บ้านธิ':'กฟจ.ลำพูน','กฟอ.บ้านโฮ่ง':'กฟจ.ลำพูน','กฟอ.แม่ทา':'กฟจ.ลำพูน','กฟอ.ลี้':'กฟจ.ลำพูน',
+  'กฟอ.เวียงหนองล่อง':'กฟจ.ลำพูน','กฟอ.แม่ตืน':'กฟจ.ลำพูน',
+  'กฟส.แม่ออน':'กฟส.สันกำแพง','กฟอ.สันกำแพง':'กฟส.สันกำแพง',
+  'กฟอ.พร้าว':'กฟส.สันทราย','กฟอ.สันทราย':'กฟส.สันทราย','กฟส.สันทราย':'กฟส.สันทราย',
+  'กฟอ.แม่วาง':'กฟส.สันป่าตอง','กฟอ.สันป่าตอง':'กฟส.สันป่าตอง',
+  'กฟอ.หางดง':'กฟส.หางดง','กฟส.หางดง':'กฟส.หางดง'
+};
+function hubMapping(){
+  const map = {...DEFAULT_HUB_MAP};
+  const txt = $('#hubCfg') ? $('#hubCfg').value : (localStorage.getItem(HUB_KEY)||'');
+  txt.split(/\n/).forEach(l=>{
+    const ix = l.indexOf('=');
+    if(ix>0){
+      const hub = l.slice(0,ix).trim();
+      l.slice(ix+1).split(',').forEach(a=>{ const k=a.trim(); if(k&&hub) map[k]=hub; });
+    }
+  });
+  return map;
+}
+function renderHubs(){
+  const el = $('#hubBody'); if(!el) return;
+  const map = hubMapping();
+  const groups = {};
+  rows.forEach(r=>{
+    const hub = r.hub || map[r.area] || r.area;
+    const g = groups[hub] = groups[hub] || {n:0,kw:0,gp:0,g:0,y:0,r:0,o:0,cod:0,cancel:0};
+    g.n++; g.kw += r.kw;
+    if(r.gridPass) g.gp++;
+    if(r.sla.band==='green') g.g++;
+    else if(r.sla.band==='yellow') g.y++;
+    else if(r.sla.band==='red') g.r++;
+    else if(r.sla.band==='over') g.o++;
+    if(r.step===9) g.cod++;
+    if(r.step===0) g.cancel++;
+  });
+  const keys = Object.keys(groups).sort((a,b)=>groups[b].n-groups[a].n);
+  const t = {n:0,kw:0,gp:0,g:0,y:0,r:0,o:0,cod:0,cancel:0};
+  keys.forEach(k=>{ for(const f in t) t[f]+=groups[k][f]; });
+  el.innerHTML = keys.map(k=>{ const g=groups[k]; return `<tr>
+    <td><b>${k}</b></td><td>${fmtN(g.n)}</td><td>${fmtN(g.kw)}</td>
+    <td class="cell-green">${g.gp||'-'}</td>
+    <td class="cell-green">${g.g||'-'}</td><td class="cell-yellow">${g.y||'-'}</td>
+    <td class="cell-red">${g.r||'-'}</td><td class="cell-over">${g.o||'-'}</td>
+    <td>${g.cod||'-'}</td><td>${g.cancel||'-'}</td></tr>`; }).join('')
+  + `<tr style="background:#F4F7FC;font-weight:700"><td>รวม ${keys.length} จุด</td>
+    <td>${fmtN(t.n)}</td><td>${fmtN(t.kw)}</td>
+    <td class="cell-green">${t.gp}</td>
+    <td class="cell-green">${t.g}</td><td class="cell-yellow">${t.y}</td>
+    <td class="cell-red">${t.r}</td><td class="cell-over">${t.o}</td>
+    <td>${t.cod}</td><td>${t.cancel}</td></tr>`;
+}
+$('#hubCfg').value = localStorage.getItem(HUB_KEY)||'';
+$('#btnHubSave').onclick = ()=>{ localStorage.setItem(HUB_KEY, $('#hubCfg').value); renderHubs(); };
+$('#btnHubFill').onclick = ()=>{
+  if(!rows.length){ alert('โหลดไฟล์ข้อมูลก่อน แล้วระบบจะดึงรายชื่อ กฟฟ. มาให้'); return; }
+  const areas = [...new Set(rows.map(r=>r.area))].sort();
+  const cur = $('#hubCfg').value.trim();
+  $('#hubCfg').value = (cur? cur+'\n' : '') + '(แก้ชื่อจุดรวมงานตรงนี้) = ' + areas.join(', ');
+};
+
+function renderKpis(){
+  const tot = rows.length;
+  const kwSum = rows.reduce((s,r)=>s+r.kw,0);
+  const passed = rows.filter(r=>r.step>=3&&r.step!==0).length;
+  const cod = rows.filter(r=>r.step===9).length;
+  const rej = rows.filter(r=>r.step===0).length;
+  const g = rows.filter(r=>r.sla.band==='green').length;
+  const y = rows.filter(r=>r.sla.band==='yellow').length;
+  const rd = rows.filter(r=>r.sla.band==='red').length;
+  const ov = rows.filter(r=>r.sla.band==='over').length;
+  $('#kpis').innerHTML = `
+    <div class="kpi"><div class="v">${fmtN(tot)}</div><div class="l">คำขอทั้งหมด (ราย)</div></div>
+    <div class="kpi info"><div class="v">${fmtN(kwSum)}</div><div class="l">kW รวม (${fmtN(kwSum/1000)} MW)</div></div>
+    <div class="kpi ok"><div class="v">${fmtN(rows.filter(r=>r.gridPass).length)}</div><div class="l">ผ่านตรวจ Grid Capacity</div></div>
+    <div class="kpi ok"><div class="v">${fmtN(passed)}</div><div class="l">ผ่านการพิจารณาแล้ว</div></div>
+    <div class="kpi ok"><div class="v">${fmtN(cod)}</div><div class="l">เชื่อมต่อแล้ว / COD</div></div>
+    <div class="kpi danger"><div class="v">${fmtN(rej)}</div><div class="l">ไม่ผ่าน/ยกเลิก</div></div>
+    <div class="kpi warn"><div class="v" style="font-size:1.05rem">🟢${fmtN(g)} 🟡${fmtN(y)} 🔴${fmtN(rd)}</div><div class="l">สถานะ SLA (ตรวจสอบ+ทำสัญญา)</div></div>
+    <div class="kpi danger"><div class="v">${fmtN(ov)}</div><div class="l">⛔ งานค้างเกิน SLA (30 วัน)</div></div>`;
+}
+
+function renderPipeline(){
+  const p = $('#pipeline'); p.innerHTML='';
+  for(const st of STEPS){
+    const c = rows.filter(r=>r.step===st.id).length;
+    const d = document.createElement('div');
+    d.className = 'step'+(st.id===0?' rejected':'')+(stepFilter===st.id?' active':'');
+    d.innerHTML = `<div class="num">${st.id===0?'✕':st.id}</div><div class="sc">${fmtN(c)}</div><div class="sn">${st.name}</div>`;
+    d.onclick = ()=>{ stepFilter = (stepFilter===st.id)?null:st.id; page=1; renderPipeline(); renderTable(); };
+    p.appendChild(d);
+  }
+  const un = rows.filter(r=>r.step===null).length;
+  if(un){
+    const d = document.createElement('div');
+    d.className='step'+(stepFilter==='un'?' active':'');
+    d.innerHTML = `<div class="num">?</div><div class="sc">${fmtN(un)}</div><div class="sn">ไม่ทราบสถานะ</div>`;
+    d.onclick = ()=>{ stepFilter=(stepFilter==='un')?null:'un'; page=1; renderPipeline(); renderTable(); };
+    p.appendChild(d);
+  }
+}
+
+const BAND_ICON = {green:'🟢',yellow:'🟡',red:'🔴',over:'⛔'};
+function renderSla(){
+  const el = $('#slaList');
+  const groups = [
+    {phase:'review',   title:'① ขั้นตอนที่ 1 → 2 : ตรวจสอบเอกสารและทางเทคนิค (ไม่เกิน 30 วัน นับจากวันยื่นคำขอ)', note:null},
+    {phase:'contract', title:'② ขั้นตอนที่ 2 → 5 : การทำสัญญา (ห้ามเกิน 30 วัน นับจากวันประกาศผล/วันอนุมัติเชื่อมต่อ)', note:'📌 วันชำระเงิน = วันที่ลงนามสัญญา (ตราปั้มวันที่)'}
+  ];
+  el.innerHTML = groups.map(gr=>{
+    const list = rows.filter(r=>r.sla.phase===gr.phase);
+    const cnt = b => list.filter(r=>r.sla.band===b).length;
+    const show = list.filter(r=>r.sla.band!=='green')
+      .sort((a,b)=>(b.sla.elapsed??0)-(a.sla.elapsed??0)).slice(0,40);
+    const noDate = gr.phase==='contract' ? rows.filter(r=>r.step===3&&!r.dAnnounce&&!r.dConnApprove).length
+                 : rows.filter(r=>(r.step===1||r.step===2)&&!r.dSubmit).length;
+    return `<div class="sla-group">
+      <h3>${gr.title}</h3>
+      ${gr.note?`<div class="pay-note">${gr.note}</div><br>`:''}
+      <div class="sla-chips">
+        <span class="chip green">🟢 1-10 วัน: ${fmtN(cnt('green'))} ราย</span>
+        <span class="chip yellow">🟡 11-20 วัน: ${fmtN(cnt('yellow'))} ราย</span>
+        <span class="chip red">🔴 21-30 วัน: ${fmtN(cnt('red'))} ราย</span>
+        <span class="chip over">⛔ เกิน 30 วัน: ${fmtN(cnt('over'))} ราย</span>
+        ${noDate?`<span class="chip" style="background:#eef0f2;color:#6b7280">⚠ ไม่มีวันที่อ้างอิง: ${fmtN(noDate)} ราย</span>`:''}
+      </div>
+      ${show.length? show.map(r=>`
+        <div class="sla-item ${r.sla.band}">
+          <span><strong>${r.reqNo||'-'}</strong> · ${r.area} · <span class="badge ${bcls(r.step)}" title="${r.statusTxt}">${stepName(r.step)}</span></span>
+          <span class="sla-badge">${BAND_ICON[r.sla.band]} ใช้ไป ${r.sla.elapsed} วัน · ครบกำหนด ${fmtD(r.sla.due)}${r.sla.band==='over'?' · เกินมา '+(r.sla.elapsed-30)+' วัน':''}</span>
+        </div>`).join('')
+      : '<div class="note">✅ ทุกรายอยู่ในช่วง 🟢 1-10 วัน</div>'}
+    </div>`;
+  }).join('');
+}
+
+function stepName(s){ if(s===null)return 'ไม่ทราบ'; const st=STEPS.find(x=>x.id===s); return st?st.name:'-'; }
+function bcls(s){ return s===null?'bx':'b'+s; }
+
+function renderCharts(){
+  Object.values(charts).forEach(c=>c.destroy()); charts={};
+  const colors = ['#8896A5','#2F5FA8','#2F7FD1','#F2C230','#8E6BB5','#7BA23F','#2C66AD','#127C8A','#E8862E','#1E7A3C','#D64545'];
+  // status doughnut
+  const labels=[], data=[], bg=[];
+  const order=[null,...STEPS.map(s=>s.id)];
+  order.forEach((id,ix)=>{
+    const c = rows.filter(r=>r.step===id).length;
+    if(c){ labels.push(id===null?'ไม่ทราบ':stepName(id)); data.push(c); bg.push(colors[ix%colors.length]); }
+  });
+  charts.st = new Chart($('#chStatus'),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:bg}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:12}}}}});
+  // by area
+  const areas = {};
+  rows.forEach(r=>{ areas[r.area]=areas[r.area]||{n:0,kw:0}; areas[r.area].n++; areas[r.area].kw+=r.kw; });
+  const aKeys = Object.keys(areas).sort((a,b)=>areas[b].n-areas[a].n).slice(0,15);
+  charts.ar = new Chart($('#chArea'),{type:'bar',
+    data:{labels:aKeys,datasets:[
+      {label:'จำนวนคำขอ',data:aKeys.map(k=>areas[k].n),backgroundColor:'#1F4E9C',yAxisID:'y'},
+      {label:'kW',data:aKeys.map(k=>+areas[k].kw.toFixed(1)),backgroundColor:'#F2C230',yAxisID:'y1'}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      scales:{y:{position:'left',title:{display:true,text:'ราย'}},y1:{position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'kW'}},x:{ticks:{font:{size:10}}}}}});
+  // timeline cumulative
+  const byDay = {};
+  rows.forEach(r=>{ if(r.dSubmit){ const k=r.dSubmit.toISOString().slice(0,10); byDay[k]=(byDay[k]||0)+1; }});
+  const days = Object.keys(byDay).sort();
+  let cum=0; const cums = days.map(d=>cum+=byDay[d]);
+  charts.tm = new Chart($('#chTime'),{type:'line',
+    data:{labels:days.map(d=>{const x=new Date(d);return x.getDate()+' '+THMON[x.getMonth()];}),
+      datasets:[{label:'คำขอสะสม',data:cums,borderColor:'#1E7A3C',backgroundColor:'rgba(30,122,60,.12)',fill:true,tension:.25,pointRadius:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+}
+
+/* ================= TABLE ================= */
+const COLS = [
+  {k:'reqNo',t:'เลขที่คำขอ'},{k:'area',t:'พื้นที่'},
+  {k:'step',t:'สถานะ'},{k:'kw',t:'kW'},{k:'gridChk',t:'Grid Capacity'},{k:'dSubmit',t:'วันที่ยื่น'},{k:'pendDays',t:'รอมาแล้ว(วัน)'},
+  {k:'slaDue',t:'ครบกำหนด'},{k:'slaElapsed',t:'SLA (ใช้ไป)'}
+];
+function buildFilterOptions(){
+  const fs = $('#fStep'); fs.innerHTML = '<option value="">ทุกขั้นตอน</option>'+
+    STEPS.map(s=>`<option value="${s.id}">${s.id===0?'✕':s.id}. ${s.name}</option>`).join('')+'<option value="un">ไม่ทราบสถานะ</option>';
+  const fa = $('#fArea');
+  const areas=[...new Set(rows.map(r=>r.area))].sort();
+  fa.innerHTML = '<option value="">ทุกพื้นที่</option>'+areas.map(a=>`<option>${a}</option>`).join('');
+}
+function filtered(){
+  const q = $('#fSearch').value.toLowerCase().trim();
+  const fs = $('#fStep').value, fa = $('#fArea').value, fl = $('#fSla').value;
+  return rows.filter(r=>{
+    if(stepFilter!==null){ if(stepFilter==='un'){ if(r.step!==null) return false; } else if(r.step!==stepFilter) return false; }
+    if(fs){ if(fs==='un'){ if(r.step!==null) return false; } else if(r.step!==+fs) return false; }
+    if(fa && r.area!==fa) return false;
+    if(fl && r.sla.band!==fl) return false;
+    if(q && !(r.reqNo.toLowerCase().includes(q)||r.area.toLowerCase().includes(q))) return false;
+    return true;
+  });
+}
+function sortRows(list){
+  const {col,dir} = sort;
+  return list.slice().sort((a,b)=>{
+    let va,vb;
+    if(col==='slaDue'){va=a.sla.due?.getTime()??Infinity;vb=b.sla.due?.getTime()??Infinity;}
+    else if(col==='slaElapsed'){va=a.sla.elapsed??-1;vb=b.sla.elapsed??-1;}
+    else if(col==='dSubmit'){va=a.dSubmit?.getTime()??0;vb=b.dSubmit?.getTime()??0;}
+    else {va=a[col]??'';vb=b[col]??'';}
+    if(typeof va==='string') return va.localeCompare(vb,'th')*dir;
+    return (va-vb)*dir;
+  });
+}
+function renderTable(){
+  const head = $('#tblHead');
+  head.innerHTML = COLS.map(c=>`<th data-k="${c.k}">${c.t} <span class="arrow">${sort.col===c.k?(sort.dir>0?'▲':'▼'):''}</span></th>`).join('');
+  head.querySelectorAll('th').forEach(th=>th.onclick=()=>{
+    const k=th.dataset.k;
+    if(sort.col===k) sort.dir*=-1; else {sort.col=k;sort.dir=1;}
+    renderTable();
+  });
+  const list = sortRows(filtered());
+  $('#tblCount').textContent = `(แสดง ${fmtN(list.length)} จาก ${fmtN(rows.length)} รายการ)`;
+  const pages = Math.max(1,Math.ceil(list.length/PER));
+  if(page>pages) page=pages;
+  const pg = list.slice((page-1)*PER,page*PER);
+  $('#tblBody').innerHTML = pg.map(r=>{
+    const slaCell = r.sla.band ?
+      `<span class="cell-${r.sla.band}">${BAND_ICON[r.sla.band]} ${r.sla.elapsed} วัน</span>` : '-';
+    return `<tr>
+      <td>${r.reqNo||'-'}</td><td>${r.area}</td>
+      <td><span class="badge ${bcls(r.step)}" title="${r.statusTxt}">${stepName(r.step)}</span></td>
+      <td>${fmtN(r.kw)}</td>
+      <td>${r.gridPass?'<span class="cell-green">✔ ผ่าน</span>':(r.gridChk&&r.gridChk.toLowerCase()!=='x'?r.gridChk:'-')}</td>
+      <td>${fmtD(r.dSubmit)}</td><td>${r.pendDays??'-'}</td>
+      <td>${fmtD(r.sla.due)}</td><td>${slaCell}</td></tr>`;
+  }).join('');
+  // pager
+  const pgEl = $('#pager'); pgEl.innerHTML='';
+  if(pages>1){
+    const mk=(n,txt,cur)=>{const b=document.createElement('button');b.textContent=txt||n;if(cur)b.className='cur';b.onclick=()=>{page=n;renderTable();};return b;};
+    pgEl.appendChild(mk(Math.max(1,page-1),'‹'));
+    const start=Math.max(1,page-3), end=Math.min(pages,start+6);
+    for(let n=start;n<=end;n++) pgEl.appendChild(mk(n,null,n===page));
+    pgEl.appendChild(mk(Math.min(pages,page+1),'›'));
+    const info=document.createElement('span');info.textContent=` หน้า ${page}/${pages}`;pgEl.appendChild(info);
+  }
+}
+['fSearch','fStep','fArea','fSla'].forEach(id=>$('#'+id).addEventListener('input',()=>{page=1;renderTable();}));
+
+/* ================= EXPORT ================= */
+$('#btnExport').onclick = ()=>{
+  const list = sortRows(filtered());
+  const bandTh = {green:'เขียว 1-10 วัน',yellow:'เหลือง 11-20 วัน',red:'แดง 21-30 วัน',over:'เกิน 30 วัน'};
+  const head = ['เลขที่คำขอ','พื้นที่','จุดรวมงาน','สถานะ(ระบบ)','สถานะ(ต้นฉบับ)','kW','Grid Capacity','วันที่ยื่น','ครบกำหนด','SLA ใช้ไป(วัน)','แถบสี SLA'];
+  const hubMap = hubMapping();
+  const lines = [head.join(',')].concat(list.map(r=>[
+    r.reqNo,`"${r.area}"`,`"${r.hub||hubMap[r.area]||r.area}"`,stepName(r.step),`"${r.statusTxt.replace(/"/g,'""')}"`,
+    r.kw,`"${r.gridChk}"`,r.dSubmit?fmtD(r.dSubmit):'',r.sla.due?fmtD(r.sla.due):'',r.sla.elapsed??'',bandTh[r.sla.band]||''
+  ].join(',')));
+  const blob = new Blob(['﻿'+lines.join('\n')],{type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='PPIM-Solar-รายงาน-'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+};
+
+/* ================= PERSIST ================= */
+function save(){
+  try{ localStorage.setItem(LS_KEY, JSON.stringify({raw,headers,mapping,ts:Date.now()})); }catch(e){/* ไฟล์ใหญ่เกิน quota — ข้าม */}
+}
+function restore(){
+  try{
+    const s = JSON.parse(localStorage.getItem(LS_KEY)||'null');
+    if(s&&s.raw&&s.raw.length){
+      raw=s.raw;headers=s.headers;mapping=s.mapping;
+      renderMapPanel(); process();
+      $('#lastUpdate').textContent = 'ข้อมูลที่บันทึกไว้ '+new Date(s.ts).toLocaleString('th-TH');
+    }
+  }catch(e){}
+}
+$('#btnClear').onclick = ()=>{
+  if(!confirm('ล้างข้อมูลทั้งหมดที่บันทึกไว้ในเบราว์เซอร์?')) return;
+  localStorage.removeItem(LS_KEY);
+  raw=[];rows=[];$('#dash').classList.add('hidden');$('#mapPanel').classList.add('hidden');
+  $('#lastUpdate').textContent='ยังไม่มีข้อมูล';
+};
+
+/* ================= SAMPLE DATA ================= */
+$('#btnSample').onclick = ()=>{
+  const areas = ['กฟจ.เชียงใหม่','กฟจ.เชียงราย','กฟจ.ลำปาง','กฟส.สันทราย','กฟอ.ฝาง','กฟจ.น่าน','กฟส.แม่ริม'];
+  const sts = ['ยื่นคำขอขายไฟฟ้า','อยู่ระหว่างตรวจสอบเอกสาร','รอชำระเงิน','ลงนามสัญญาแล้ว','ยื่นขอเชื่อมต่อ','รอดำเนินการหลังอนุมัติเชื่อมต่อ / รับพิจารณา','นัดหมายเปลี่ยนมิเตอร์','เชื่อมต่อเรียบร้อยแล้ว','ยกเลิก'];
+  const names = ['สมชาย ใจดี','สมหญิง รักษ์พลังงาน','วิชัย แสงตะวัน','นภา สุขสว่าง','ประเสริฐ พอเพียง','บจก. กรีนโฮม','มานี มีแดด','อาทิตย์ เรืองรอง'];
+  const rnd = a=>a[Math.floor(Math.random()*a.length)];
+  const data=[];
+  const start = new Date(2026,6,1); // 1 ก.ค. 2569
+  const iso = d => d.toISOString().slice(0,10)+' 09:00:00';
+  for(let i=1;i<=120;i++){
+    const sub = new Date(start.getTime()+Math.random()*86400000*3);
+    const st = rnd(sts);
+    const row = {
+      'เลขคำขอ':'PPIM69-'+String(i).padStart(5,'0'),
+      'สถานะคำขอ':st,
+      'วันที่ยื่นคำขอ':iso(sub),
+      'วันที่ชำระเงิน':'-','วันที่อนุมัติเชื่อมต่อ':'-','วันที่เชื่อมต่อเข้าระบบ':'-',
+      'หมายเลขผู้ใช้ไฟ':'02'+String(10000000+Math.floor(Math.random()*8999999)),
+      'ผู้ยื่นคำขอ':rnd(names),
+      'กำลังการผลิตที่ขอ (kW)':(Math.round(Math.random()*8+2)/2).toFixed(1),
+      'กฟฟ.พื้นที่':rnd(areas)
+    };
+    const ix = sts.indexOf(st);
+    if(ix>=2){ row['วันที่อนุมัติเชื่อมต่อ'] = iso(addD(sub,5+Math.floor(Math.random()*20))); }
+    if(ix>=3&&ix<8){ row['วันที่ชำระเงิน'] = iso(addD(sub,25)); }
+    if(st==='เชื่อมต่อเรียบร้อยแล้ว'){ row['วันที่เชื่อมต่อเข้าระบบ'] = iso(addD(sub,60)); }
+    data.push(row);
+  }
+  raw = data; headers = Object.keys(data[0]);
+  autoMap(); renderMapPanel(); process();
+  $('#lastUpdate').textContent = 'ข้อมูลจำลอง 120 รายการ (สำหรับทดลองใช้)';
+};
+
+// เริ่มต้น: ลองโหลดจาก Google Sheets ก่อน ถ้าไม่ได้ใช้ข้อมูลที่บันทึกไว้ในเครื่อง
+(async ()=>{ if(!await loadFromSheet(true)) restore(); })();
+</script>
+</body>
+</html>
