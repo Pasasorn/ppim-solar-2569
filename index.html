@@ -133,35 +133,6 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
 
 <div class="container">
 
-  <!-- UPLOAD (ซ่อนเป็นค่าเริ่มต้น) -->
-  <div class="card purple no-print" id="uploadCard">
-    <h2 id="uploadHead" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;gap:8px">
-      <span>1) นำเข้าข้อมูล <span style="font-weight:400;font-size:.75rem;opacity:.85">— ระบบโหลดจาก Google Sheets ให้อัตโนมัติ (คลิกที่นี่หากต้องการนำเข้าไฟล์เอง)</span></span>
-      <span id="uploadArrow">▸</span>
-    </h2>
-    <div id="uploadBody" class="hidden">
-    <div id="dropzone">
-      <strong>📂 ลากไฟล์มาวาง หรือคลิกเพื่อเลือกไฟล์</strong>
-      <p>รองรับ .csv (UTF-8 / TIS-620, คั่นด้วย | หรือ ,) รวมถึง .xlsx / .xls ที่ Export จากระบบ PPIM</p>
-      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" hidden>
-    </div>
-    <div class="toolbar">
-      <button class="btn btn-primary btn-sm" id="btnSheet">⟳ โหลดข้อมูลล่าสุดจาก Google Sheets</button>
-      <button class="btn btn-outline btn-sm" id="btnSample">ดูตัวอย่างด้วยข้อมูลจำลอง</button>
-      <button class="btn btn-outline btn-sm" id="btnClear">ล้างข้อมูล</button>
-      <button class="btn btn-outline btn-sm no-print" onclick="window.print()">🖨 พิมพ์รายงาน</button>
-      <span class="note">🔒 ข้อมูลประมวลผลในเครื่องนี้เท่านั้น ไม่ถูกส่งขึ้นอินเทอร์เน็ต (สอดคล้อง PDPA)</span>
-    </div>
-    <div id="mapPanel" class="hidden" style="margin-top:14px">
-      <details open>
-        <summary>ตรวจสอบการจับคู่คอลัมน์ (ระบบเดาให้อัตโนมัติ — แก้ไขได้)</summary>
-        <div class="map-grid" id="mapGrid"></div>
-        <div class="toolbar"><button class="btn btn-primary btn-sm" id="btnApplyMap">ใช้การจับคู่นี้</button></div>
-      </details>
-    </div>
-    </div><!-- /uploadBody -->
-  </div>
-
   <div id="dash" class="hidden">
 
     <!-- KPI -->
@@ -172,13 +143,13 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
 
     <!-- PIPELINE -->
     <div class="card">
-      <h2>2) สถานะขั้นตอนการดำเนินงาน โครงการโซลาร์ภาคประชาชน ปี 2569</h2>
+      <h2>สถานะขั้นตอนการดำเนินงาน โครงการโซลาร์ภาคประชาชน ปี 2569</h2>
       <div class="pipeline" id="pipeline"></div>
     </div>
 
     <!-- SLA + HUB OVERVIEW -->
     <div class="card green">
-      <h2>3) ⏰ การควบคุม SLA · 📍 ภาพรวมจุดรวมงาน</h2>
+      <h2>⏰ การควบคุม SLA · 📍 ภาพรวมจุดรวมงาน</h2>
       <div class="sla-split">
         <div>
           <div class="note" style="margin-bottom:8px">
@@ -195,16 +166,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
 
     <!-- HUB SUMMARY -->
     <div class="card">
-      <h2>4) สรุปตามจุดรวมงาน (กฟจ./กฟส. M/L)</h2>
-      <details class="no-print" style="margin-bottom:10px">
-        <summary>⚙ ตั้งค่าจับคู่ กฟฟ.พื้นที่ → จุดรวมงาน (มีค่าเริ่มต้นของ กฟน.1 ครบทุก กฟฟ. แล้ว — แก้เฉพาะที่ต้องการ)</summary>
-        <div class="note" style="margin:6px 0">ระบบฝังตารางจับคู่ของ กฟน.1 ไว้แล้ว หากต้องการแก้/เพิ่ม พิมพ์บรรทัดละ 1 จุดรวมงาน รูปแบบ: <b>ชื่อจุดรวมงาน = กฟฟ.ย่อย1, กฟฟ.ย่อย2, ...</b> (จะทับค่าเริ่มต้นเฉพาะ กฟฟ. ที่ระบุ) · กฟฟ.ที่ไม่อยู่ในตารางจะแสดงเป็นจุดของตัวเอง</div>
-        <textarea id="hubCfg" style="width:100%;min-height:150px;border:1px solid var(--border);border-radius:6px;padding:8px;font-family:inherit;font-size:.8rem" placeholder="กฟจ.เชียงใหม่ = กฟจ.เชียงใหม่, กฟส.แม่ริม"></textarea>
-        <div class="toolbar">
-          <button class="btn btn-primary btn-sm" id="btnHubSave">บันทึกการจับคู่</button>
-          <button class="btn btn-outline btn-sm" id="btnHubFill">ดึงรายชื่อ กฟฟ. จากไฟล์ที่โหลดมาช่วยกรอก</button>
-        </div>
-      </details>
+      <h2>สรุปตามจุดรวมงาน (กฟจ./กฟส. M/L)</h2>
       <div style="overflow-x:auto"><table><thead><tr>
         <th>จุดรวมงาน</th><th>คำขอ (ราย)</th><th>kW รวม</th><th>ผ่าน Grid</th><th>🟢 1-10</th><th>🟡 11-20</th><th>🔴 21-30</th><th>⛔ เกิน SLA</th><th>เชื่อมต่อ/COD</th><th>ยกเลิก/ไม่ผ่าน</th>
       </tr></thead><tbody id="hubBody"></tbody></table></div>
@@ -219,7 +181,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
 
     <!-- TABLE -->
     <div class="card">
-      <h2>5) รายละเอียดคำขอ <span class="note" id="tblCount"></span></h2>
+      <h2>รายละเอียดคำขอ <span class="note" id="tblCount"></span></h2>
       <div class="filters no-print">
         <input type="text" id="fSearch" placeholder="🔍 ค้นหา เลขที่คำขอ / พื้นที่ กฟฟ. ...">
         <select id="fStep"><option value="">ทุกขั้นตอน</option></select>
@@ -235,6 +197,46 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       </div>
       <div class="pagination" id="pager"></div>
     </div>
+  </div>
+
+  <!-- ADMIN PANEL (ซ่อน เปิดด้วยปุ่ม ⚙ มุมขวาล่าง) -->
+  <div class="card purple no-print hidden" id="uploadCard">
+    <h2 id="uploadHead" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <span>⚙ สำหรับผู้ดูแลระบบ — นำเข้าข้อมูล / ตั้งค่า (คลิกแถบนี้เพื่อเปิด/ปิด)</span>
+      <span id="uploadArrow">▸</span>
+    </h2>
+    <div id="uploadBody" class="hidden">
+    <div id="dropzone">
+      <strong>📂 ลากไฟล์มาวาง หรือคลิกเพื่อเลือกไฟล์</strong>
+      <p>รองรับ .csv (UTF-8 / TIS-620, คั่นด้วย | หรือ ,) รวมถึง .xlsx / .xls ที่ Export จากระบบ PPIM</p>
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv,.txt" hidden>
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-primary btn-sm" id="btnSheet">⟳ โหลดข้อมูลล่าสุดจาก Google Sheets</button>
+      <button class="btn btn-outline btn-sm" id="btnSample">ดูตัวอย่างด้วยข้อมูลจำลอง</button>
+      <button class="btn btn-outline btn-sm" id="btnClear">ล้างข้อมูล</button>
+      <button class="btn btn-outline btn-sm no-print" onclick="window.print()">🖨 พิมพ์รายงาน</button>
+      <span class="note">🔒 ข้อมูลประมวลผลในเครื่องนี้เท่านั้น ไม่ถูกส่งขึ้นอินเทอร์เน็ต (สอดคล้อง PDPA)</span>
+    </div>
+    <div id="mapPanel" class="hidden" style="margin-top:14px">
+      <details>
+        <summary>ตรวจสอบการจับคู่คอลัมน์ (ระบบเดาให้อัตโนมัติ — แก้ไขได้)</summary>
+        <div class="map-grid" id="mapGrid"></div>
+        <div class="toolbar"><button class="btn btn-primary btn-sm" id="btnApplyMap">ใช้การจับคู่นี้</button></div>
+      </details>
+    </div>
+    <div style="margin-top:14px">
+      <details>
+        <summary>⚙ ตั้งค่าจับคู่ กฟฟ.พื้นที่ → จุดรวมงาน (มีค่าเริ่มต้นของ กฟน.1 ครบทุก กฟฟ. แล้ว)</summary>
+        <div class="note" style="margin:6px 0">พิมพ์บรรทัดละ 1 จุดรวมงาน รูปแบบ: <b>ชื่อจุดรวมงาน = กฟฟ.ย่อย1, กฟฟ.ย่อย2, ...</b> (จะทับค่าเริ่มต้นเฉพาะ กฟฟ. ที่ระบุ)</div>
+        <textarea id="hubCfg" style="width:100%;min-height:120px;border:1px solid var(--border);border-radius:6px;padding:8px;font-family:inherit;font-size:.8rem" placeholder="กฟจ.เชียงใหม่ = กฟจ.เชียงใหม่, กฟส.แม่ริม"></textarea>
+        <div class="toolbar">
+          <button class="btn btn-primary btn-sm" id="btnHubSave">บันทึกการจับคู่</button>
+          <button class="btn btn-outline btn-sm" id="btnHubFill">ดึงรายชื่อ กฟฟ. จากไฟล์ที่โหลดมาช่วยกรอก</button>
+        </div>
+      </details>
+    </div>
+    </div><!-- /uploadBody -->
   </div>
 
   <div class="note" style="text-align:center;padding:8px">
@@ -314,6 +316,8 @@ function parseDate(v){
 function classifyStatus(txt){
   const t = String(txt||'').toLowerCase().trim();
   if(!t) return null;
+  // กรณีพิเศษ: "รออนุมัติเชื่อมต่อ" = ยังรออนุมัติ (ขั้น 6) ต้องเช็คก่อนคำว่า "อนุมัติเชื่อมต่อ" (ขั้น 7)
+  if(t.includes('รออนุมัติเชื่อมต่อ')) return 6;
   for(const st of [STEPS[9],...STEPS.slice(0,9).reverse()]){
     if(st.kw.some(k=>t.includes(k.toLowerCase()))) return st.id;
   }
@@ -322,12 +326,28 @@ function classifyStatus(txt){
 function daysBetween(a,b){ return Math.floor((b-a)/86400000); }
 function addD(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); x.setHours(0,0,0,0); return x; }
 
-/* ================= FILE LOADING ================= */
+/* ================= ADMIN (เปิดด้วย #admin ท้าย URL เท่านั้น) ================= */
+function checkAdmin(){
+  const c = $('#uploadCard');
+  if(location.hash === '#admin'){
+    c.classList.remove('hidden');
+    setTimeout(()=>c.scrollIntoView({behavior:'smooth'}), 300);
+  } else {
+    c.classList.add('hidden');
+    $('#uploadBody').classList.add('hidden');
+    $('#uploadArrow').textContent = '▸';
+  }
+}
+window.addEventListener('hashchange', checkAdmin);
+checkAdmin();
+// คลิกแถบม่วงเพื่อกาง/พับเนื้อหาแผงผู้ดูแล
 $('#uploadHead').onclick = ()=>{
   const b = $('#uploadBody');
   b.classList.toggle('hidden');
   $('#uploadArrow').textContent = b.classList.contains('hidden') ? '▸' : '▾';
 };
+
+/* ================= FILE LOADING ================= */
 const dz = $('#dropzone'), fi = $('#fileInput');
 dz.onclick = ()=>fi.click();
 dz.ondragover = e=>{e.preventDefault();dz.classList.add('drag')};
@@ -394,7 +414,7 @@ function loadFile(file){
 }
 
 /* โหลดจาก Google Sheets (ชีตต้องแชร์เป็น "ทุกคนที่มีลิงก์ - ดูได้") */
-const SHEET_ID = '1dL1S8nyDeZQRIycLIMtQu5PKaMEYRjMJBXuZTodAmTk';
+const SHEET_ID = '1SFqBINbiTy7OsQ_OrDLzv_8slFymddakAkpgAcnWKXE';
 const SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1';
 const SHEET_JSON = 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:json&headers=1';
 
@@ -456,6 +476,7 @@ async function loadFromSheet(silent){
     return true;
   }catch(err){
     $('#lastUpdate').textContent = 'โหลดจาก Google Sheets ไม่สำเร็จ';
+    $('#uploadCard').classList.remove('hidden');
     $('#uploadBody').classList.remove('hidden');
     $('#uploadArrow').textContent = '▾';
     if(!silent) alert('โหลดจาก Google Sheets ไม่ได้: '+err.message
@@ -759,12 +780,25 @@ function bcls(s){ return s===null?'bx':'b'+s; }
 
 function renderCharts(){
   Object.values(charts).forEach(c=>c.destroy()); charts={};
-  const colors = ['#8896A5','#2F5FA8','#2F7FD1','#F2C230','#8E6BB5','#7BA23F','#2C66AD','#127C8A','#E8862E','#1E7A3C','#D64545'];
+  // สีประจำแต่ละสถานะ — เลือกให้ต่างกันชัดเจน
+  const STEP_COLOR = {
+    'null':'#8896A5',  // ไม่ทราบ = เทา
+    1:'#2F7FD1',       // ยื่นคำขอ/รอตรวจสอบ = ฟ้า
+    2:'#17A2B8',       // ตรวจสอบเอกสาร/เทคนิค = ฟ้าอมเขียว
+    3:'#F2C230',       // รอทำสัญญา/ชำระเงิน = เหลือง
+    4:'#8E6BB5',       // ทำสัญญาแล้ว = ม่วง
+    5:'#A67C52',       // ติดตั้งอุปกรณ์ = น้ำตาล
+    6:'#E8862E',       // ยื่นขอเชื่อมต่อ = ส้ม
+    7:'#0E7C86',       // อนุมัติเชื่อมต่อ = เขียวหัวเป็ด
+    8:'#C2559D',       // เปลี่ยนมิเตอร์/FS = ชมพูเข้ม
+    9:'#1E7A3C',       // COD = เขียว
+    0:'#D64545'        // ยกเลิก = แดง
+  };
   const labels=[], data=[], bg=[];
   const order=[null,...STEPS.map(s=>s.id)];
-  order.forEach((id,ix)=>{
+  order.forEach(id=>{
     const c = rows.filter(r=>r.step===id).length;
-    if(c){ labels.push(id===null?'ไม่ทราบ':stepName(id)); data.push(c); bg.push(colors[ix%colors.length]); }
+    if(c){ labels.push(id===null?'ไม่ทราบ':stepName(id)); data.push(c); bg.push(STEP_COLOR[id===null?'null':id]); }
   });
   charts.st = new Chart($('#chStatus'),{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:bg}]},
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{font:{size:10},boxWidth:12}}}}});
