@@ -71,8 +71,11 @@ header .datebox{background:#F5F1FA;border:1px solid var(--pea-light);color:var(-
 .cell-yellow{color:#b07c00;font-weight:700}
 .cell-red{color:var(--danger);font-weight:700}
 .cell-over{color:#8f1f1f;font-weight:800}
-.sla-group{margin-bottom:14px}
-.sla-group h3{font-size:.85rem;color:#374151;margin-bottom:6px}
+.sla-group{margin-bottom:16px;border:1.5px solid var(--border);border-radius:10px;padding:12px;background:#FAFBFD}
+.sla-group.g1{border-left:5px solid var(--navy)}
+.sla-group.g2{border-left:5px solid var(--pea)}
+.sla-group h3{font-size:.85rem;color:#1f2937;margin:-12px -12px 10px;padding:8px 12px;background:#EFF3FA;border-radius:8px 8px 0 0;border-bottom:1px solid var(--border)}
+.sla-group.g2 h3{background:#F3EDFA}
 .sla-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;font-size:.78rem}
 .chip{padding:3px 10px;border-radius:12px;font-weight:600}
 .chip.green{background:#e9f6ee;color:var(--ok)}
@@ -88,7 +91,7 @@ header .datebox{background:#F5F1FA;border:1px solid var(--pea-light);color:var(-
 .hub-bar{flex:1;background:#EEF1F5;border-radius:4px;height:18px;overflow:hidden;display:flex}
 .hub-fill{background:var(--green);height:100%}
 .hub-fill.fail{background:var(--danger)}
-.hub-fill.wait{background:#C2CAD6}
+.hub-fill.wait{background:#4DA3E8}
 .hub-count{width:70px;text-align:right;font-weight:700;color:var(--green);white-space:nowrap}
 /* charts */
 .charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
@@ -162,11 +165,14 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
   <div id="dash" class="hidden">
 
     <!-- KPI -->
-    <div class="kpis" id="kpis"></div>
+    <div class="card purple">
+      <h2>ภาพรวมของโครงการโซลาร์ภาคประชาชน ปี 2569</h2>
+      <div class="kpis" id="kpis" style="margin-bottom:0"></div>
+    </div>
 
     <!-- PIPELINE -->
     <div class="card">
-      <h2>2) สถานะคำขอตามขั้นตอน</h2>
+      <h2>2) สถานะขั้นตอนการดำเนินงาน โครงการโซลาร์ภาคประชาชน ปี 2569</h2>
       <div class="pipeline" id="pipeline"></div>
     </div>
 
@@ -209,7 +215,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <div class="card"><h2>สัดส่วนตามสถานะ</h2><div class="chart-box"><canvas id="chStatus"></canvas></div></div>
       <div class="card green"><h2>แนวโน้มคำขอรายวัน (สะสม)</h2><div class="chart-box"><canvas id="chTime"></canvas></div></div>
     </div>
-    <div class="card"><h2>จำนวนคำขอ / kW แยกตามพื้นที่ (กฟฟ.)</h2><div class="chart-box" style="height:320px"><canvas id="chArea"></canvas></div></div>
+    <div class="card"><h2>ปริมาณคำขอแยกตาม กฟฟ. ของโครงการโซลาร์ภาคประชาชน ปี 2569</h2><div class="chart-box" style="height:320px"><canvas id="chArea"></canvas></div></div>
 
     <!-- TABLE -->
     <div class="card">
@@ -609,12 +615,12 @@ function renderHubOverview(){
   const seg = (v,cls)=> v>0 ? `<div class="hub-fill ${cls}" style="width:${(v/max*100).toFixed(1)}%"></div>` : '';
   el.innerHTML =
     `<div class="note" style="margin-bottom:8px">
-      <span style="color:var(--green);font-weight:700">■ ผ่าน</span> ·
-      <span style="color:var(--danger);font-weight:700">■ ไม่ผ่าน/ยกเลิก</span> ·
-      <span style="color:#8896A5;font-weight:700">■ รอผล</span>
+      <span style="color:var(--green);font-weight:700">■ ผ่านการตรวจสอบ Grid Capa.</span> ·
+      <span style="color:var(--danger);font-weight:700">■ ไม่ผ่านการตรวจสอบ Grid Capa./ยกเลิก</span> ·
+      <span style="color:#2F7FD1;font-weight:700">■ อยู่ระหว่างการตรวจสอบ Grid Capa.</span>
     </div>`
     + keys.map(k=>{ const o=g[k]; return `
-    <div class="hub-row" title="${k}: ทั้งหมด ${o.n} งาน · ผ่าน ${o.pass} · ไม่ผ่าน/ยกเลิก ${o.fail} · รอผล ${o.wait}">
+    <div class="hub-row" title="${k}: ทั้งหมด ${o.n} งาน · ผ่านตรวจ Grid ${o.pass} · ไม่ผ่าน/ยกเลิก ${o.fail} · อยู่ระหว่างตรวจ ${o.wait}">
       <span class="hub-name">${k}</span>
       <div class="hub-bar">${seg(o.pass,'')}${seg(o.fail,'fail')}${seg(o.wait,'wait')}</div>
       <span class="hub-count">${fmtN(o.n)} งาน</span>
@@ -622,9 +628,9 @@ function renderHubOverview(){
     + `<div class="hub-row" style="border-top:1px solid var(--border);padding-top:6px;margin-top:6px;font-weight:700">
       <span class="hub-name">รวม ${keys.length} จุด</span>
       <span style="flex:1;font-size:.75rem;color:var(--gray)">
-        <span style="color:var(--green)">ผ่าน ${fmtN(t.pass)}</span> ·
+        <span style="color:var(--green)">ผ่านตรวจ Grid ${fmtN(t.pass)}</span> ·
         <span style="color:var(--danger)">ไม่ผ่าน/ยกเลิก ${fmtN(t.fail)}</span> ·
-        รอผล ${fmtN(t.wait)}</span>
+        <span style="color:#2F7FD1">อยู่ระหว่างตรวจ ${fmtN(t.wait)}</span></span>
       <span class="hub-count">${fmtN(t.n)} งาน</span>
     </div>`;
 }
@@ -714,17 +720,23 @@ const BAND_ICON = {green:'🟢',yellow:'🟡',red:'🔴',over:'⛔'};
 function renderSla(){
   const el = $('#slaList');
   const groups = [
-    {phase:'review',   title:'① ขั้นตอนที่ 1 → 2 : ตรวจสอบเอกสารและทางเทคนิค (ไม่เกิน 30 วัน นับจากวันยื่นคำขอ)', note:null},
-    {phase:'contract', title:'② ขั้นตอนที่ 2 → 5 : การทำสัญญา (ห้ามเกิน 30 วัน นับจากวันประกาศผล/วันอนุมัติเชื่อมต่อ)', note:'📌 วันชำระเงิน = วันที่ลงนามสัญญา (ตราปั้มวันที่)'}
+    {phase:'review',   cls:'g1', title:'① ขั้นตอนที่ 1 → 2 : ตรวจสอบเอกสารและทางเทคนิค (ไม่เกิน 30 วัน นับจากวันยื่นคำขอ)', note:null},
+    {phase:'contract', cls:'g2', title:'② ขั้นตอนที่ 2 → 5 : การทำสัญญา (ห้ามเกิน 30 วัน นับจากวันประกาศผล/วันอนุมัติเชื่อมต่อ)', note:'📌 วันชำระเงิน = วันที่ลงนามสัญญา (ตราปั้มวันที่)'}
   ];
+  const item = r => `
+        <div class="sla-item ${r.sla.band}">
+          <span><strong>${r.reqNo||'-'}</strong> · ${r.area} · <span class="badge ${bcls(r.step)}" title="${r.statusTxt}">${stepName(r.step)}</span></span>
+          <span class="sla-badge">${BAND_ICON[r.sla.band]} ใช้ไป ${r.sla.elapsed} วัน · ครบกำหนด ${fmtD(r.sla.due)}${r.sla.band==='over'?' · เกินมา '+(r.sla.elapsed-30)+' วัน':''}</span>
+        </div>`;
   el.innerHTML = groups.map(gr=>{
     const list = rows.filter(r=>r.sla.phase===gr.phase);
     const cnt = b => list.filter(r=>r.sla.band===b).length;
-    const show = list.filter(r=>r.sla.band!=='green')
-      .sort((a,b)=>(b.sla.elapsed??0)-(a.sla.elapsed??0)).slice(0,40);
+    const byE = (a,b)=>(b.sla.elapsed??0)-(a.sla.elapsed??0);
+    const over  = list.filter(r=>r.sla.band==='over').sort(byE).slice(0,30);
+    const watch = list.filter(r=>r.sla.band==='yellow'||r.sla.band==='red').sort(byE).slice(0,20);
     const noDate = gr.phase==='contract' ? rows.filter(r=>r.step===3&&!r.dAnnounce&&!r.dConnApprove).length
                  : rows.filter(r=>(r.step===1||r.step===2)&&!r.dSubmit).length;
-    return `<div class="sla-group">
+    return `<div class="sla-group ${gr.cls}">
       <h3>${gr.title}</h3>
       ${gr.note?`<div class="pay-note">${gr.note}</div><br>`:''}
       <div class="sla-chips">
@@ -734,12 +746,10 @@ function renderSla(){
         <span class="chip over">⛔ เกิน 30 วัน: ${fmtN(cnt('over'))} ราย</span>
         ${noDate?`<span class="chip" style="background:#eef0f2;color:#6b7280">⚠ ไม่มีวันที่อ้างอิง: ${fmtN(noDate)} ราย</span>`:''}
       </div>
-      ${show.length? show.map(r=>`
-        <div class="sla-item ${r.sla.band}">
-          <span><strong>${r.reqNo||'-'}</strong> · ${r.area} · <span class="badge ${bcls(r.step)}" title="${r.statusTxt}">${stepName(r.step)}</span></span>
-          <span class="sla-badge">${BAND_ICON[r.sla.band]} ใช้ไป ${r.sla.elapsed} วัน · ครบกำหนด ${fmtD(r.sla.due)}${r.sla.band==='over'?' · เกินมา '+(r.sla.elapsed-30)+' วัน':''}</span>
-        </div>`).join('')
-      : '<div class="note">✅ ทุกรายอยู่ในช่วง 🟢 1-10 วัน</div>'}
+      <div style="font-weight:700;color:#8f1f1f;font-size:.82rem;margin:6px 0 4px">⛔ รายการเกิน SLA (${fmtN(cnt('over'))} ราย)</div>
+      ${over.length? over.map(item).join('') : '<div class="note" style="margin-bottom:6px">✅ ไม่มีงานเกิน SLA</div>'}
+      ${watch.length? `<div style="font-weight:700;color:#b07c00;font-size:.82rem;margin:8px 0 4px">🟡🔴 ใกล้ครบกำหนด — ต้องเฝ้าระวัง (${fmtN(cnt('yellow')+cnt('red'))} ราย)</div>`
+        + watch.map(item).join('') : ''}
     </div>`;
   }).join('');
 }
