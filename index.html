@@ -199,7 +199,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     </div>
   </div>
 
-  <!-- ADMIN PANEL (ซ่อน เปิดด้วยปุ่ม ⚙ มุมขวาล่าง) -->
+  <!-- ADMIN PANEL (ซ่อน เปิดด้วย #admin ท้าย URL แล้วคลิกแถบม่วงเพื่อกาง) -->
   <div class="card purple no-print hidden" id="uploadCard">
     <h2 id="uploadHead" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px">
       <span>⚙ สำหรับผู้ดูแลระบบ — นำเข้าข้อมูล / ตั้งค่า (คลิกแถบนี้เพื่อเปิด/ปิด)</span>
@@ -710,6 +710,7 @@ function renderKpis(){
     <div class="kpi"><div class="v">${fmtN(tot)}</div><div class="l">คำขอทั้งหมด (ราย)</div></div>
     <div class="kpi info"><div class="v">${fmtN(kwSum)}</div><div class="l">kW รวม (${fmtN(kwSum/1000)} MW)</div></div>
     <div class="kpi ok"><div class="v">${fmtN(rows.filter(r=>r.gridPass).length)}</div><div class="l">ผ่านตรวจ Grid Capacity</div></div>
+    <div class="kpi info"><div class="v">${fmtN(rows.filter(r=>!r.gridPass && r.step!==0 && !(r.gridChk&&r.gridChk.includes('ไม่ผ่าน'))).length)}</div><div class="l">รอพิจารณา Grid Capacity</div></div>
     <div class="kpi ok"><div class="v">${fmtN(passed)}</div><div class="l">ผ่านการพิจารณาแล้ว</div></div>
     <div class="kpi ok"><div class="v">${fmtN(cod)}</div><div class="l">เชื่อมต่อแล้ว / COD</div></div>
     <div class="kpi danger"><div class="v">${fmtN(rej)}</div><div class="l">ไม่ผ่าน/ยกเลิก</div></div>
@@ -933,7 +934,7 @@ $('#btnClear').onclick = ()=>{
 /* ================= SAMPLE DATA ================= */
 $('#btnSample').onclick = ()=>{
   const areas = ['กฟจ.เชียงใหม่','กฟจ.เชียงราย','กฟจ.ลำปาง','กฟอ.สันทราย','กฟอ.ฝาง','กฟจ.ลำพูน','กฟอ.แม่ริม'];
-  const sts = ['ยื่นคำขอขายไฟฟ้า','รอตรวจสอบคำขอ','รอชำระเงิน','ทำสัญญาเรียบร้อยแล้ว','ยื่นขอเชื่อมต่อ','รอดำเนินการหลังอนุมัติเชื่อมต่อ / รับพิจารณา','นัดหมายเปลี่ยนมิเตอร์','เชื่อมต่อเรียบร้อยแล้ว','ยกเลิก'];
+  const sts = ['ยื่นคำขอขายไฟฟ้า','รอตรวจสอบคำขอ','รอชำระเงิน','ทำสัญญาเรียบร้อยแล้ว','ยื่นขอเชื่อมต่อ','รออนุมัติเชื่อมต่อ/รับพิจารณา','นัดหมายเปลี่ยนมิเตอร์','เชื่อมต่อเรียบร้อยแล้ว','ยกเลิก'];
   const rnd = a=>a[Math.floor(Math.random()*a.length)];
   const data=[];
   const start = new Date(2026,6,1);
