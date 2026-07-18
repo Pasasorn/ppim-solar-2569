@@ -155,11 +155,12 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
           <div class="note" style="margin-bottom:8px">
             เกณฑ์แถบสี: 🟢 1-10 วัน · 🟡 11-20 วัน · 🔴 21-30 วัน · ⛔ เกิน 30 วัน (หลุด SLA)
           </div>
-          <div id="slaList"></div>
+          <div id="slaList1"></div>
         </div>
         <div>
           <h3 style="font-size:.85rem;color:#374151;margin-bottom:8px">📍 คำขอที่เข้ามาในแต่ละจุดรวมงาน</h3>
-          <div id="hubOverview"></div>
+          <div id="hubOverview" style="margin-bottom:16px"></div>
+          <div id="slaList2"></div>
         </div>
       </div>
     </div>
@@ -743,17 +744,16 @@ function renderPipeline(){
 
 const BAND_ICON = {green:'🟢',yellow:'🟡',red:'🔴',over:'⛔'};
 function renderSla(){
-  const el = $('#slaList');
   const groups = [
-    {phase:'review',   cls:'g1', title:'① ขั้นตอนที่ 1 → 2 : ตรวจสอบเอกสารและทางเทคนิค (ไม่เกิน 30 วัน นับจากวันยื่นคำขอ)', note:null},
-    {phase:'contract', cls:'g2', title:'② ขั้นตอนที่ 2 → 5 : การทำสัญญา (ห้ามเกิน 30 วัน นับจากวันประกาศผล/วันอนุมัติเชื่อมต่อ)', note:'📌 วันชำระเงิน = วันที่ลงนามสัญญา (ตราปั้มวันที่)'}
+    {el:'#slaList1', phase:'review',   cls:'g1', title:'① ขั้นตอนที่ 1 → 2 : ตรวจสอบเอกสารและทางเทคนิค (ไม่เกิน 30 วัน นับจากวันยื่นคำขอ)', note:null},
+    {el:'#slaList2', phase:'contract', cls:'g2', title:'② ขั้นตอนที่ 2 → 5 : การทำสัญญา (ห้ามเกิน 30 วัน นับจากวันประกาศผล/วันอนุมัติเชื่อมต่อ)', note:'📌 วันชำระเงิน = วันที่ลงนามสัญญา (ตราปั้มวันที่)'}
   ];
   const item = r => `
         <div class="sla-item ${r.sla.band}">
           <span><strong>${r.reqNo||'-'}</strong> · ${r.area} · <span class="badge ${bcls(r.step)}" title="${r.statusTxt}">${stepName(r.step)}</span></span>
           <span class="sla-badge">${BAND_ICON[r.sla.band]} ใช้ไป ${r.sla.elapsed} วัน · ครบกำหนด ${fmtD(r.sla.due)}${r.sla.band==='over'?' · เกินมา '+(r.sla.elapsed-30)+' วัน':''}</span>
         </div>`;
-  el.innerHTML = groups.map(gr=>{
+  groups.forEach(gr=>{
     const list = rows.filter(r=>r.sla.phase===gr.phase);
     const cnt = b => list.filter(r=>r.sla.band===b).length;
     const byE = (a,b)=>(b.sla.elapsed??0)-(a.sla.elapsed??0);
@@ -761,7 +761,7 @@ function renderSla(){
     const watch = list.filter(r=>r.sla.band==='yellow'||r.sla.band==='red').sort(byE).slice(0,20);
     const noDate = gr.phase==='contract' ? rows.filter(r=>r.step===3&&!r.dAnnounce&&!r.dConnApprove).length
                  : rows.filter(r=>(r.step===1||r.step===2)&&!r.dSubmit).length;
-    return `<div class="sla-group ${gr.cls}">
+    $(gr.el).innerHTML = `<div class="sla-group ${gr.cls}">
       <h3>${gr.title}</h3>
       ${gr.note?`<div class="pay-note">${gr.note}</div><br>`:''}
       <div class="sla-chips">
@@ -776,7 +776,7 @@ function renderSla(){
       ${watch.length? `<div style="font-weight:700;color:#b07c00;font-size:.82rem;margin:8px 0 4px">🟡🔴 ใกล้ครบกำหนด — ต้องเฝ้าระวัง (${fmtN(cnt('yellow')+cnt('red'))} ราย)</div>`
         + watch.map(item).join('') : ''}
     </div>`;
-  }).join('');
+  });
 }
 
 function stepName(s){ if(s===null)return 'ไม่ทราบ'; const st=STEPS.find(x=>x.id===s); return st?st.name:'-'; }
