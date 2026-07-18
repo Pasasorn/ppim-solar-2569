@@ -141,6 +141,12 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <div class="kpis" id="kpis" style="margin-bottom:0"></div>
     </div>
 
+    <!-- TARGET -->
+    <div class="card green">
+      <h2>🎯 เป้าหมายการรับซื้อ · แนวโน้มของ กฟน.1</h2>
+      <div id="target"></div>
+    </div>
+
     <!-- PIPELINE -->
     <div class="card">
       <h2>สถานะขั้นตอนการดำเนินงาน โครงการโซลาร์ภาคประชาชน ปี 2569</h2>
@@ -171,6 +177,17 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <div style="overflow-x:auto"><table><thead><tr>
         <th>จุดรวมงาน</th><th>คำขอ (ราย)</th><th>kW รวม</th><th>ผ่าน Grid</th><th>🟢 1-10</th><th>🟡 11-20</th><th>🔴 21-30</th><th>⛔ เกิน SLA</th><th>เชื่อมต่อ/COD</th><th>ยกเลิก/ไม่ผ่าน</th>
       </tr></thead><tbody id="hubBody"></tbody></table></div>
+    </div>
+
+    <!-- TRANSFORMER 25% CHECK -->
+    <div class="card">
+      <h2>⚡ หม้อแปลงที่มีผู้ยื่นหลายราย / ใกล้เต็ม 25% ของพิกัด</h2>
+      <div class="note" style="margin-bottom:8px">
+        เงื่อนไข Grid Code: กำลังไฟฟ้ารับซื้อรวมในหม้อแปลงลูกเดียวกันต้องไม่เกิน 25% ของพิกัดหม้อแปลง (ไม่นับหม้อแปลงของลูกค้า C และรายที่ยกเลิก) · แสดงเฉพาะหม้อแปลงที่มีผู้ยื่น ≥ 2 ราย หรือใช้ไปแล้ว ≥ 50% ของขีดจำกัด
+      </div>
+      <div style="overflow-x:auto"><table><thead><tr>
+        <th>TR PEA No.</th><th>พื้นที่</th><th>ผู้ยื่น (ราย)</th><th>kW รวม</th><th>พิกัด (kVA)</th><th>ขีดจำกัด 25% (kW)</th><th>ใช้ไป</th>
+      </tr></thead><tbody id="trBody"></tbody></table></div>
     </div>
 
     <!-- CHARTS -->
@@ -265,6 +282,9 @@ const FIELDS = [
   {key:'area',    label:'พื้นที่ / กฟฟ.',       kw:['กฟฟ.พื้นที่','พื้นที่ กฟฟ','พื้นที่','การไฟฟ้า','สังกัด']},
   {key:'hub',     label:'จุดรวมงาน (ถ้ามีในไฟล์)', kw:['กฟฟ.จุดรวมงาน','จุดรวมงาน','จุดร่วมงาน']},
   {key:'gridChk', label:'ผลตรวจ Grid Capacity',   kw:['ผลการตรวจสอบ grid','grid capacity','grid']},
+  {key:'tr',      label:'TR PEA No. (หม้อแปลง)',  kw:['tr pea','tr no','tr']},
+  {key:'kva',     label:'พิกัดหม้อแปลง (kVA)',     kw:['kva']},
+  {key:'trOwner', label:'เจ้าของหม้อแปลง (P/C)',   kw:['เจ้าของหม้อแปลง']},
   {key:'status',  label:'สถานะคำขอ *',         kw:['สถานะคำขอ','สถานะ','status']},
   {key:'kw',      label:'กำลังไฟฟ้า (kW)',      kw:['กำลังการผลิตที่ขอ','ปริมาณเสนอขาย','เสนอขาย','กำลังไฟฟ้า','กิโลวัตต์']},
   {key:'dSubmit', label:'วันที่ยื่นคำขอ',       kw:['วันที่ยื่นคำขอ','วันที่ยื่น','วันยื่น']},
@@ -531,6 +551,7 @@ function process(){
       i, reqNo:clean(get('reqNo')), area:clean(get('area'))||'ไม่ระบุ',
       hub: (hubV==='#N/A'||hubV.toLowerCase()==='x') ? '' : hubV,
       gridChk: clean(get('gridChk')),
+      tr: clean(get('tr')), kva: clean(get('kva')), trOwner: clean(get('trOwner')),
       statusTxt:clean(get('status')),
       kw: parseFloat(String(get('kw')).replace(/[^\d.]/g,''))||0,
       dSubmit:parseDate(get('dSubmit')), dAnnounce:parseDate(get('dAnnounce')),
@@ -569,7 +590,79 @@ function process(){
 }
 
 /* ================= RENDER ================= */
-function renderAll(){ renderKpis(); renderPipeline(); renderSla(); renderHubOverview(); renderHubs(); renderCharts(); buildFilterOptions(); renderTable(); }
+function renderAll(){ renderKpis(); renderTarget(); renderPipeline(); renderSla(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); }
+
+/* ================= เป้าหมาย + แนวโน้ม กฟน.1 ================= */
+function renderTarget(){
+  const el = $('#target'); if(!el) return;
+  const act = rows.filter(r=>r.step!==0); // ไม่รวมยกเลิก
+  const kwAct = act.reduce((s,r)=>s+r.kw,0);
+  const mw = kwAct/1000;
+  const pctNation = kwAct/250000*100;         // เทียบเป้า กฟภ. 250 MW ทั้งประเทศ
+  const avgZone = 250/12;                      // ค่าเฉลี่ยต่อเขต (จุดอ้างอิง ไม่ใช่โควตา)
+  const pctAvg = mw/avgZone*100;
+  let rateTxt='';
+  const dated = act.filter(r=>r.dSubmit);
+  if(dated.length){
+    const maxD = new Date(Math.max(...dated.map(r=>r.dSubmit.getTime())));
+    const from = addD(maxD,-6).getTime();
+    const last7 = dated.filter(r=>r.dSubmit.getTime()>=from);
+    const nRate = last7.length/7;
+    const kwRate = last7.reduce((s,r)=>s+r.kw,0)/7;
+    const endM = new Date(maxD.getFullYear(), maxD.getMonth()+1, 0);
+    const daysLeft = Math.max(0, daysBetween(maxD, endM));
+    const fcMw = (kwAct + kwRate*daysLeft)/1000;
+    rateTxt = `📈 อัตรางานเข้าเฉลี่ย 7 วันล่าสุด: <b>${nRate.toFixed(1)} งาน/วัน</b> (~${fmtN(kwRate)} kW/วัน)
+      &nbsp;·&nbsp; 🔮 คาดการณ์สิ้นเดือน${THMON[endM.getMonth()]}: <b>~${fcMw.toFixed(2)} MW</b> (หากอัตราคงเดิม)`;
+  }
+  el.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+      <span style="font-size:1rem"><b style="font-size:1.25rem;color:var(--green)">กฟน.1 สะสม ${mw.toFixed(2)} MW</b>
+        &nbsp;= ${pctNation.toFixed(2)}% ของเป้า กฟภ. 250 MW (รวมทั้งประเทศ 12 เขต)</span>
+      <span class="note">จุดอ้างอิงค่าเฉลี่ยต่อเขต ≈ ${avgZone.toFixed(1)} MW → กฟน.1 อยู่ที่ <b>${pctAvg.toFixed(1)}%</b> ของค่าเฉลี่ย</span>
+    </div>
+    <div style="background:#EEF1F5;border-radius:6px;height:22px;overflow:hidden;position:relative">
+      <div style="background:linear-gradient(90deg,var(--green),#4CAF6E);height:100%;width:${Math.min(100,pctAvg).toFixed(1)}%;border-radius:6px"></div>
+      <span style="position:absolute;top:2px;right:8px;font-size:.72rem;color:var(--gray)">แถบเทียบค่าเฉลี่ยต่อเขต ${avgZone.toFixed(1)} MW</span>
+    </div>
+    <div class="note" style="margin:6px 0 8px">หมายเหตุ: โครงการรับซื้อแบบ First Come First Served รวมทั้งประเทศ ไม่มีโควตารายเขต — ค่าเฉลี่ยต่อเขตเป็นเพียงจุดอ้างอิงความเร็ว ไม่ใช่เพดานของ กฟน.1</div>
+    <div style="font-size:.85rem">${rateTxt}</div>`;
+}
+
+/* ================= หม้อแปลง 25% ================= */
+function renderTransformers(){
+  const el = $('#trBody'); if(!el) return;
+  const g = {};
+  rows.forEach(r=>{
+    const tr = (r.tr||'').trim();
+    if(!tr || tr.toLowerCase()==='x') return;
+    if((r.trOwner||'').toUpperCase()==='C') return;   // หม้อแปลงลูกค้า ไม่คิด 25%
+    if(r.step===0) return;                             // ไม่นับรายที่ยกเลิก
+    const o = g[tr] = g[tr] || {n:0,kw:0,kva:0,areas:new Set()};
+    o.n++; o.kw += r.kw;
+    const kv = parseFloat(String(r.kva).replace(/[^\d.]/g,''));
+    if(kv) o.kva = kv;
+    o.areas.add(r.area);
+  });
+  const list = Object.keys(g).map(k=>{
+    const o = g[k]; const limit = o.kva*0.25;
+    return {tr:k, n:o.n, kw:o.kw, kva:o.kva, areas:[...o.areas], limit, pct: limit? o.kw/limit*100 : null};
+  }).filter(x=> x.n>=2 || (x.pct!=null && x.pct>=50))
+    .sort((a,b)=>(b.pct??0)-(a.pct??0)).slice(0,20);
+  if(!list.length){
+    el.innerHTML = '<tr><td colspan="7" class="note">✅ ไม่พบหม้อแปลงที่มีผู้ยื่นซ้ำหรือใช้เกิน 50% ของขีดจำกัด</td></tr>';
+    return;
+  }
+  el.innerHTML = list.map(x=>{
+    const st = x.pct==null ? '<span class="note">ไม่ทราบพิกัด</span>'
+      : x.pct>100 ? '<span class="cell-over">⛔ เกิน 25%</span>'
+      : x.pct>=80 ? '<span class="cell-red">⚠ ใกล้เต็ม</span>'
+      : '<span class="cell-green">✓ ปกติ</span>';
+    return `<tr><td><b>${x.tr}</b></td><td>${x.areas.join(', ')}</td><td>${x.n}</td>
+      <td>${fmtN(x.kw)}</td><td>${x.kva||'-'}</td><td>${x.limit?fmtN(x.limit):'-'}</td>
+      <td>${x.pct!=null? '<b>'+x.pct.toFixed(0)+'%</b> '+st : st}</td></tr>`;
+  }).join('');
+}
 
 /* ================= จุดรวมงาน ================= */
 const HUB_KEY = 'ppim_hub_map_v1';
