@@ -421,7 +421,9 @@ const SHEET_JSON = 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?
 function applySheetData(r){
   raw = r.data; headers = r.hdrs;
   autoMap(); renderMapPanel(); process(); save();
-  $('#lastUpdate').textContent = 'Google Sheets · '+rows.length+' รายการ · อัปเดต '+new Date().toLocaleString('th-TH');
+  const now = new Date();
+  $('#lastUpdate').textContent = 'PPIM Update: '+now.toLocaleDateString('th-TH')
+    +' เวลา '+now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})+' น.';
 }
 async function tryFetchCsv(){
   const res = await fetch(SHEET_CSV);
@@ -469,13 +471,13 @@ function tryJsonp(){
   });
 }
 async function loadFromSheet(silent){
-  $('#lastUpdate').textContent = 'กำลังโหลดข้อมูลจาก Google Sheets...';
+  $('#lastUpdate').textContent = 'กำลังโหลดข้อมูล...';
   try{
     const r = await tryFetchCsv().catch(()=>tryJsonp());
     applySheetData(r);
     return true;
   }catch(err){
-    $('#lastUpdate').textContent = 'โหลดจาก Google Sheets ไม่สำเร็จ';
+    $('#lastUpdate').textContent = 'โหลดข้อมูลไม่สำเร็จ';
     $('#uploadCard').classList.remove('hidden');
     $('#uploadBody').classList.remove('hidden');
     $('#uploadArrow').textContent = '▾';
@@ -702,6 +704,7 @@ function renderKpis(){
   const passed = rows.filter(r=>r.step>=3&&r.step!==0).length;
   const cod = rows.filter(r=>r.step===9).length;
   const rej = rows.filter(r=>r.step===0).length;
+  const gridWait = rows.filter(r=>!r.gridPass && r.step!==0 && !(r.gridChk&&r.gridChk.includes('ไม่ผ่าน'))).length;
   const g = rows.filter(r=>r.sla.band==='green').length;
   const y = rows.filter(r=>r.sla.band==='yellow').length;
   const rd = rows.filter(r=>r.sla.band==='red').length;
@@ -710,7 +713,7 @@ function renderKpis(){
     <div class="kpi"><div class="v">${fmtN(tot)}</div><div class="l">คำขอทั้งหมด (ราย)</div></div>
     <div class="kpi info"><div class="v">${fmtN(kwSum)}</div><div class="l">kW รวม (${fmtN(kwSum/1000)} MW)</div></div>
     <div class="kpi ok"><div class="v">${fmtN(rows.filter(r=>r.gridPass).length)}</div><div class="l">ผ่านตรวจ Grid Capacity</div></div>
-    <div class="kpi info"><div class="v">${fmtN(rows.filter(r=>!r.gridPass && r.step!==0 && !(r.gridChk&&r.gridChk.includes('ไม่ผ่าน'))).length)}</div><div class="l">รอพิจารณา Grid Capacity</div></div>
+    <div class="kpi info"><div class="v">${fmtN(gridWait)}</div><div class="l">รอพิจารณา Grid Capacity</div></div>
     <div class="kpi ok"><div class="v">${fmtN(passed)}</div><div class="l">ผ่านการพิจารณาแล้ว</div></div>
     <div class="kpi ok"><div class="v">${fmtN(cod)}</div><div class="l">เชื่อมต่อแล้ว / COD</div></div>
     <div class="kpi danger"><div class="v">${fmtN(rej)}</div><div class="l">ไม่ผ่าน/ยกเลิก</div></div>
