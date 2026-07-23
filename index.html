@@ -147,6 +147,14 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <div id="target"></div>
     </div>
 
+    <!-- WEEKLY REPORT -->
+    <div class="card purple">
+      <h2>📅 รายงานรายสัปดาห์ (สัปดาห์ล่าสุดอยู่บนสุด)</h2>
+      <div style="overflow-x:auto"><table><thead><tr>
+        <th>สัปดาห์</th><th>ยื่นคำขอใหม่</th><th>kW ใหม่</th><th>ยื่นสะสม (ราย)</th><th>เชื่อมต่อใหม่</th><th>เชื่อมต่อสะสม (ราย)</th><th>ยกเลิกใหม่</th>
+      </tr></thead><tbody id="weeklyBody"></tbody></table></div>
+    </div>
+
     <!-- PIPELINE -->
     <div class="card">
       <h2>สถานะขั้นตอนการดำเนินงาน โครงการโซลาร์ภาคประชาชน ปี 2569</h2>
@@ -193,7 +201,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     <!-- CHARTS -->
     <div class="charts">
       <div class="card"><h2>สัดส่วนตามสถานะ</h2><div class="chart-box"><canvas id="chStatus"></canvas></div></div>
-      <div class="card green"><h2>แนวโน้มคำขอรายวัน (สะสม)</h2><div class="chart-box"><canvas id="chTime"></canvas></div></div>
+      <div class="card purple"><h2>คำขอสะสมรายวัน (+เพิ่มต่อวัน)</h2><div class="chart-box"><canvas id="chTime"></canvas></div></div>
     </div>
     <div class="card"><h2>ปริมาณคำขอแยกตาม กฟฟ. ของโครงการโซลาร์ภาคประชาชน ปี 2569</h2><div class="chart-box" style="height:320px"><canvas id="chArea"></canvas></div></div>
 
@@ -590,7 +598,39 @@ function process(){
 }
 
 /* ================= RENDER ================= */
-function renderAll(){ renderKpis(); renderTarget(); renderPipeline(); renderSla(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); }
+function renderAll(){ renderKpis(); renderTarget(); renderWeekly(); renderPipeline(); renderSla(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); }
+
+/* ================= รายงานรายสัปดาห์ ================= */
+function weekStart(d){ const x=new Date(d); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x; }
+function renderWeekly(){
+  const el = $('#weeklyBody'); if(!el) return;
+  const wk = {};
+  const bucket = k => wk[k] = wk[k] || {sub:0,kw:0,cod:0,cancel:0};
+  rows.forEach(r=>{
+    if(r.dSubmit){
+      const k = weekStart(r.dSubmit).getTime();
+      const o = bucket(k); o.sub++; o.kw += r.kw;
+      if(r.step===0) o.cancel++;           // นับยกเลิกตามสัปดาห์ที่ยื่น
+    }
+    if(r.dCod){ bucket(weekStart(r.dCod).getTime()).cod++; }
+  });
+  const keys = Object.keys(wk).map(Number).sort((a,b)=>a-b);
+  if(!keys.length){ el.innerHTML='<tr><td colspan="7" class="note">ยังไม่มีข้อมูล</td></tr>'; return; }
+  let cumSub=0, cumCod=0;
+  const rowsHtml = keys.map(k=>{
+    const o = wk[k]; cumSub += o.sub; cumCod += o.cod;
+    const s = new Date(k), e = addD(s,6);
+    return `<tr>
+      <td><b>${fmtD(s)} – ${fmtD(e)}</b></td>
+      <td class="cell-green">+${fmtN(o.sub)} ราย</td>
+      <td>+${fmtN(o.kw)}</td>
+      <td><b>${fmtN(cumSub)}</b></td>
+      <td class="cell-green">${o.cod? '+'+fmtN(o.cod)+' ราย':'-'}</td>
+      <td><b>${fmtN(cumCod)}</b></td>
+      <td class="cell-red">${o.cancel? '+'+fmtN(o.cancel):'-'}</td></tr>`;
+  });
+  el.innerHTML = rowsHtml.reverse().join('');
+}
 
 /* ================= เป้าหมาย + แนวโน้ม กฟน.1 ================= */
 function renderTarget(){
@@ -803,14 +843,16 @@ function renderKpis(){
   const y = rows.filter(r=>r.sla.band==='yellow').length;
   const rd = rows.filter(r=>r.sla.band==='red').length;
   const ov = rows.filter(r=>r.sla.band==='over').length;
+  const gridPassN = rows.filter(r=>r.gridPass).length;
+  const pc = n => tot ? ' <span style="font-size:.85rem">('+(n/tot*100).toFixed(1)+'%)</span>' : '';
   $('#kpis').innerHTML = `
     <div class="kpi"><div class="v">${fmtN(tot)}</div><div class="l">คำขอทั้งหมด (ราย)</div></div>
     <div class="kpi info"><div class="v">${fmtN(kwSum)}</div><div class="l">kW รวม (${fmtN(kwSum/1000)} MW)</div></div>
-    <div class="kpi ok"><div class="v">${fmtN(rows.filter(r=>r.gridPass).length)}</div><div class="l">ผ่านตรวจ Grid Capacity</div></div>
-    <div class="kpi info"><div class="v">${fmtN(gridWait)}</div><div class="l">รอพิจารณา Grid Capacity</div></div>
-    <div class="kpi ok"><div class="v">${fmtN(passed)}</div><div class="l">ผ่านการพิจารณาแล้ว</div></div>
-    <div class="kpi ok"><div class="v">${fmtN(cod)}</div><div class="l">เชื่อมต่อแล้ว / COD</div></div>
-    <div class="kpi danger"><div class="v">${fmtN(rej)}</div><div class="l">ไม่ผ่าน/ยกเลิก</div></div>
+    <div class="kpi ok"><div class="v">${fmtN(gridPassN)}${pc(gridPassN)}</div><div class="l">ผ่านตรวจ Grid Capacity</div></div>
+    <div class="kpi info"><div class="v">${fmtN(gridWait)}${pc(gridWait)}</div><div class="l">รอพิจารณา Grid Capacity</div></div>
+    <div class="kpi ok"><div class="v">${fmtN(passed)}${pc(passed)}</div><div class="l">ผ่านการพิจารณาแล้ว</div></div>
+    <div class="kpi ok"><div class="v">${fmtN(cod)}${pc(cod)}</div><div class="l">เชื่อมต่อแล้ว / COD</div></div>
+    <div class="kpi danger"><div class="v">${fmtN(rej)}${pc(rej)}</div><div class="l">ไม่ผ่าน/ยกเลิก</div></div>
     <div class="kpi warn"><div class="v" style="font-size:1.05rem">🟢${fmtN(g)} 🟡${fmtN(y)} 🔴${fmtN(rd)}</div><div class="l">สถานะ SLA (ตรวจสอบ+ทำสัญญา)</div></div>
     <div class="kpi danger"><div class="v">${fmtN(ov)}</div><div class="l">⛔ งานค้างเกิน SLA (30 วัน)</div></div>`;
 }
@@ -912,10 +954,29 @@ function renderCharts(){
   rows.forEach(r=>{ if(r.dSubmit){ const k=r.dSubmit.toISOString().slice(0,10); byDay[k]=(byDay[k]||0)+1; }});
   const days = Object.keys(byDay).sort();
   let cum=0; const cums = days.map(d=>cum+=byDay[d]);
-  charts.tm = new Chart($('#chTime'),{type:'line',
-    data:{labels:days.map(d=>{const x=new Date(d);return x.getDate()+' '+THMON[x.getMonth()];}),
-      datasets:[{label:'คำขอสะสม',data:cums,borderColor:'#1E7A3C',backgroundColor:'rgba(30,122,60,.12)',fill:true,tension:.25,pointRadius:2}]},
-    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}});
+  const incs = days.map(d=>byDay[d]);
+  // ป้ายตัวเลขบนแท่ง: สะสม (เข้ม) + เพิ่มต่อวัน (ส้ม) แบบรายงานผู้บริหาร
+  const cumLabels = {
+    id:'cumLabels',
+    afterDatasetsDraw(chart){
+      const ctx = chart.ctx;
+      chart.getDatasetMeta(0).data.forEach((bar,i)=>{
+        ctx.save(); ctx.textAlign='center';
+        ctx.font='bold 10px Segoe UI, Tahoma'; ctx.fillStyle='#3B2064';
+        ctx.fillText(fmtN(chart.data.datasets[0].data[i]), bar.x, bar.y-15);
+        ctx.font='9px Segoe UI, Tahoma'; ctx.fillStyle='#E8862E';
+        ctx.fillText('+'+fmtN(incs[i]), bar.x, bar.y-5);
+        ctx.restore();
+      });
+    }
+  };
+  charts.tm = new Chart($('#chTime'),{type:'bar',
+    data:{labels:days.map(d=>{const x=new Date(d);return x.getDate()+'/'+(x.getMonth()+1);}),
+      datasets:[{label:'คำขอสะสม',data:cums,backgroundColor:'#5A2D82',borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,grace:'18%'},x:{ticks:{font:{size:9}}}}},
+    plugins:[cumLabels]});
 }
 
 /* ================= TABLE ================= */
