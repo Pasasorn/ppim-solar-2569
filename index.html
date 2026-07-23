@@ -445,8 +445,10 @@ function loadFile(file){
 
 /* โหลดจาก Google Sheets (ชีตต้องแชร์เป็น "ทุกคนที่มีลิงก์ - ดูได้") */
 const SHEET_ID = '1SFqBINbiTy7OsQ_OrDLzv_8slFymddakAkpgAcnWKXE';
-const SHEET_CSV  = 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1';
-const SHEET_JSON = 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:json&headers=1';
+// เติม timestamp ท้าย URL เพื่อกันแคช (Google gviz แคชข้อมูล ~5 นาที) — บังคับดึงข้อมูลสดทุกครั้ง
+const bust = () => '&nocache=' + Date.now();
+const SHEET_CSV  = () => 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1'+bust();
+const SHEET_JSON = () => 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:json&headers=1'+bust();
 
 function applySheetData(r){
   raw = r.data; headers = r.hdrs;
@@ -456,7 +458,7 @@ function applySheetData(r){
     +' เวลา '+now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})+' น.';
 }
 async function tryFetchCsv(){
-  const res = await fetch(SHEET_CSV);
+  const res = await fetch(SHEET_CSV());
   if(!res.ok) throw new Error('HTTP '+res.status);
   const txt = await res.text();
   if(!txt || txt.trim().startsWith('<')) throw new Error('ไม่ได้รับข้อมูล CSV');
@@ -495,7 +497,7 @@ function tryJsonp(){
       }catch(e){ reject(e); }
     };
     const s = document.createElement('script');
-    s.src = SHEET_JSON;
+    s.src = SHEET_JSON();
     s.onerror = ()=>{ clearTimeout(timer); reject(new Error('เชื่อมต่อ docs.google.com ไม่ได้ (เครือข่ายอาจบล็อก)')); };
     document.body.appendChild(s);
   });
