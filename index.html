@@ -906,7 +906,7 @@ function renderPipeline(){
     const d = document.createElement('div');
     d.className = 'step'+(st.id===0?' rejected':'')+(stepFilter===st.id?' active':'');
     d.innerHTML = `<div class="num">${st.id===0?'✕':st.id}</div><div class="sc">${fmtN(c)}</div><div class="sn">${st.name}</div>`;
-    d.onclick = ()=>{ stepFilter = (stepFilter===st.id)?null:st.id; page=1; renderPipeline(); renderTable(); };
+    d.onclick = ()=>{ clickStep(st.id); };
     p.appendChild(d);
   }
   const un = rows.filter(r=>r.step===null).length;
@@ -914,9 +914,16 @@ function renderPipeline(){
     const d = document.createElement('div');
     d.className='step'+(stepFilter==='un'?' active':'');
     d.innerHTML = `<div class="num">?</div><div class="sc">${fmtN(un)}</div><div class="sn">ไม่ทราบสถานะ</div>`;
-    d.onclick = ()=>{ stepFilter=(stepFilter==='un')?null:'un'; page=1; renderPipeline(); renderTable(); };
+    d.onclick = ()=>{ clickStep('un'); };
     p.appendChild(d);
   }
+}
+// คลิกสถานะ → กรองตาราง + ตั้ง dropdown + เลื่อนไปที่ตาราง
+function clickStep(id){
+  stepFilter = (stepFilter===id) ? null : id;
+  $('#fStep').value = stepFilter==null ? '' : stepFilter;
+  page=1; renderPipeline(); renderTable();
+  if(stepFilter!=null) setTimeout(()=>$('#tbl').scrollIntoView({behavior:'smooth',block:'center'}),100);
 }
 
 const BAND_ICON = {green:'🟢',yellow:'🟡',red:'🔴',over:'⛔'};
@@ -1069,7 +1076,12 @@ function renderTable(){
     renderTable();
   });
   const list = sortRows(filtered());
-  $('#tblCount').textContent = `(แสดง ${fmtN(list.length)} จาก ${fmtN(rows.length)} รายการ)`;
+  let badge = `(แสดง ${fmtN(list.length)} จาก ${fmtN(rows.length)} รายการ)`;
+  if(stepFilter!=null){
+    const nm = stepFilter==='un' ? 'ไม่ทราบสถานะ' : stepName(stepFilter);
+    badge += ` · <span style="background:#EFF3FA;border:1px solid var(--navy);color:var(--navy);border-radius:12px;padding:2px 10px;font-weight:600">🔎 กรอง: ${nm} <a href="#" onclick="clickStep(stepFilter);return false;" style="color:var(--danger);text-decoration:none;font-weight:700">✕ ล้าง</a></span>`;
+  }
+  $('#tblCount').innerHTML = badge;
   const pages = Math.max(1,Math.ceil(list.length/PER));
   if(page>pages) page=pages;
   const pg = list.slice((page-1)*PER,page*PER);
