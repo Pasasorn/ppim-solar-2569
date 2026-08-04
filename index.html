@@ -179,6 +179,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
           <div id="slaList2"></div>
         </div>
       </div>
+      <div id="codDeadline" style="margin-top:14px"></div>
     </div>
 
     <!-- HUB SUMMARY -->
@@ -593,6 +594,15 @@ function process(){
       const e = o.sla.elapsed;
       o.sla.band = e<=10?'green' : e<=20?'yellow' : e<=30?'red' : 'over';
     }
+    // เส้นตาย COD: ต้อง COD ภายในสิ้นปี 2570 (31 ธ.ค. 2027) เตือนล่วงหน้า 3 เดือน
+    // ครอบคลุมรายที่ทำสัญญาแล้วแต่ยังไม่ COD (ขั้น 4-8) และไม่ยกเลิก
+    o.codBand = null; o.codDaysLeft = null;
+    if(o.step>=4 && o.step<=8){
+      const dl = new Date(2027,11,31);
+      const d = daysBetween(today, dl);
+      o.codDaysLeft = d;
+      o.codBand = d<0 ? 'over' : d<=90 ? 'near' : 'ok';   // near = ภายใน 3 เดือน
+    }
     o.pendDays = o.dSubmit? daysBetween(o.dSubmit,today) : null;
     return o;
   }).filter(o=>o.reqNo);
@@ -602,7 +612,35 @@ function process(){
 }
 
 /* ================= RENDER ================= */
-function renderAll(){ renderKpis(); renderTarget(); renderWeekly(); renderPipeline(); renderSla(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); }
+function renderAll(){ renderKpis(); renderTarget(); renderWeekly(); renderPipeline(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); }
+
+/* ================= เส้นตาย COD (ภายในสิ้นปี 2570) ================= */
+function renderCodDeadline(){
+  const el = $('#codDeadline'); if(!el) return;
+  const pending = rows.filter(r=>r.codBand!=null);      // ทำสัญญาแล้ว ยังไม่ COD
+  const near = pending.filter(r=>r.codBand==='near');
+  const over = pending.filter(r=>r.codBand==='over');
+  const done = rows.filter(r=>r.step===9).length;
+  const dueTxt = '31 ธ.ค. 2570';
+  const list = [...over, ...near].sort((a,b)=>a.codDaysLeft-b.codDaysLeft).slice(0,30);
+  el.innerHTML = `
+    <div class="sla-group g2">
+      <h3>③ เส้นตาย COD : ต้องจ่ายไฟเข้าระบบ (COD) ภายในสิ้นปี 2570 — เตือนล่วงหน้า 3 เดือน</h3>
+      <div class="pay-note" style="background:#fdeee0;color:#b25e12">📌 ครบกำหนด ${dueTxt} · หากเลยกำหนดคำขอเป็นอันสิ้นผล</div><br>
+      <div class="sla-chips">
+        <span class="chip green">✅ COD แล้ว: ${fmtN(done)} ราย</span>
+        <span class="chip" style="background:#e2ecf9;color:#2c66ad">⏳ รอ COD: ${fmtN(pending.length)} ราย</span>
+        <span class="chip red">⚠ ใกล้ครบ ≤3 เดือน: ${fmtN(near.length)} ราย</span>
+        <span class="chip over">⛔ เลยกำหนด: ${fmtN(over.length)} ราย</span>
+      </div>
+      ${list.length ? list.map(r=>`
+        <div class="sla-item ${r.codBand==='over'?'over':'red'}">
+          <span><strong>${r.reqNo||'-'}</strong> · ${r.area} · <span class="badge ${bcls(r.step)}">${stepName(r.step)}</span></span>
+          <span class="sla-badge">${r.codBand==='over'? '⛔ เลยกำหนดมา '+Math.abs(r.codDaysLeft)+' วัน' : '⚠ เหลือ '+r.codDaysLeft+' วันถึงเส้นตาย COD'}</span>
+        </div>`).join('')
+      : '<div class="note">✅ ยังไม่มีรายที่ใกล้ครบ/เลยเส้นตาย COD (เตือนอัตโนมัติเมื่อเข้าใกล้ 3 เดือนก่อนสิ้นปี 2570)</div>'}
+    </div>`;
+}
 
 /* ================= รายงานรายสัปดาห์ ================= */
 function weekStart(d){ const x=new Date(d); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); x.setHours(0,0,0,0); return x; }
