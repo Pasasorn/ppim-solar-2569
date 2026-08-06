@@ -25,26 +25,45 @@ header .sub{font-size:.8rem;color:var(--gray)}
 header .datebox{background:#F5F1FA;border:1px solid var(--pea-light);color:var(--pea);padding:6px 12px;border-radius:8px;font-size:.78rem;font-weight:700;max-width:340px}
 html{scroll-behavior:smooth}
 :target{scroll-margin-top:16px}
-.container{max-width:1400px;margin:0 auto;padding:16px 24px 16px 84px}
-/* แถบเมนูด้านข้างสีม่วง */
-#sidenav{position:fixed;top:50%;left:14px;transform:translateY(-50%);z-index:60;
-  background:linear-gradient(160deg,var(--pea),#8A4DB0);border-radius:16px;padding:8px 6px;
-  display:flex;flex-direction:column;gap:4px;box-shadow:0 6px 22px rgba(107,44,145,.35)}
-#sidenav a{position:relative;width:42px;height:42px;display:flex;align-items:center;justify-content:center;
-  font-size:1.15rem;border-radius:11px;text-decoration:none;color:#fff;transition:.15s}
-#sidenav a:hover{background:rgba(255,255,255,.22)}
-#sidenav a::after{content:attr(data-t);position:absolute;left:52px;white-space:nowrap;
-  background:#2A123B;color:#fff;font-size:.78rem;font-weight:600;padding:5px 10px;border-radius:8px;
-  opacity:0;pointer-events:none;transition:.15s;transform:translateX(-6px)}
-#sidenav a:hover::after{opacity:1;transform:translateX(0)}
-@media(max-width:820px){
-  #sidenav{flex-direction:row;top:auto;bottom:10px;left:50%;transform:translateX(-50%);
-    overflow-x:auto;max-width:94vw}
-  #sidenav a::after{display:none}
-  .container{padding:16px 16px 70px}
+.container{max-width:1300px;margin:0 auto;padding:16px 24px}
+/* ===== แถบเมนูด้านข้าง (LightScout style) ===== */
+#sidenav{position:fixed;top:0;left:0;width:236px;height:100vh;z-index:60;overflow-y:auto;
+  background:linear-gradient(178deg,#7A34A6 0%,#5E2483 55%,#4A1A6B 100%);
+  padding:16px 12px;display:flex;flex-direction:column;gap:3px;box-shadow:3px 0 18px rgba(74,26,107,.25)}
+#sidenav .brand{display:flex;align-items:center;gap:10px;padding:6px 8px 16px;margin-bottom:8px;border-bottom:1px solid rgba(255,255,255,.15)}
+#sidenav .brand .bx{display:flex;flex-direction:column;line-height:1.25}
+#sidenav .brand b{color:#fff;font-size:.98rem;font-weight:800}
+#sidenav .brand span{color:#E4D4F2;font-size:.68rem}
+#sidenav a{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:11px;
+  text-decoration:none;color:#EFE6F7;font-size:.92rem;font-weight:600;transition:.15s}
+#sidenav a .i{font-size:1.15rem;width:22px;text-align:center}
+#sidenav a .t{flex:1}
+#sidenav a .b{background:rgba(255,255,255,.22);color:#fff;font-size:.72rem;font-weight:800;
+  padding:1px 9px;border-radius:11px;min-width:26px;text-align:center}
+#sidenav a .b.ok{background:#2ECC71;color:#fff}
+#sidenav a .b.warn{background:#F2C230;color:#4A1A6B}
+#sidenav a:hover{background:rgba(255,255,255,.14);color:#fff}
+#sidenav a.active{background:#fff;color:var(--pea);box-shadow:0 3px 10px rgba(0,0,0,.18)}
+#sidenav a.active .b{background:var(--pea);color:#fff}
+#sidenav .brand-foot{margin-top:auto;padding:14px 8px 4px;color:#D9C4EC;font-size:.68rem;
+  border-top:1px solid rgba(255,255,255,.15);line-height:1.4}
+/* เลื่อนเนื้อหาให้พ้นแถบ */
+body{padding-left:236px}
+header{border-radius:0}
+/* ปุ่ม toggle (มือถือ) + overlay */
+#navToggle{display:none;position:fixed;top:12px;left:12px;z-index:70;width:42px;height:42px;
+  border:none;border-radius:10px;background:var(--pea);color:#fff;font-size:1.3rem;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.25)}
+#navOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:55}
+@media(max-width:900px){
+  body{padding-left:0}
+  #sidenav{transform:translateX(-100%);transition:.25s}
+  body.nav-open #sidenav{transform:translateX(0)}
+  body.nav-open #navOverlay{display:block}
+  #navToggle{display:block}
+  header{padding-left:64px}
 }
 .card{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(107,44,145,.05);margin-bottom:16px;border:1px solid var(--border)}
-.card h2{background:var(--navy);color:#fff;font-size:1.05rem;font-weight:700;margin:-16px -16px 14px;padding:11px 16px;border-radius:13px 13px 0 0}
+.card h2{background:var(--navy);color:#fff;font-size:1.2rem;font-weight:800;margin:-16px -16px 14px;padding:13px 18px;border-radius:13px 13px 0 0}
 .card h2 .note{color:#dbe4f3}
 .card.green h2{background:var(--green)}
 .card.purple h2{background:var(--pea)}
@@ -155,19 +174,37 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
   <div class="datebox" id="lastUpdate">ยังไม่มีข้อมูล</div>
 </header>
 
-<!-- แถบเมนูด้านข้าง (คลิกไปแต่ละส่วน) -->
+<!-- ปุ่มเปิด/ปิดเมนู (มือถือ) -->
+<button id="navToggle" class="no-print" onclick="document.body.classList.toggle('nav-open')">☰</button>
+<!-- แถบเมนูด้านข้าง -->
 <nav id="sidenav" class="no-print">
-  <a data-t="ภาพรวม" href="#sec-overview">📊</a>
-  <a data-t="สรุปผล" href="#sec-summary">📋</a>
-  <a data-t="เป้าหมาย" href="#sec-target">🎯</a>
-  <a data-t="รายสัปดาห์" href="#sec-weekly">📅</a>
-  <a data-t="สถานะขั้นตอน" href="#sec-pipeline">🔄</a>
-  <a data-t="SLA / จุดรวมงาน" href="#sec-sla">⏰</a>
-  <a data-t="สรุปจุดรวมงาน" href="#sec-hub">📍</a>
-  <a data-t="หม้อแปลง 25%" href="#sec-tr">⚡</a>
-  <a data-t="กราฟ" href="#sec-charts">📈</a>
-  <a data-t="ตารางคำขอ" href="#sec-table">📑</a>
+  <div class="brand">
+    <svg width="40" height="40" viewBox="0 0 48 48" fill="none">
+      <circle cx="24" cy="17" r="9" fill="#FFD23F"/>
+      <g stroke="#FFD23F" stroke-width="2.4" stroke-linecap="round">
+        <line x1="24" y1="2" x2="24" y2="6"/><line x1="9" y1="17" x2="5" y2="17"/>
+        <line x1="43" y1="17" x2="39" y2="17"/><line x1="12.5" y1="5.5" x2="9.7" y2="2.7"/>
+        <line x1="35.5" y1="5.5" x2="38.3" y2="2.7"/>
+      </g>
+      <path d="M12 30 L36 30 L40 44 L8 44 Z" fill="#fff" opacity=".95"/>
+      <g stroke="#6B2C91" stroke-width="1.4"><line x1="20" y1="30" x2="17.5" y2="44"/>
+        <line x1="28" y1="30" x2="30.5" y2="44"/><line x1="11" y1="37" x2="37" y2="37"/></g>
+    </svg>
+    <div class="bx"><b>Solar ภาคประชาชน</b><span>PPIM Dashboard · กฟน.1</span></div>
+  </div>
+  <a href="#sec-overview"><span class="i">📊</span><span class="t">ภาพรวม</span></a>
+  <a href="#sec-summary"><span class="i">📋</span><span class="t">สรุปผลดำเนินงาน</span></a>
+  <a href="#sec-target"><span class="i">🎯</span><span class="t">เป้าหมาย/แนวโน้ม</span></a>
+  <a href="#sec-weekly"><span class="i">📅</span><span class="t">รายงานรายสัปดาห์</span></a>
+  <a href="#sec-pipeline"><span class="i">🔄</span><span class="t">สถานะขั้นตอน</span><span class="b" id="nvTot">0</span></a>
+  <a href="#sec-sla"><span class="i">⏰</span><span class="t">การควบคุม SLA</span><span class="b warn" id="nvSla">0</span></a>
+  <a href="#sec-hub"><span class="i">📍</span><span class="t">สรุปจุดรวมงาน</span></a>
+  <a href="#sec-tr"><span class="i">⚡</span><span class="t">หม้อแปลง 25%</span></a>
+  <a href="#sec-charts"><span class="i">📈</span><span class="t">กราฟวิเคราะห์</span></a>
+  <a href="#sec-table"><span class="i">📑</span><span class="t">ตารางคำขอ</span><span class="b ok" id="nvCod">0</span></a>
+  <div class="brand-foot">การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ)</div>
 </nav>
+<div id="navOverlay" class="no-print" onclick="document.body.classList.remove('nav-open')"></div>
 
 <div class="container">
 
@@ -656,7 +693,17 @@ function process(){
 }
 
 /* ================= RENDER ================= */
-function renderAll(){ renderKpis(); renderSummary(); renderTarget(); renderWeekly(); renderPipeline(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); }
+function renderAll(){ renderKpis(); renderSummary(); renderTarget(); renderWeekly(); renderPipeline(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); renderSidenav(); }
+
+/* ================= ตัวเลขบนแถบเมนู ================= */
+function renderSidenav(){
+  const tot = rows.length;
+  const over = rows.filter(r=>r.sla.band==='over').length;
+  const nearY = rows.filter(r=>r.sla.band==='yellow'||r.sla.band==='red').length;
+  const cod = rows.filter(r=>r.step===9).length;
+  const setB = (id,v)=>{ const e=$('#'+id); if(e) e.textContent=fmtN(v); };
+  setB('nvTot', tot); setB('nvSla', over||nearY); setB('nvCod', cod);
+}
 
 /* ================= สรุปผลการดำเนินงาน (สไตล์ LightScout) ================= */
 function renderSummary(){
@@ -1242,6 +1289,25 @@ $('#btnSample').onclick = ()=>{
   autoMap(); renderMapPanel(); process();
   $('#lastUpdate').textContent = 'ข้อมูลจำลอง 120 รายการ (สำหรับทดลองใช้)';
 };
+
+/* ================= เมนูข้าง: ไฮไลต์ตาม scroll + ปิดเมนูมือถือเมื่อคลิก ================= */
+(function(){
+  const links = [...document.querySelectorAll('#sidenav a')];
+  links.forEach(a=>a.addEventListener('click',()=>{
+    document.body.classList.remove('nav-open');
+    links.forEach(x=>x.classList.remove('active')); a.classList.add('active');
+  }));
+  const secs = links.map(a=>document.querySelector(a.getAttribute('href'))).filter(Boolean);
+  if('IntersectionObserver' in window){
+    const io = new IntersectionObserver(es=>{
+      es.forEach(e=>{ if(e.isIntersecting){
+        const id='#'+e.target.id;
+        links.forEach(x=>x.classList.toggle('active', x.getAttribute('href')===id));
+      }});
+    },{rootMargin:'-45% 0px -50% 0px'});
+    secs.forEach(s=>io.observe(s));
+  }
+})();
 
 // เริ่มต้น: ลองโหลดจาก Google Sheets ก่อน ถ้าไม่ได้ใช้ข้อมูลที่บันทึกไว้ในเครื่อง
 (async ()=>{ if(!await loadFromSheet(true)) restore(); })();
