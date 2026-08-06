@@ -18,21 +18,18 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Sarabun','Segoe UI',Tahoma,sans-serif;background:var(--pea-bg);color:#1f2937;font-size:15px}
-header{background:#fff;color:#1f2937;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border-bottom:4px solid var(--pea);box-shadow:0 1px 4px rgba(0,0,0,.06)}
-header h1{font-size:1.25rem;font-weight:800;color:#111827}
-header h1 .logo{color:var(--pea);font-weight:800;margin-right:10px}
-header .sub{font-size:.8rem;color:var(--gray)}
-header .datebox{background:#F5F1FA;border:1px solid var(--pea-light);color:var(--pea);padding:6px 12px;border-radius:8px;font-size:.78rem;font-weight:700;max-width:340px}
 html{scroll-behavior:smooth}
 :target{scroll-margin-top:16px}
-/* Hero banner */
-.hero{position:relative;border-radius:16px;overflow:hidden;margin-bottom:16px;box-shadow:0 4px 18px rgba(107,44,145,.18);max-height:210px}
-.hero img{width:100%;height:100%;object-fit:cover;display:block;max-height:210px}
-.hero-cap{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;
-  padding:20px 28px;background:linear-gradient(90deg,rgba(74,26,107,.82) 0%,rgba(74,26,107,.45) 55%,rgba(74,26,107,0) 100%)}
-.hero-cap .t{color:#fff;font-size:1.4rem;font-weight:800;line-height:1.3;text-shadow:0 2px 6px rgba(0,0,0,.4)}
-.hero-cap .s{color:#F1E6FA;font-size:.85rem;margin-top:8px;font-weight:600}
-@media(max-width:640px){.hero-cap .t{font-size:1rem}.hero-cap{padding:12px 16px}}
+/* Hero banner (หัวรายงาน) */
+.hero{position:relative;border-radius:16px;overflow:hidden;margin-bottom:16px;box-shadow:0 4px 18px rgba(107,44,145,.18);min-height:150px}
+.hero img{width:100%;height:100%;min-height:150px;object-fit:cover;display:block;position:absolute;inset:0}
+.hero-cap{position:relative;display:flex;flex-direction:column;justify-content:center;min-height:150px;
+  padding:20px 30px;background:linear-gradient(90deg,rgba(74,26,107,.9) 0%,rgba(74,26,107,.62) 60%,rgba(74,26,107,.15) 100%)}
+.hero-cap .t{color:#fff;font-size:1.5rem;font-weight:800;line-height:1.3;text-shadow:0 2px 6px rgba(0,0,0,.45)}
+.hero-cap .s{color:#F1E6FA;font-size:.86rem;margin-top:9px;font-weight:600;line-height:1.5;text-shadow:0 1px 3px rgba(0,0,0,.4)}
+.hero-update{position:absolute;top:12px;right:14px;z-index:2;background:rgba(255,255,255,.92);color:var(--pea);
+  padding:6px 13px;border-radius:20px;font-size:.76rem;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+@media(max-width:700px){.hero-cap .t{font-size:1.1rem}.hero-cap{padding:14px 18px}.hero-update{position:static;margin:10px 18px 0;display:inline-block}}
 .container{max-width:1300px;margin:0 auto;padding:16px 24px}
 /* ===== แถบเมนูด้านข้าง (LightScout style) ===== */
 #sidenav{position:fixed;top:0;left:0;width:236px;height:100vh;z-index:60;overflow-y:auto;
@@ -61,7 +58,7 @@ html{scroll-behavior:smooth}
   border-top:1px solid rgba(255,255,255,.15);line-height:1.4}
 /* เลื่อนเนื้อหาให้พ้นแถบ */
 body{padding-left:236px}
-header{border-radius:0}
+.container{padding-top:16px}
 /* ปุ่ม toggle (มือถือ) + overlay */
 #navToggle{display:none;position:fixed;top:12px;left:12px;z-index:70;width:42px;height:42px;
   border:none;border-radius:10px;background:var(--pea);color:#fff;font-size:1.3rem;cursor:pointer;box-shadow:0 3px 10px rgba(0,0,0,.25)}
@@ -72,7 +69,7 @@ header{border-radius:0}
   body.nav-open #sidenav{transform:translateX(0)}
   body.nav-open #navOverlay{display:block}
   #navToggle{display:block}
-  header{padding-left:64px}
+  .container{padding-top:60px}
 }
 .card{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(107,44,145,.05);margin-bottom:16px;border:1px solid var(--border)}
 .card h2{background:var(--navy);color:#fff;font-size:1.2rem;font-weight:800;margin:-16px -16px 14px;padding:13px 18px;border-radius:13px 13px 0 0}
@@ -178,15 +175,6 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
 </style>
 </head>
 <body>
-<header>
-  <div>
-    <h1><span class="logo">⚡ PEA</span>รายงานสถานะคำขอขนานไฟฟ้า (ขายไฟฟ้า/เชื่อมต่อ)</h1>
-    <div class="sub">โครงการ Solar ภาคประชาชน ปี 2569 — ประมวลผลจากระบบ PPIM</div>
-    <div class="sub" style="font-weight:600;color:var(--pea);margin-top:2px">แผนกส่งเสริมพลังงานทดแทนและอนุรักษ์พลังงาน · กองวิศวกรรมและวางแผน · PEA N1</div>
-  </div>
-  <div class="datebox" id="lastUpdate">ยังไม่มีข้อมูล</div>
-</header>
-
 <!-- ปุ่มเปิด/ปิดเมนู (มือถือ) -->
 <button id="navToggle" class="no-print" onclick="document.body.classList.toggle('nav-open')">☰</button>
 <!-- แถบเมนูด้านข้าง -->
@@ -228,13 +216,14 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
 
   <div id="dash" class="hidden">
 
-    <!-- HERO BANNER -->
-    <div class="hero no-print">
+    <!-- HERO BANNER (หัวรายงานรวมทุกอย่าง) -->
+    <div class="hero">
       <img src="img/banner-grid.png" alt="โครงการโซลาร์ภาคประชาชน">
       <div class="hero-cap">
-        <div class="t">โครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์<br>บนหลังคา สำหรับภาคประชาชน ปี 2569</div>
-        <div class="s">การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ) · ระบบ PPIM</div>
+        <div class="t">⚡ รายงานสถานะคำขอขนานไฟฟ้า (ขายไฟฟ้า/เชื่อมต่อ)<br>โครงการโซลาร์ภาคประชาชน ปี 2569</div>
+        <div class="s">แผนกส่งเสริมพลังงานทดแทนและอนุรักษ์พลังงาน · กองวิศวกรรมและวางแผน<br>การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ) · ระบบ PPIM</div>
       </div>
+      <div class="hero-update" id="lastUpdate">ยังไม่มีข้อมูล</div>
     </div>
 
     <!-- KPI -->
