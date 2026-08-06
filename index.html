@@ -39,15 +39,13 @@ html{scroll-behavior:smooth}
   background:linear-gradient(178deg,#7A34A6 0%,#5E2483 55%,#4A1A6B 100%);
   padding:16px 12px;display:flex;flex-direction:column;gap:3px;box-shadow:3px 0 18px rgba(74,26,107,.25)}
 #sidenav .brand{display:flex;align-items:center;gap:10px;padding:4px 6px 12px;margin-bottom:6px;border-bottom:1px solid rgba(255,255,255,.15)}
-.logo-wrap{position:relative;width:52px;height:52px;flex:none}
-.logo-img{width:52px;height:52px;object-fit:cover;border-radius:12px;box-shadow:0 3px 10px rgba(0,0,0,.3);border:2px solid rgba(255,255,255,.25)}
-/* พระอาทิตย์โคจรรอบรูปหลังคาโซลาร์ */
-.sun-orbit{position:absolute;top:0;left:0;transform-origin:26px 26px;animation:sunOrbit 7s linear infinite}
-@keyframes sunOrbit{to{transform:rotate(360deg)}}
-@media (prefers-reduced-motion: reduce){ .sun-orbit{animation:none} }
-#sidenav .brand .bx{display:flex;flex-direction:column;line-height:1.2}
-#sidenav .brand b{color:#fff;font-size:.95rem;font-weight:800}
-#sidenav .brand span{color:#E4D4F2;font-size:.66rem}
+.sun-logo{flex:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.25))}
+.sun-logo .rays{transform-origin:30px 30px;animation:spin 8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion: reduce){ .sun-logo .rays{animation:none} }
+#sidenav .brand .bx{display:flex;flex-direction:column;line-height:1.25;min-width:0}
+#sidenav .brand b{color:#fff;font-size:1rem;font-weight:800;white-space:nowrap;text-shadow:0 1px 2px rgba(0,0,0,.3)}
+#sidenav .brand span{color:#EAD9F7;font-size:.68rem;white-space:nowrap}
 #sidenav a{display:flex;align-items:center;gap:11px;padding:8px 12px;border-radius:10px;
   text-decoration:none;color:#EFE6F7;font-size:.9rem;font-weight:600;transition:.15s}
 #sidenav a .i{font-size:1.15rem;width:22px;text-align:center}
@@ -194,19 +192,22 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
 <!-- แถบเมนูด้านข้าง -->
 <nav id="sidenav" class="no-print">
   <div class="brand">
-    <span class="logo-wrap">
-      <img src="img/solar-house.png" alt="solar" class="logo-img">
-      <svg class="sun-orbit" width="52" height="52" viewBox="0 0 52 52" fill="none">
-        <g transform="translate(26,4)">
-          <circle r="4" fill="#FFD23F"/>
-          <g stroke="#FFD23F" stroke-width="1.5" stroke-linecap="round">
-            <line x1="0" y1="-6.5" x2="0" y2="-5"/><line x1="-6.5" y1="0" x2="-5" y2="0"/>
-            <line x1="6.5" y1="0" x2="5" y2="0"/><line x1="-4.6" y1="-4.6" x2="-3.5" y2="-3.5"/>
-            <line x1="4.6" y1="-4.6" x2="3.5" y2="-3.5"/>
-          </g>
-        </g>
-      </svg>
-    </span>
+    <svg class="sun-logo" width="54" height="54" viewBox="0 0 60 60">
+      <!-- แฉกหมุน -->
+      <g class="rays" stroke="#FFD23F" stroke-width="3.4" stroke-linecap="round">
+        <line x1="30" y1="4"  x2="30" y2="12"/><line x1="30" y1="48" x2="30" y2="56"/>
+        <line x1="4"  y1="30" x2="12" y2="30"/><line x1="48" y1="30" x2="56" y2="30"/>
+        <line x1="11" y1="11" x2="16.7" y2="16.7"/><line x1="43.3" y1="43.3" x2="49" y2="49"/>
+        <line x1="49" y1="11" x2="43.3" y2="16.7"/><line x1="16.7" y1="43.3" x2="11" y2="49"/>
+      </g>
+      <!-- ดวงยิ้ม -->
+      <circle cx="30" cy="30" r="15" fill="#FFD23F"/>
+      <circle cx="24.5" cy="27" r="2" fill="#7A4A00"/>
+      <circle cx="35.5" cy="27" r="2" fill="#7A4A00"/>
+      <circle cx="21" cy="33" r="2.6" fill="#FF9F43" opacity=".6"/>
+      <circle cx="39" cy="33" r="2.6" fill="#FF9F43" opacity=".6"/>
+      <path d="M23 34 Q30 41 37 34" stroke="#7A4A00" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+    </svg>
     <div class="bx"><b>Solar ภาคประชาชน</b><span>PPIM Dashboard · กฟน.1</span></div>
   </div>
   <a href="#sec-overview"><span class="i">📊</span><span class="t">ภาพรวม</span></a>
