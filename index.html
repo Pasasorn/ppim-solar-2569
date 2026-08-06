@@ -6,23 +6,26 @@
 <title>รายงานสถานะคำขอขนานไฟฟ้า — Solar ภาคประชาชน 2569 (PPIM)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
 :root{
-  --pea:#5A2D82; --pea-light:#7B4BA8; --pea-bg:#EDF0F5;
-  --navy:#1F4E9C; --navy-dark:#173B77; --green:#1E7A3C;
-  --ok:#2E9E5B; --warn:#E8A100; --danger:#D64545; --info:#2F7FD1;
-  --gray:#6b7280; --border:#D7DEEA; --card:#ffffff;
+  --pea:#6B2C91; --pea-light:#8A4DB0; --pea-bg:#FAF9FC;
+  --navy:#6B2C91; --navy-dark:#54206F; --green:#27AE60;
+  --ok:#27AE60; --warn:#E8A100; --danger:#E74C3C; --info:#2F7FD1;
+  --gray:#7A8290; --border:#EAE6F2; --card:#ffffff;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',Tahoma,'Leelawadee UI',sans-serif;background:var(--pea-bg);color:#1f2937;font-size:15px}
+body{font-family:'Sarabun','Segoe UI',Tahoma,sans-serif;background:var(--pea-bg);color:#1f2937;font-size:15px}
 header{background:#fff;color:#1f2937;padding:14px 24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border-bottom:4px solid var(--pea);box-shadow:0 1px 4px rgba(0,0,0,.06)}
 header h1{font-size:1.25rem;font-weight:800;color:#111827}
 header h1 .logo{color:var(--pea);font-weight:800;margin-right:10px}
 header .sub{font-size:.8rem;color:var(--gray)}
 header .datebox{background:#F5F1FA;border:1px solid var(--pea-light);color:var(--pea);padding:6px 12px;border-radius:8px;font-size:.78rem;font-weight:700;max-width:340px}
 .container{max-width:1400px;margin:0 auto;padding:16px 24px}
-.card{background:var(--card);border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.08);margin-bottom:16px;border:1px solid var(--border)}
-.card h2{background:var(--navy);color:#fff;font-size:1.05rem;font-weight:700;margin:-16px -16px 14px;padding:10px 16px;border-radius:9px 9px 0 0}
+.card{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 2px 10px rgba(107,44,145,.05);margin-bottom:16px;border:1px solid var(--border)}
+.card h2{background:var(--navy);color:#fff;font-size:1.05rem;font-weight:700;margin:-16px -16px 14px;padding:11px 16px;border-radius:13px 13px 0 0}
 .card h2 .note{color:#dbe4f3}
 .card.green h2{background:var(--green)}
 .card.purple h2{background:var(--pea)}
@@ -37,14 +40,16 @@ header .datebox{background:#F5F1FA;border:1px solid var(--pea-light);color:var(-
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
 .note{font-size:.82rem;color:var(--gray)}
 /* KPI */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
-.kpi{background:var(--card);border-radius:10px;padding:14px;box-shadow:0 1px 3px rgba(0,0,0,.06);border:1.5px solid #B9C6E0;text-align:center}
-.kpi .v{font-size:1.7rem;font-weight:800;color:var(--navy)}
-.kpi .l{font-size:.82rem;color:var(--gray);margin-top:2px}
-.kpi.ok{border-color:#9FD4B4} .kpi.ok .v{color:var(--green)}
-.kpi.warn{border-color:#EED49A} .kpi.warn .v{color:#B07C00}
-.kpi.danger{border-color:#EBAFAF} .kpi.danger .v{color:var(--danger)}
-.kpi.info{border-color:#A9C8EA} .kpi.info .v{color:var(--info)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:16px}
+.kpi{background:var(--card);border-radius:14px;padding:18px 14px;box-shadow:0 2px 10px rgba(107,44,145,.06);border:1px solid var(--border);text-align:center;transition:.15s}
+.kpi:hover{box-shadow:0 4px 16px rgba(107,44,145,.12);transform:translateY(-2px)}
+.kpi .ic{font-size:1.7rem;line-height:1;margin-bottom:6px}
+.kpi .v{font-size:1.9rem;font-weight:800;color:var(--pea);line-height:1.1}
+.kpi .l{font-size:.8rem;color:var(--gray);margin-top:6px;font-weight:600}
+.kpi.ok .v{color:var(--green)}
+.kpi.warn .v{color:#B07C00}
+.kpi.danger .v{color:var(--danger)}
+.kpi.info .v{color:var(--info)}
 /* pipeline */
 .pipeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}
 .step{background:#fff;border:1.5px solid #B9C6E0;border-radius:8px;padding:10px 8px;text-align:center;cursor:pointer;transition:.15s;position:relative}
@@ -139,6 +144,12 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     <div class="card purple">
       <h2>ภาพรวมของโครงการโซลาร์ภาคประชาชน ปี 2569</h2>
       <div class="kpis" id="kpis" style="margin-bottom:0"></div>
+    </div>
+
+    <!-- SUMMARY -->
+    <div class="card green">
+      <h2>📋 สรุปผลการดำเนินงาน</h2>
+      <div id="summary" style="line-height:1.9;font-size:.92rem"></div>
     </div>
 
     <!-- TARGET -->
@@ -612,7 +623,31 @@ function process(){
 }
 
 /* ================= RENDER ================= */
-function renderAll(){ renderKpis(); renderTarget(); renderWeekly(); renderPipeline(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); }
+function renderAll(){ renderKpis(); renderSummary(); renderTarget(); renderWeekly(); renderPipeline(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); }
+
+/* ================= สรุปผลการดำเนินงาน (สไตล์ LightScout) ================= */
+function renderSummary(){
+  const el = $('#summary'); if(!el) return;
+  const tot = rows.length;
+  const kwAct = rows.filter(r=>r.step!==0).reduce((s,r)=>s+r.kw,0);
+  const gridPassN = rows.filter(r=>r.gridPass).length;
+  const passed = rows.filter(r=>r.step>=3&&r.step!==0).length;
+  const cod = rows.filter(r=>r.step===9).length;
+  const rej = rows.filter(r=>r.step===0).length;
+  const map = hubMapping();
+  const hubCnt = {};
+  rows.forEach(r=>{ const h=r.hub||map[r.area]||r.area; hubCnt[h]=(hubCnt[h]||0)+1; });
+  const topHub = Object.keys(hubCnt).sort((a,b)=>hubCnt[b]-hubCnt[a])[0];
+  const over = rows.filter(r=>r.sla.band==='over').length;
+  const b = s => `<b style="color:var(--pea)">${s}</b>`;
+  const gr = s => `<b style="color:var(--green)">${s}</b>`;
+  el.innerHTML = `
+    • มีคำขอเข้าระบบทั้งหมด ${b(fmtN(tot)+' ราย')} · กำลังไฟฟ้าที่ยังมีผล ${gr(fmtN(kwAct)+' kW')} (${fmtN(kwAct/1000)} MW)<br>
+    • ผ่านการตรวจสอบ Grid Capacity ${gr(fmtN(gridPassN)+' ราย')} (${tot?(gridPassN/tot*100).toFixed(1):0}%) · ผ่านการพิจารณาแล้ว ${b(fmtN(passed)+' ราย')}<br>
+    • เชื่อมต่อ/COD แล้ว ${gr(fmtN(cod)+' ราย')} · ไม่ผ่าน/ยกเลิก ${b(fmtN(rej)+' ราย')} (${tot?(rej/tot*100).toFixed(1):0}%)<br>
+    • งานค้างเกิน SLA (30 วัน) ${over? '<b style="color:var(--danger)">'+fmtN(over)+' ราย</b>' : gr('0 ราย')}<br>
+    • จุดรวมงานที่มีคำขอสูงสุด: ${b(topHub||'-')} (${fmtN(hubCnt[topHub]||0)} ราย)`;
+}
 
 /* ================= เส้นตาย COD (ภายในสิ้นปี 2570) ================= */
 function renderCodDeadline(){
@@ -888,15 +923,15 @@ function renderKpis(){
   const gridPassN = rows.filter(r=>r.gridPass).length;
   const pc = n => tot ? ' <span style="font-size:.85rem">('+(n/tot*100).toFixed(1)+'%)</span>' : '';
   $('#kpis').innerHTML = `
-    <div class="kpi"><div class="v">${fmtN(tot)}</div><div class="l">📋 คำขอทั้งหมด (ราย)</div></div>
-    <div class="kpi info"><div class="v">${fmtN(kwSum)}</div><div class="l">⚡ kW รวม (${fmtN(kwSum/1000)} MW)</div></div>
-    <div class="kpi ok"><div class="v">${fmtN(gridPassN)}${pc(gridPassN)}</div><div class="l">✅ ผ่านตรวจ Grid Capacity</div></div>
-    <div class="kpi info"><div class="v">${fmtN(gridWait)}${pc(gridWait)}</div><div class="l">🔎 รอพิจารณา Grid Capacity</div></div>
-    <div class="kpi ok"><div class="v">${fmtN(passed)}${pc(passed)}</div><div class="l">👍 ผ่านการพิจารณาแล้ว</div></div>
-    <div class="kpi ok"><div class="v">${fmtN(cod)}${pc(cod)}</div><div class="l">🔌 เชื่อมต่อแล้ว / COD</div></div>
-    <div class="kpi danger"><div class="v">${fmtN(rej)}${pc(rej)}</div><div class="l">❌ ไม่ผ่าน/ยกเลิก</div></div>
-    <div class="kpi warn"><div class="v" style="font-size:1.05rem">🟢${fmtN(g)} 🟡${fmtN(y)} 🔴${fmtN(rd)}</div><div class="l">⏱️ สถานะ SLA (ตรวจสอบ+ทำสัญญา)</div></div>
-    <div class="kpi danger"><div class="v">${fmtN(ov)}</div><div class="l">⛔ งานค้างเกิน SLA (30 วัน)</div></div>`;
+    <div class="kpi"><div class="ic">📋</div><div class="v">${fmtN(tot)}</div><div class="l">คำขอทั้งหมด (ราย)</div></div>
+    <div class="kpi info"><div class="ic">⚡</div><div class="v">${fmtN(kwSum)}</div><div class="l">kW รวม (${fmtN(kwSum/1000)} MW)</div></div>
+    <div class="kpi ok"><div class="ic">✅</div><div class="v">${fmtN(gridPassN)}${pc(gridPassN)}</div><div class="l">ผ่านตรวจ Grid Capacity</div></div>
+    <div class="kpi info"><div class="ic">🔎</div><div class="v">${fmtN(gridWait)}${pc(gridWait)}</div><div class="l">รอพิจารณา Grid Capacity</div></div>
+    <div class="kpi ok"><div class="ic">👍</div><div class="v">${fmtN(passed)}${pc(passed)}</div><div class="l">ผ่านการพิจารณาแล้ว</div></div>
+    <div class="kpi ok"><div class="ic">🔌</div><div class="v">${fmtN(cod)}${pc(cod)}</div><div class="l">เชื่อมต่อแล้ว / COD</div></div>
+    <div class="kpi danger"><div class="ic">❌</div><div class="v">${fmtN(rej)}${pc(rej)}</div><div class="l">ไม่ผ่าน/ยกเลิก</div></div>
+    <div class="kpi warn"><div class="ic">⏱️</div><div class="v" style="font-size:1.15rem">🟢${fmtN(g)} 🟡${fmtN(y)} 🔴${fmtN(rd)}</div><div class="l">สถานะ SLA (ตรวจสอบ+ทำสัญญา)</div></div>
+    <div class="kpi danger"><div class="ic">⛔</div><div class="v">${fmtN(ov)}</div><div class="l">งานค้างเกิน SLA (30 วัน)</div></div>`;
 }
 
 function renderPipeline(){
