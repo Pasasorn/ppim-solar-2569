@@ -420,6 +420,7 @@ let stepFilter = null;
 /* ================= HELPERS ================= */
 const $ = s => document.querySelector(s);
 const fmtN = n => (n==null||isNaN(n))?'-':n.toLocaleString('th-TH',{maximumFractionDigits:2});
+const pctTxt = v => (v==null||isNaN(v))?'-':(Math.abs(v-Math.round(v))<0.05?Math.round(v):(+v.toFixed(1)))+'%';
 const THMON = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
 function fmtD(d){ if(!d) return '-'; return d.getDate()+' '+THMON[d.getMonth()]+' '+(d.getFullYear()+543); }
 function parseDate(v){
@@ -741,8 +742,8 @@ function renderSummary(){
   const gr = s => `<b style="color:var(--green)">${s}</b>`;
   el.innerHTML = `
     • มีคำขอเข้าระบบทั้งหมด ${b(fmtN(tot)+' ราย')} · กำลังไฟฟ้าที่ยังมีผล ${gr(fmtN(kwAct)+' kW')} (${fmtN(kwAct/1000)} MW)<br>
-    • ผ่านการตรวจสอบ Grid Capacity ${gr(fmtN(gridPassN)+' ราย')} (${tot?(gridPassN/tot*100).toFixed(1):0}%) · ผ่านการพิจารณาแล้ว ${b(fmtN(passed)+' ราย')}<br>
-    • เชื่อมต่อ/COD แล้ว ${gr(fmtN(cod)+' ราย')} · ไม่ผ่าน/ยกเลิก ${b(fmtN(rej)+' ราย')} (${tot?(rej/tot*100).toFixed(1):0}%)<br>
+    • ผ่านการตรวจสอบ Grid Capacity ${gr(fmtN(gridPassN)+' ราย')} (${tot?pctTxt(gridPassN/tot*100):'0%'}) · ผ่านการพิจารณาแล้ว ${b(fmtN(passed)+' ราย')}<br>
+    • เชื่อมต่อ/COD แล้ว ${gr(fmtN(cod)+' ราย')} · ไม่ผ่าน/ยกเลิก ${b(fmtN(rej)+' ราย')} (${tot?pctTxt(rej/tot*100):'0%'})<br>
     • งานค้างเกิน SLA (30 วัน) ${over? '<b style="color:var(--danger)">'+fmtN(over)+' ราย</b>' : gr('0 ราย')}<br>
     • จุดรวมงานที่มีคำขอสูงสุด: ${b(topHub||'-')} (${fmtN(hubCnt[topHub]||0)} ราย)`;
 }
@@ -1019,7 +1020,7 @@ function renderKpis(){
   const rd = rows.filter(r=>r.sla.band==='red').length;
   const ov = rows.filter(r=>r.sla.band==='over').length;
   const gridPassN = rows.filter(r=>r.gridPass).length;
-  const pc = n => tot ? ' <span style="font-size:.85rem">('+(n/tot*100).toFixed(1)+'%)</span>' : '';
+  const pc = n => tot ? ' <span style="font-size:.85rem">('+pctTxt(n/tot*100)+')</span>' : '';
   $('#kpis').innerHTML = `
     <div class="kpi"><div class="ic">📋</div><div class="v">${fmtN(tot)}</div><div class="l">คำขอทั้งหมด (ราย)</div></div>
     <div class="kpi info"><div class="ic">⚡</div><div class="v">${fmtN(kwSum)}</div><div class="l">kW รวม (${fmtN(kwSum/1000)} MW)</div></div>
