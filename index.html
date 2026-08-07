@@ -1080,7 +1080,7 @@ function renderSla(){
                  : rows.filter(r=>(r.step===1||r.step===2)&&!r.dSubmit).length;
     $(gr.el).innerHTML = `<div class="sla-group ${gr.cls}">
       <h3>${gr.title}</h3>
-      ${gr.note?`<div class="pay-note">${gr.note}</div><br>`:''}
+      ${gr.note?`<div class="pay-note" style="display:block;background:#fdf6e3;color:#8a6d00;border-left:4px solid var(--warn);font-weight:700">${gr.note}</div>`:''}
       <div class="sla-chips">
         <span class="chip green">🟢 1-10 วัน: ${fmtN(cnt('green'))} ราย</span>
         <span class="chip yellow">🟡 11-20 วัน: ${fmtN(cnt('yellow'))} ราย</span>
