@@ -254,8 +254,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       </tr></thead><tbody id="weeklyBody"></tbody></table></div>
     </div>
 
-    <div class="card purple"><h2>คำขอสะสมรายสัปดาห์ (+เพิ่มต่อสัปดาห์)</h2><div class="chart-box" style="height:340px"><canvas id="chTime"></canvas></div></div>
-    <div class="card purple"><h2>คำขอเข้ารายวัน (15 วันล่าสุด)</h2><div class="chart-box" style="height:300px"><canvas id="chDaily15"></canvas></div></div>
+    <div class="card purple"><h2>คำขอเข้าใหม่ + ยอดสะสม รายสัปดาห์</h2><div class="chart-box" style="height:360px"><canvas id="chTime"></canvas></div></div>
 
     <!-- PIPELINE -->
     <div class="card" id="sec-pipeline">
@@ -1146,58 +1145,46 @@ function renderCharts(){
   // ใช้วันที่แบบ local (กันเพี้ยน -1 วันจาก UTC เพราะเวลาไทยเป็น UTC+7)
   const dkey = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 
-  // ===== กราฟ 1: คำขอสะสมรายสัปดาห์ (+เพิ่มต่อสัปดาห์) =====
+  // ===== กราฟรวม: คำขอเข้าใหม่ต่อสัปดาห์ (แท่งส้ม) + ยอดสะสม (เส้นม่วง) =====
   const byWeek = {};
   rows.forEach(r=>{ if(r.dSubmit){ const k=weekStart(r.dSubmit).getTime(); byWeek[k]=(byWeek[k]||0)+1; }});
   const wkKeys = Object.keys(byWeek).map(Number).sort((a,b)=>a-b);
   let wcum=0; const wCums = wkKeys.map(k=>wcum+=byWeek[k]);
   const wIncs = wkKeys.map(k=>byWeek[k]);
   const wkLabels = wkKeys.map(k=>{const x=new Date(k);return x.getDate()+'/'+(x.getMonth()+1);});
-  const wkBarLabels = {
-    id:'wkBarLabels',
+  const comboLabels = {
+    id:'comboLabels',
     afterDatasetsDraw(chart){
       const ctx = chart.ctx;
-      chart.getDatasetMeta(0).data.forEach((bar,i)=>{
+      // ป้ายยอดสะสม บนจุดเส้น (ม่วงเข้ม)
+      chart.getDatasetMeta(1).data.forEach((pt,i)=>{
         ctx.save(); ctx.textAlign='center';
         ctx.font='bold 12px Segoe UI, Tahoma'; ctx.fillStyle='#3B2064';
-        ctx.fillText(fmtN(wCums[i]), bar.x, bar.y-19);
-        ctx.font='11px Segoe UI, Tahoma'; ctx.fillStyle='#E8862E';
-        ctx.fillText('+'+fmtN(wIncs[i]), bar.x, bar.y-6);
+        ctx.fillText(fmtN(wCums[i]), pt.x, pt.y-8);
         ctx.restore();
       });
-    }
-  };
-  charts.tm = new Chart($('#chTime'),{type:'bar',
-    data:{labels:wkLabels,datasets:[{label:'คำขอสะสม',data:wCums,backgroundColor:'#5A2D82',borderRadius:4}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{title:it=>'สัปดาห์เริ่ม '+it[0].label,label:it=>'สะสม '+fmtN(it.raw)+' ราย'}}},
-      scales:{y:{beginAtZero:true,grace:'18%'},x:{ticks:{font:{size:11}}}}},
-    plugins:[wkBarLabels]});
-
-  // ===== กราฟ 2: คำขอเข้ารายวัน 15 วันล่าสุด =====
-  const byDay = {};
-  rows.forEach(r=>{ if(r.dSubmit){ const k=dkey(r.dSubmit); byDay[k]=(byDay[k]||0)+1; }});
-  const last15 = Object.keys(byDay).sort().slice(-15);
-  const d15Vals = last15.map(d=>byDay[d]);
-  const d15Labels = last15.map(d=>{const x=new Date(d);return x.getDate()+'/'+(x.getMonth()+1);});
-  const d15BarLabels = {
-    id:'d15BarLabels',
-    afterDatasetsDraw(chart){
-      const ctx = chart.ctx;
+      // ป้ายเพิ่มต่อสัปดาห์ เหนือแท่ง (ส้ม)
       chart.getDatasetMeta(0).data.forEach((bar,i)=>{
         ctx.save(); ctx.textAlign='center';
-        ctx.font='bold 12px Segoe UI, Tahoma'; ctx.fillStyle='#B25E12';
-        ctx.fillText(fmtN(d15Vals[i]), bar.x, bar.y-6);
+        ctx.font='11px Segoe UI, Tahoma'; ctx.fillStyle='#B25E12';
+        ctx.fillText('+'+fmtN(wIncs[i]), bar.x, bar.y-4);
         ctx.restore();
       });
     }
   };
-  charts.d15 = new Chart($('#chDaily15'),{type:'bar',
-    data:{labels:d15Labels,datasets:[{label:'คำขอเข้าใหม่',data:d15Vals,backgroundColor:'#E8862E',borderRadius:4}]},
+  charts.tm = new Chart($('#chTime'),{
+    data:{labels:wkLabels,datasets:[
+      {type:'bar',label:'เข้าใหม่/สัปดาห์',data:wIncs,backgroundColor:'#E8862E',borderRadius:4,yAxisID:'y',order:2},
+      {type:'line',label:'ยอดสะสม',data:wCums,borderColor:'#5A2D82',backgroundColor:'#5A2D82',borderWidth:2,tension:.3,pointRadius:3,pointBackgroundColor:'#5A2D82',yAxisID:'y1',order:1}
+    ]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:it=>'ยื่นใหม่ '+fmtN(it.raw)+' ราย'}}},
-      scales:{y:{beginAtZero:true,grace:'20%'},x:{ticks:{font:{size:11}}}}},
-    plugins:[d15BarLabels]});
+      plugins:{legend:{display:true,position:'top',labels:{boxWidth:14,font:{size:12}}},
+        tooltip:{callbacks:{title:it=>'สัปดาห์เริ่ม '+it[0].label}}},
+      scales:{
+        y:{position:'left',beginAtZero:true,grace:'25%',title:{display:true,text:'เข้าใหม่/สัปดาห์'}},
+        y1:{position:'right',beginAtZero:true,grace:'18%',grid:{drawOnChartArea:false},title:{display:true,text:'สะสม'}},
+        x:{ticks:{font:{size:11}}}}},
+    plugins:[comboLabels]});
 }
 
 /* ================= TABLE ================= */
