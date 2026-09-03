@@ -785,13 +785,8 @@ function renderCodDeadline(){
         <span class="chip red">⚠ ใกล้ครบ ≤3 เดือน: ${fmtN(near.length)} ราย</span>
         <span class="chip over">⛔ เลยกำหนด: ${fmtN(over.length)} ราย</span>
       </div>
-      <div style="font-weight:700;color:#374151;font-size:.85rem;margin:12px 0 6px">🔧 คอขวด: งานรอ COD ค้างอยู่ขั้นไหน (เรียงตามลำดับขั้น)</div>
-      ${stepStat.map(x=>`
-        <div class="hub-row" title="ขั้น ${x.s} ${stepName(x.s)}: ${fmtN(x.n)} ราย, ${fmtN(Math.round(x.kw))} kW">
-          <span class="hub-name">${x.s}. ${stepName(x.s)}</span>
-          <div class="hub-bar"><div class="hub-fill wait" style="width:${(x.n/maxN*100).toFixed(1)}%"></div></div>
-          <span class="hub-count">${fmtN(x.n)} ราย · ${fmtN(Math.round(x.kw))} kW</span>
-        </div>`).join('')}
+      <div style="font-weight:700;color:#374151;font-size:.85rem;margin:12px 0 6px">🔧 คอขวด: งานรอ COD ค้างอยู่ขั้นไหน (จำนวนราย · kW ใน tooltip)</div>
+      <div class="chart-box" style="height:${Math.max(180, stepStat.length*46)}px"><canvas id="chCod"></canvas></div>
       <div style="font-weight:700;color:#374151;font-size:.85rem;margin:12px 0 6px">📍 รอ COD สูงสุดตาม กฟฟ. (${fmtN(pendKw/1000)} MW รอเข้าระบบ)</div>
       <div class="sla-chips">
         ${topArea.map(([k,v])=>`<span class="chip" style="background:#EFF3FA;color:#2c3e50">${k}: ${fmtN(v.n)} ราย</span>`).join('')}
@@ -1206,6 +1201,28 @@ function renderCharts(){
           label:it=>['สะสม '+fmtN(cums[it.dataIndex])+' ราย','เพิ่มงวดนี้ +'+fmtN(incs[it.dataIndex])+' ราย']}}},
       scales:{y:{beginAtZero:true,grace:'18%'},x:{ticks:{font:{size:10},maxRotation:60,minRotation:0}}}},
     plugins:[cumLabels]});
+
+  // ===== Bar chart: คอขวดงานรอ COD แยกตามขั้น (แนวนอน) =====
+  const codPend = rows.filter(r=>r.codBand!=null);
+  const codSteps = [4,5,6,7,8,9].map(s=>{ const gp=codPend.filter(r=>r.step===s);
+    return {s,n:gp.length,kw:gp.reduce((a,r)=>a+r.kw,0)}; }).filter(x=>x.n>0);
+  if(codSteps.length && $('#chCod')){
+    charts.cod = new Chart($('#chCod'),{type:'bar',
+      data:{labels:codSteps.map(x=>x.s+'. '+stepName(x.s)),
+        datasets:[{label:'จำนวนราย',data:codSteps.map(x=>x.n),
+          backgroundColor:codSteps.map(x=>STEP_COLOR[x.s]||'#888'),borderRadius:4}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},
+          tooltip:{callbacks:{label:it=>{const x=codSteps[it.dataIndex];return [fmtN(x.n)+' ราย', fmtN(Math.round(x.kw))+' kW ('+fmtN(x.kw/1000)+' MW)'];}}}},
+        scales:{x:{beginAtZero:true,grace:'12%',title:{display:true,text:'จำนวนราย'}},y:{ticks:{font:{size:11}}}}},
+      plugins:[{id:'codBarLbl',afterDatasetsDraw(ch){
+        const ctx=ch.ctx;
+        ch.getDatasetMeta(0).data.forEach((bar,i)=>{
+          ctx.save(); ctx.font='bold 11px Segoe UI, Tahoma'; ctx.fillStyle='#333'; ctx.textAlign='left';
+          ctx.fillText(fmtN(codSteps[i].n)+' ราย', bar.x+6, bar.y+4); ctx.restore();
+        });
+      }}]});
+  }
 }
 
 /* ================= TABLE ================= */
