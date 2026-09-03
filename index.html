@@ -1145,45 +1145,55 @@ function renderCharts(){
   // ใช้วันที่แบบ local (กันเพี้ยน -1 วันจาก UTC เพราะเวลาไทยเป็น UTC+7)
   const dkey = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 
-  // ===== กราฟรวม: คำขอเข้าใหม่ต่อสัปดาห์ (แท่งส้ม) + ยอดสะสม (เส้นม่วง) =====
-  const byWeek = {};
-  rows.forEach(r=>{ if(r.dSubmit){ const k=weekStart(r.dSubmit).getTime(); byWeek[k]=(byWeek[k]||0)+1; }});
+  // ===== กราฟรวม: รายสัปดาห์ + 3 สัปดาห์ล่าสุดแยกรายวัน (แท่ง) + ยอดสะสม (เส้น) =====
+  const byWeek = {}, byDay = {};
+  rows.forEach(r=>{ if(r.dSubmit){
+    const wk=weekStart(r.dSubmit).getTime(); byWeek[wk]=(byWeek[wk]||0)+1;
+    const dk=dkey(r.dSubmit); byDay[dk]=(byDay[dk]||0)+1;
+  }});
   const wkKeys = Object.keys(byWeek).map(Number).sort((a,b)=>a-b);
-  let wcum=0; const wCums = wkKeys.map(k=>wcum+=byWeek[k]);
-  const wIncs = wkKeys.map(k=>byWeek[k]);
-  const wkLabels = wkKeys.map(k=>{const x=new Date(k);return x.getDate()+'/'+(x.getMonth()+1);});
+  const dayKeys = Object.keys(byDay).sort();
+  const NW = 3;                                              // จำนวนสัปดาห์ล่าสุดที่กางเป็นรายวัน
+  const earlyWeeks = wkKeys.slice(0, Math.max(0, wkKeys.length-NW));
+  const cutoff = wkKeys.length>NW ? wkKeys[wkKeys.length-NW] : (wkKeys[0]||0);
+  const tLabels=[], incs=[], isDaily=[];
+  earlyWeeks.forEach(k=>{ const x=new Date(k); tLabels.push(x.getDate()+'/'+(x.getMonth()+1)); incs.push(byWeek[k]); isDaily.push(false); });
+  dayKeys.filter(dk=> new Date(dk).getTime() >= cutoff).forEach(dk=>{ const x=new Date(dk); tLabels.push(x.getDate()+'/'+(x.getMonth()+1)); incs.push(byDay[dk]); isDaily.push(true); });
+  let c=0; const cums = incs.map(v=>c+=v);
+  const barColors = isDaily.map(d=> d ? '#F4A85C' : '#E8862E');   // รายวัน = ส้มอ่อน, รายสัปดาห์ = ส้มเข้ม
   const comboLabels = {
     id:'comboLabels',
     afterDatasetsDraw(chart){
       const ctx = chart.ctx;
-      // ป้ายยอดสะสม บนจุดเส้น (ม่วงเข้ม)
+      // ป้ายยอดสะสม เฉพาะจุดรายสัปดาห์ + จุดสุดท้าย (กันรก)
       chart.getDatasetMeta(1).data.forEach((pt,i)=>{
+        if(isDaily[i] && i!==incs.length-1) return;
         ctx.save(); ctx.textAlign='center';
-        ctx.font='bold 12px Segoe UI, Tahoma'; ctx.fillStyle='#3B2064';
-        ctx.fillText(fmtN(wCums[i]), pt.x, pt.y-8);
+        ctx.font='bold 11px Segoe UI, Tahoma'; ctx.fillStyle='#3B2064';
+        ctx.fillText(fmtN(cums[i]), pt.x, pt.y-8);
         ctx.restore();
       });
-      // ป้ายเพิ่มต่อสัปดาห์ เหนือแท่ง (ส้ม)
+      // ป้ายจำนวนเข้าใหม่ เหนือแท่ง
       chart.getDatasetMeta(0).data.forEach((bar,i)=>{
         ctx.save(); ctx.textAlign='center';
-        ctx.font='11px Segoe UI, Tahoma'; ctx.fillStyle='#B25E12';
-        ctx.fillText('+'+fmtN(wIncs[i]), bar.x, bar.y-4);
+        ctx.font='10px Segoe UI, Tahoma'; ctx.fillStyle='#B25E12';
+        ctx.fillText((isDaily[i]?'':'+')+fmtN(incs[i]), bar.x, bar.y-4);
         ctx.restore();
       });
     }
   };
   charts.tm = new Chart($('#chTime'),{
-    data:{labels:wkLabels,datasets:[
-      {type:'bar',label:'เข้าใหม่/สัปดาห์',data:wIncs,backgroundColor:'#E8862E',borderRadius:4,yAxisID:'y',order:2},
-      {type:'line',label:'ยอดสะสม',data:wCums,borderColor:'#5A2D82',backgroundColor:'#5A2D82',borderWidth:2,tension:.3,pointRadius:3,pointBackgroundColor:'#5A2D82',yAxisID:'y1',order:1}
+    data:{labels:tLabels,datasets:[
+      {type:'bar',label:'เข้าใหม่ (สัปดาห์ / 3 สัปดาห์ล่าสุดรายวัน)',data:incs,backgroundColor:barColors,borderRadius:4,yAxisID:'y',order:2},
+      {type:'line',label:'ยอดสะสม',data:cums,borderColor:'#5A2D82',backgroundColor:'#5A2D82',borderWidth:2,tension:.3,pointRadius:3,pointBackgroundColor:'#5A2D82',yAxisID:'y1',order:1}
     ]},
     options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:true,position:'top',labels:{boxWidth:14,font:{size:12}}},
-        tooltip:{callbacks:{title:it=>'สัปดาห์เริ่ม '+it[0].label}}},
+        tooltip:{callbacks:{title:it=>(isDaily[it[0].dataIndex]?'วันที่ ':'สัปดาห์เริ่ม ')+it[0].label}}},
       scales:{
-        y:{position:'left',beginAtZero:true,grace:'25%',title:{display:true,text:'เข้าใหม่/สัปดาห์'}},
+        y:{position:'left',beginAtZero:true,grace:'25%',title:{display:true,text:'เข้าใหม่'}},
         y1:{position:'right',beginAtZero:true,grace:'18%',grid:{drawOnChartArea:false},title:{display:true,text:'สะสม'}},
-        x:{ticks:{font:{size:11}}}}},
+        x:{ticks:{font:{size:10},maxRotation:60,minRotation:0}}}},
     plugins:[comboLabels]});
 }
 
