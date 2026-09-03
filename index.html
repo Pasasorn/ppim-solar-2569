@@ -759,28 +759,49 @@ function renderSummary(){
 /* ================= เส้นตาย COD (ภายในสิ้นปี 2570) ================= */
 function renderCodDeadline(){
   const el = $('#codDeadline'); if(!el) return;
-  const pending = rows.filter(r=>r.codBand!=null);      // ทำสัญญาแล้ว ยังไม่ COD
+  const pending = rows.filter(r=>r.codBand!=null);      // ขั้น 4-9 ยังไม่ COD
   const near = pending.filter(r=>r.codBand==='near');
   const over = pending.filter(r=>r.codBand==='over');
   const done = rows.filter(r=>r.step===10).length;
+  const pendKw = pending.reduce((s,r)=>s+r.kw,0);
+  const _today = new Date(); _today.setHours(0,0,0,0);
+  const daysLeft = daysBetween(_today, new Date(2027,11,31));
   const dueTxt = '31 ธ.ค. 2570';
-  const list = [...over, ...near].sort((a,b)=>a.codDaysLeft-b.codDaysLeft).slice(0,30);
+  // คอขวด: รอ COD ค้างขั้นไหน (4-9)
+  const stepStat = [4,5,6,7,8,9].map(s=>{ const gp=pending.filter(r=>r.step===s);
+    return {s,n:gp.length,kw:gp.reduce((a,r)=>a+r.kw,0)}; }).filter(x=>x.n>0);
+  const maxN = Math.max(1,...stepStat.map(x=>x.n));
+  // รอ COD แยกตาม กฟฟ.
+  const byArea={}; pending.forEach(r=>{ byArea[r.area]=byArea[r.area]||{n:0,kw:0}; byArea[r.area].n++; byArea[r.area].kw+=r.kw; });
+  const topArea = Object.entries(byArea).sort((a,b)=>b[1].n-a[1].n).slice(0,8);
+  const urgent = [...over,...near].sort((a,b)=>a.codDaysLeft-b.codDaysLeft).slice(0,20);
   el.innerHTML = `
     <div class="sla-group g2">
       <h3>③ เส้นตาย COD : ต้องจ่ายไฟเข้าระบบ (COD) ภายในสิ้นปี 2570 — เตือนล่วงหน้า 3 เดือน</h3>
-      <div class="pay-note" style="background:#fdeee0;color:#b25e12">📌 ครบกำหนด ${dueTxt} · หากเลยกำหนดคำขอเป็นอันสิ้นผล</div><br>
+      <div class="pay-note" style="background:#fdeee0;color:#b25e12">📌 ครบกำหนด ${dueTxt} · เหลืออีก ${fmtN(daysLeft)} วัน · หากเลยกำหนดคำขอเป็นอันสิ้นผล</div><br>
       <div class="sla-chips">
         <span class="chip green">✅ COD แล้ว: ${fmtN(done)} ราย</span>
-        <span class="chip" style="background:#e2ecf9;color:#2c66ad">⏳ รอ COD: ${fmtN(pending.length)} ราย</span>
+        <span class="chip" style="background:#e2ecf9;color:#2c66ad">⏳ รอ COD: ${fmtN(pending.length)} ราย · ${fmtN(pendKw/1000)} MW</span>
         <span class="chip red">⚠ ใกล้ครบ ≤3 เดือน: ${fmtN(near.length)} ราย</span>
         <span class="chip over">⛔ เลยกำหนด: ${fmtN(over.length)} ราย</span>
       </div>
-      ${list.length ? list.map(r=>`
+      <div style="font-weight:700;color:#374151;font-size:.85rem;margin:12px 0 6px">🔧 คอขวด: งานรอ COD ค้างอยู่ขั้นไหน (เรียงตามลำดับขั้น)</div>
+      ${stepStat.map(x=>`
+        <div class="hub-row" title="ขั้น ${x.s} ${stepName(x.s)}: ${fmtN(x.n)} ราย, ${fmtN(Math.round(x.kw))} kW">
+          <span class="hub-name">${x.s}. ${stepName(x.s)}</span>
+          <div class="hub-bar"><div class="hub-fill wait" style="width:${(x.n/maxN*100).toFixed(1)}%"></div></div>
+          <span class="hub-count">${fmtN(x.n)} ราย · ${fmtN(Math.round(x.kw))} kW</span>
+        </div>`).join('')}
+      <div style="font-weight:700;color:#374151;font-size:.85rem;margin:12px 0 6px">📍 รอ COD สูงสุดตาม กฟฟ. (${fmtN(pendKw/1000)} MW รอเข้าระบบ)</div>
+      <div class="sla-chips">
+        ${topArea.map(([k,v])=>`<span class="chip" style="background:#EFF3FA;color:#2c3e50">${k}: ${fmtN(v.n)} ราย</span>`).join('')}
+      </div>
+      ${urgent.length ? `<div style="font-weight:700;color:#8f1f1f;font-size:.82rem;margin:12px 0 4px">⚠ ต้องเร่ง — ใกล้/เลยเส้นตาย COD (${fmtN(over.length+near.length)} ราย)</div>`+urgent.map(r=>`
         <div class="sla-item ${r.codBand==='over'?'over':'red'}">
           <span><strong>${r.reqNo||'-'}</strong> · ${r.area} · <span class="badge ${bcls(r.step)}">${stepName(r.step)}</span></span>
-          <span class="sla-badge">${r.codBand==='over'? '⛔ เลยกำหนดมา '+Math.abs(r.codDaysLeft)+' วัน' : '⚠ เหลือ '+r.codDaysLeft+' วันถึงเส้นตาย COD'}</span>
+          <span class="sla-badge">${r.codBand==='over'? '⛔ เลยกำหนดมา '+Math.abs(r.codDaysLeft)+' วัน' : '⚠ เหลือ '+r.codDaysLeft+' วัน'}</span>
         </div>`).join('')
-      : '<div class="note">✅ ยังไม่มีรายที่ใกล้ครบ/เลยเส้นตาย COD (เตือนอัตโนมัติเมื่อเข้าใกล้ 3 เดือนก่อนสิ้นปี 2570)</div>'}
+      : '<div class="note" style="margin-top:10px">✅ ยังไม่มีรายที่ใกล้ครบ/เลยเส้นตาย COD (เตือนอัตโนมัติเมื่อเข้าใกล้ 3 เดือนก่อนสิ้นปี 2570)</div>'}
     </div>`;
 }
 
