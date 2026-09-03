@@ -254,7 +254,8 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       </tr></thead><tbody id="weeklyBody"></tbody></table></div>
     </div>
 
-    <div class="card purple"><h2>คำขอสะสมรายวัน (+เพิ่มต่อวัน)</h2><div class="chart-box" style="height:340px"><canvas id="chTime"></canvas></div></div>
+    <div class="card purple"><h2>คำขอสะสมรายสัปดาห์ (+เพิ่มต่อสัปดาห์)</h2><div class="chart-box" style="height:340px"><canvas id="chTime"></canvas></div></div>
+    <div class="card purple"><h2>คำขอเข้ารายวัน (15 วันล่าสุด)</h2><div class="chart-box" style="height:300px"><canvas id="chDaily15"></canvas></div></div>
 
     <!-- PIPELINE -->
     <div class="card" id="sec-pipeline">
@@ -376,14 +377,15 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
 /* ================= CONFIG ================= */
 const STEPS = [
   {id:1, name:'ตรวจสอบคำขอ', kw:['รอตรวจสอบคำขอ','ตรวจสอบคำขอ','รอตรวจ','ยื่นคำขอ','รับคำขอ']},
-  {id:2, name:'อนุมัติผลการพิจารณา', kw:['รออนุมัติผลพิจารณา','อนุมัติผลการพิจารณา','อนุมัติผลพิจารณา','อนุมัติผล','ตรวจสอบเอกสาร','ตรวจสอบทางเทคนิค','รอพิจารณา','รับพิจารณา','รอ หผ','รอ ผจก']},
+  {id:2, name:'อนุมัติผลการพิจารณา', kw:['รออนุมัติผลพิจารณา','อนุมัติผลการพิจารณา','อนุมัติผลพิจารณา','อนุมัติผล','ตรวจสอบเอกสาร','ตรวจสอบทางเทคนิค','รอพิจารณา','รอ หผ','รอ ผจก']},
   {id:3, name:'ทำสัญญา/ชำระเงิน', kw:['รอทำสัญญา','ทำสัญญา','ชำระเงิน','ประกาศผล','ผ่านการพิจารณา','รอชำระ','รอลงนาม','ลงนามสัญญา']},
   {id:4, name:'ยื่นคำขอเชื่อมต่อ', kw:['รอยื่นคำขอเชื่อมต่อ','ยื่นคำขอเชื่อมต่อ','ยื่นขอเชื่อมต่อ','ยื่นเชื่อมต่อ']},
-  {id:5, name:'ตรวจเอกสารเชื่อมต่อ', kw:['ตรวจเอกสารเชื่อมต่อ','ตรวจสอบเอกสารเชื่อมต่อ','รออนุมัติเชื่อมต่อ','รับพิจารณาเชื่อมต่อ','ใบรับรองตนเอง']},
-  {id:6, name:'อนุมัติเชื่อมต่อ', kw:['อนุมัติเชื่อมต่อ','อนุมัติการเชื่อมต่อ','รอดำเนินการหลังอนุมัติ']},
-  {id:7, name:'ทดสอบเชื่อมต่อ/COD', kw:['ทดสอบเชื่อมต่อ','ทดสอบ','first sync','เปลี่ยนมิเตอร์','มิเตอร์','นัดหมาย']},
-  {id:8, name:'แจ้งผล COD', kw:['แจ้งผล cod','แจ้ง cod','รอ cod']},
-  {id:9, name:'เริ่ม COD', kw:['เริ่ม cod','cod','จ่ายไฟเชิงพาณิชย์','เริ่มต้นซื้อขาย','เชื่อมต่อเรียบร้อย','เชื่อมต่อเข้าระบบ']},
+  {id:5, name:'แก้ไขคำขอเชื่อมต่อ', kw:['แก้ไขคำขอเชื่อมต่อ','ส่งเอกสารแก้ไข','แก้ไขเอกสาร','รอแก้ไข','แก้ไข']},
+  {id:6, name:'ตรวจคำขอเชื่อมต่อ', kw:['ตรวจคำขอเชื่อมต่อ','ตรวจสอบคำขอเชื่อมต่อ','ตรวจเอกสารเชื่อมต่อ','ตรวจสอบระบบผลิต','รออนุมัติเชื่อมต่อ','รับพิจารณาเชื่อมต่อ','ใบรับรองตนเอง']},
+  {id:7, name:'อนุมัติเชื่อมต่อ', kw:['อนุมัติเชื่อมต่อ','อนุมัติการเชื่อมต่อ','รอดำเนินการหลังอนุมัติ','หลังอนุมัติเชื่อมต่อ']},
+  {id:8, name:'ทดสอบเชื่อมต่อ/COD', kw:['ทดสอบเชื่อมต่อ','ทดสอบ','first sync','เปลี่ยนมิเตอร์','มิเตอร์','นัดหมาย','แจ้งวันเริ่มเชื่อมต่อ','วันเริ่มเชื่อมต่อ']},
+  {id:9, name:'แจ้งผล COD', kw:['แจ้งผล cod','แจ้ง cod','รอ cod']},
+  {id:10, name:'เริ่ม COD', kw:['เริ่ม cod','cod','จ่ายไฟเชิงพาณิชย์','เริ่มต้นซื้อขาย','เชื่อมต่อเรียบร้อย','เชื่อมต่อเข้าระบบ']},
   {id:0, name:'ไม่ผ่าน/ยกเลิก', kw:['ไม่ผ่าน','ยกเลิก','ปฏิเสธ','สิ้นผล','คืนคำขอ']}
 ];
 const FIELDS = [
@@ -447,10 +449,17 @@ function parseDate(v){
 function classifyStatus(txt){
   const t = String(txt||'').toLowerCase().trim();
   if(!t) return null;
-  // กรณีพิเศษ (ต้องเช็คก่อน loop เพราะข้อความมีคำซ้อนกัน):
-  if(t.includes('รอยื่นคำขอเชื่อมต่อ')||t.includes('ยื่นคำขอเชื่อมต่อ')) return 4; // = ทำสัญญาแล้ว รอยื่นเชื่อมต่อ
-  if(t.includes('รออนุมัติเชื่อมต่อ')) return 5; // ยังรออนุมัติเชื่อมต่อ (ก่อน "อนุมัติเชื่อมต่อ" ขั้น 6)
-  for(const st of [STEPS[9],...STEPS.slice(0,9).reverse()]){
+  // ===== กรณีพิเศษ เรียงตามลำดับความจำเพาะ (เช็คก่อน loop เพราะข้อความมีคำซ้อนทับกัน) =====
+  if(t.includes('เชื่อมต่อเรียบร้อย')||t.includes('เชื่อมต่อเข้าระบบ')) return 10; // COD เสร็จสิ้น
+  if(t.includes('ยกเลิก')||t.includes('ไม่ผ่าน')||t.includes('ปฏิเสธ')||t.includes('สิ้นผล')||t.includes('คืนคำขอ')) return 0;
+  if(t.includes('แก้ไข')) return 5;                                                 // แก้ไขคำขอเชื่อมต่อ
+  if(t.includes('ยื่นคำขอเชื่อมต่อ')||t.includes('ยื่นขอเชื่อมต่อ')||t.includes('ยื่นเชื่อมต่อ')) return 4;
+  if(t.includes('ทดสอบเชื่อมต่อ')||t.includes('แจ้งวันเริ่มเชื่อมต่อ')||t.includes('วันเริ่มเชื่อมต่อ')||t.includes('first sync')) return 8;
+  if(t.includes('ตรวจสอบระบบผลิต')||t.includes('ตรวจคำขอเชื่อมต่อ')||t.includes('ตรวจสอบคำขอเชื่อมต่อ')||t.includes('ตรวจเอกสารเชื่อมต่อ')||t.includes('รออนุมัติเชื่อมต่อ')||t.includes('รับพิจารณาเชื่อมต่อ')) return 6;
+  if(t.includes('หลังอนุมัติเชื่อมต่อ')||t.includes('รอดำเนินการหลังอนุมัติ')||t.includes('อนุมัติเชื่อมต่อ')||t.includes('อนุมัติการเชื่อมต่อ')) return 7;
+  if(t.includes('แจ้งผล cod')||t.includes('แจ้ง cod')||t.includes('รอ cod')) return 9;
+  // ===== ที่เหลือใช้ keyword ตาม STEPS (ขั้นสูงก่อน) =====
+  for(const st of [...STEPS].filter(s=>s.id!==0).sort((a,b)=>b.id-a.id)){
     if(st.kw.some(k=>t.includes(k.toLowerCase()))) return st.id;
   }
   return null;
@@ -697,7 +706,7 @@ function process(){
     // เส้นตาย COD: ต้อง COD ภายในสิ้นปี 2570 (31 ธ.ค. 2027) เตือนล่วงหน้า 3 เดือน
     // ครอบคลุมรายที่ทำสัญญาแล้วแต่ยังไม่ COD (ขั้น 4-8) และไม่ยกเลิก
     o.codBand = null; o.codDaysLeft = null;
-    if(o.step>=4 && o.step<=8){
+    if(o.step>=4 && o.step<=9){
       const dl = new Date(2027,11,31);
       const d = daysBetween(today, dl);
       o.codDaysLeft = d;
@@ -719,7 +728,7 @@ function renderSidenav(){
   const tot = rows.length;
   const over = rows.filter(r=>r.sla.band==='over').length;
   const nearY = rows.filter(r=>r.sla.band==='yellow'||r.sla.band==='red').length;
-  const cod = rows.filter(r=>r.step===9).length;
+  const cod = rows.filter(r=>r.step===10).length;
   const setB = (id,v)=>{ const e=$('#'+id); if(e) e.textContent=fmtN(v); };
   setB('nvTot', tot); setB('nvSla', over||nearY); setB('nvCod', cod);
 }
@@ -731,7 +740,7 @@ function renderSummary(){
   const kwAct = rows.filter(r=>r.step!==0).reduce((s,r)=>s+r.kw,0);
   const gridPassN = rows.filter(r=>r.gridPass).length;
   const passed = rows.filter(r=>r.step>=3&&r.step!==0).length;
-  const cod = rows.filter(r=>r.step===9).length;
+  const cod = rows.filter(r=>r.step===10).length;
   const rej = rows.filter(r=>r.step===0).length;
   const map = hubMapping();
   const hubCnt = {};
@@ -754,7 +763,7 @@ function renderCodDeadline(){
   const pending = rows.filter(r=>r.codBand!=null);      // ทำสัญญาแล้ว ยังไม่ COD
   const near = pending.filter(r=>r.codBand==='near');
   const over = pending.filter(r=>r.codBand==='over');
-  const done = rows.filter(r=>r.step===9).length;
+  const done = rows.filter(r=>r.step===10).length;
   const dueTxt = '31 ธ.ค. 2570';
   const list = [...over, ...near].sort((a,b)=>a.codDaysLeft-b.codDaysLeft).slice(0,30);
   el.innerHTML = `
@@ -980,7 +989,7 @@ function renderHubs(){
     else if(r.sla.band==='yellow') g.y++;
     else if(r.sla.band==='red') g.r++;
     else if(r.sla.band==='over') g.o++;
-    if(r.step===9) g.cod++;
+    if(r.step===10) g.cod++;
     if(r.step===0) g.cancel++;
   });
   const keys = Object.keys(groups).sort((a,b)=>groups[b].n-groups[a].n);
@@ -1012,7 +1021,7 @@ function renderKpis(){
   const tot = rows.length;
   const kwSum = rows.filter(r=>r.step!==0).reduce((s,r)=>s+r.kw,0); // หักรายที่ยกเลิกออก
   const passed = rows.filter(r=>r.step>=3&&r.step!==0).length;
-  const cod = rows.filter(r=>r.step===9).length;
+  const cod = rows.filter(r=>r.step===10).length;
   const rej = rows.filter(r=>r.step===0).length;
   const gridWait = rows.filter(r=>!r.gridPass && r.step!==0 && !(r.gridChk&&r.gridChk.includes('ไม่ผ่าน'))).length;
   const g = rows.filter(r=>r.sla.band==='green').length;
@@ -1112,8 +1121,9 @@ function renderCharts(){
     5:'#A67C52',       // ติดตั้งอุปกรณ์ = น้ำตาล
     6:'#E8862E',       // ยื่นขอเชื่อมต่อ = ส้ม
     7:'#0E7C86',       // อนุมัติเชื่อมต่อ = เขียวหัวเป็ด
-    8:'#C2559D',       // เปลี่ยนมิเตอร์/FS = ชมพูเข้ม
-    9:'#1E7A3C',       // COD = เขียว
+    8:'#C2559D',       // ทดสอบเชื่อมต่อ/COD = ชมพูเข้ม
+    9:'#3FA85C',       // แจ้งผล COD = เขียวอ่อน
+    10:'#1E7A3C',      // เริ่ม COD = เขียวเข้ม
     0:'#D64545'        // ยกเลิก = แดง
   };
   const labels=[], data=[], bg=[];
@@ -1133,35 +1143,61 @@ function renderCharts(){
       {label:'kW',data:aKeys.map(k=>+areas[k].kw.toFixed(1)),backgroundColor:'#F2C230',yAxisID:'y1'}]},
     options:{responsive:true,maintainAspectRatio:false,
       scales:{y:{position:'left',title:{display:true,text:'ราย'}},y1:{position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'kW'}},x:{ticks:{font:{size:11}}}}}});
-  const byDay = {};
   // ใช้วันที่แบบ local (กันเพี้ยน -1 วันจาก UTC เพราะเวลาไทยเป็น UTC+7)
   const dkey = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  rows.forEach(r=>{ if(r.dSubmit){ const k=dkey(r.dSubmit); byDay[k]=(byDay[k]||0)+1; }});
-  const days = Object.keys(byDay).sort();
-  let cum=0; const cums = days.map(d=>cum+=byDay[d]);
-  const incs = days.map(d=>byDay[d]);
-  // ป้ายตัวเลขบนแท่ง: สะสม (เข้ม) + เพิ่มต่อวัน (ส้ม) แบบรายงานผู้บริหาร
-  const cumLabels = {
-    id:'cumLabels',
+
+  // ===== กราฟ 1: คำขอสะสมรายสัปดาห์ (+เพิ่มต่อสัปดาห์) =====
+  const byWeek = {};
+  rows.forEach(r=>{ if(r.dSubmit){ const k=weekStart(r.dSubmit).getTime(); byWeek[k]=(byWeek[k]||0)+1; }});
+  const wkKeys = Object.keys(byWeek).map(Number).sort((a,b)=>a-b);
+  let wcum=0; const wCums = wkKeys.map(k=>wcum+=byWeek[k]);
+  const wIncs = wkKeys.map(k=>byWeek[k]);
+  const wkLabels = wkKeys.map(k=>{const x=new Date(k);return x.getDate()+'/'+(x.getMonth()+1);});
+  const wkBarLabels = {
+    id:'wkBarLabels',
     afterDatasetsDraw(chart){
       const ctx = chart.ctx;
       chart.getDatasetMeta(0).data.forEach((bar,i)=>{
         ctx.save(); ctx.textAlign='center';
         ctx.font='bold 12px Segoe UI, Tahoma'; ctx.fillStyle='#3B2064';
-        ctx.fillText(fmtN(chart.data.datasets[0].data[i]), bar.x, bar.y-19);
+        ctx.fillText(fmtN(wCums[i]), bar.x, bar.y-19);
         ctx.font='11px Segoe UI, Tahoma'; ctx.fillStyle='#E8862E';
-        ctx.fillText('+'+fmtN(incs[i]), bar.x, bar.y-6);
+        ctx.fillText('+'+fmtN(wIncs[i]), bar.x, bar.y-6);
         ctx.restore();
       });
     }
   };
   charts.tm = new Chart($('#chTime'),{type:'bar',
-    data:{labels:days.map(d=>{const x=new Date(d);return x.getDate()+'/'+(x.getMonth()+1);}),
-      datasets:[{label:'คำขอสะสม',data:cums,backgroundColor:'#5A2D82',borderRadius:4}]},
+    data:{labels:wkLabels,datasets:[{label:'คำขอสะสม',data:wCums,backgroundColor:'#5A2D82',borderRadius:4}]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false}},
+      plugins:{legend:{display:false},tooltip:{callbacks:{title:it=>'สัปดาห์เริ่ม '+it[0].label,label:it=>'สะสม '+fmtN(it.raw)+' ราย'}}},
       scales:{y:{beginAtZero:true,grace:'18%'},x:{ticks:{font:{size:11}}}}},
-    plugins:[cumLabels]});
+    plugins:[wkBarLabels]});
+
+  // ===== กราฟ 2: คำขอเข้ารายวัน 15 วันล่าสุด =====
+  const byDay = {};
+  rows.forEach(r=>{ if(r.dSubmit){ const k=dkey(r.dSubmit); byDay[k]=(byDay[k]||0)+1; }});
+  const last15 = Object.keys(byDay).sort().slice(-15);
+  const d15Vals = last15.map(d=>byDay[d]);
+  const d15Labels = last15.map(d=>{const x=new Date(d);return x.getDate()+'/'+(x.getMonth()+1);});
+  const d15BarLabels = {
+    id:'d15BarLabels',
+    afterDatasetsDraw(chart){
+      const ctx = chart.ctx;
+      chart.getDatasetMeta(0).data.forEach((bar,i)=>{
+        ctx.save(); ctx.textAlign='center';
+        ctx.font='bold 12px Segoe UI, Tahoma'; ctx.fillStyle='#B25E12';
+        ctx.fillText(fmtN(d15Vals[i]), bar.x, bar.y-6);
+        ctx.restore();
+      });
+    }
+  };
+  charts.d15 = new Chart($('#chDaily15'),{type:'bar',
+    data:{labels:d15Labels,datasets:[{label:'คำขอเข้าใหม่',data:d15Vals,backgroundColor:'#E8862E',borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:it=>'ยื่นใหม่ '+fmtN(it.raw)+' ราย'}}},
+      scales:{y:{beginAtZero:true,grace:'20%'},x:{ticks:{font:{size:11}}}}},
+    plugins:[d15BarLabels]});
 }
 
 /* ================= TABLE ================= */
