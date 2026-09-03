@@ -787,8 +787,8 @@ function renderCodDeadline(){
       </div>
       <div style="font-weight:700;color:#374151;font-size:.85rem;margin:12px 0 6px">📊 รายงานสถานะงานรอ COD (จำนวนราย)</div>
       <div class="chart-box" style="height:${Math.max(180, stepStat.length*46)}px"><canvas id="chCod"></canvas></div>
-      <div style="font-weight:700;color:#374151;font-size:.85rem;margin:12px 0 6px">📍 รอ COD แยกตาม กฟฟ. เรียงมาก→น้อย (${fmtN(pendKw/1000)} MW รอเข้าระบบ)</div>
-      <div class="chart-box" style="height:${Math.max(200, topArea.length*30)}px"><canvas id="chCodArea"></canvas></div>
+      <div style="font-weight:700;color:#374151;font-size:.85rem;margin:12px 0 6px">📍 รอ COD แยกตาม กฟฟ. (${fmtN(pendKw/1000)} MW รอเข้าระบบ)</div>
+      <div class="chart-box" style="height:${Math.max(240, topArea.length*38)}px"><canvas id="chCodArea"></canvas></div>
       ${urgent.length ? `<div style="font-weight:700;color:#8f1f1f;font-size:.82rem;margin:12px 0 4px">⚠ ต้องเร่ง — ใกล้/เลยกรอบเวลา COD (${fmtN(over.length+near.length)} ราย)</div>`+urgent.map(r=>`
         <div class="sla-item ${r.codBand==='over'?'over':'red'}">
           <span><strong>${r.reqNo||'-'}</strong> · ${r.area} · <span class="badge ${bcls(r.step)}">${stepName(r.step)}</span></span>
@@ -1222,22 +1222,27 @@ function renderCharts(){
       }}]});
   }
 
-  // ===== Bar chart: รอ COD แยกตาม กฟฟ. เรียงมาก→น้อย =====
+  // ===== Bar chart: รอ COD แยกตาม กฟฟ. (แต่ละแท่งแยกสีตามสถานะ/ขั้น) =====
   const codArea = {};
-  codPend.forEach(r=>{ codArea[r.area]=(codArea[r.area]||0)+1; });
-  const caTop = Object.entries(codArea).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  codPend.forEach(r=>{ const a=codArea[r.area]=codArea[r.area]||{total:0}; a[r.step]=(a[r.step]||0)+1; a.total++; });
+  const caTop = Object.entries(codArea).sort((a,b)=>b[1].total-a[1].total).slice(0,15);
   if(caTop.length && $('#chCodArea')){
+    const caTotals = caTop.map(x=>x[1].total);
+    const stepsPresent = [4,5,6,7,8,9].filter(s=>caTop.some(([k,v])=>v[s]));
     charts.codArea = new Chart($('#chCodArea'),{type:'bar',
       data:{labels:caTop.map(x=>x[0]),
-        datasets:[{label:'จำนวนราย',data:caTop.map(x=>x[1]),backgroundColor:'#5A2D82',borderRadius:4}]},
+        datasets:stepsPresent.map(s=>({label:s+'. '+stepName(s),data:caTop.map(([k,v])=>v[s]||0),
+          backgroundColor:STEP_COLOR[s]||'#888',stack:'cod',borderRadius:2}))},
       options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:it=>fmtN(it.raw)+' ราย'}}},
-        scales:{x:{beginAtZero:true,grace:'12%',title:{display:true,text:'จำนวนราย'}},y:{ticks:{font:{size:11}}}}},
-      plugins:[{id:'codAreaLbl',afterDatasetsDraw(ch){
-        const ctx=ch.ctx;
-        ch.getDatasetMeta(0).data.forEach((bar,i)=>{
-          ctx.save(); ctx.font='bold 11px Segoe UI, Tahoma'; ctx.fillStyle='#333'; ctx.textAlign='left';
-          ctx.fillText(fmtN(caTop[i][1]), bar.x+6, bar.y+4); ctx.restore();
+        plugins:{legend:{display:true,position:'top',labels:{boxWidth:12,font:{size:11}}},
+          tooltip:{callbacks:{label:it=>it.dataset.label+': '+fmtN(it.raw)+' ราย'}}},
+        scales:{x:{stacked:true,beginAtZero:true,grace:'12%',title:{display:true,text:'จำนวนราย'}},
+          y:{stacked:true,ticks:{font:{size:13,weight:'600'},color:'#1f2937'}}}},
+      plugins:[{id:'codAreaTot',afterDatasetsDraw(ch){
+        const ctx=ch.ctx; const last=ch.getDatasetMeta(ch.data.datasets.length-1).data;
+        last.forEach((bar,i)=>{
+          ctx.save(); ctx.font='bold 12px Segoe UI, Tahoma'; ctx.fillStyle='#222'; ctx.textAlign='left';
+          ctx.fillText(fmtN(caTotals[i]), bar.x+6, bar.y+4); ctx.restore();
         });
       }}]});
   }
