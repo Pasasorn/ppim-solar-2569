@@ -254,7 +254,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       </tr></thead><tbody id="weeklyBody"></tbody></table></div>
     </div>
 
-    <div class="card purple"><h2>คำขอเข้าใหม่ + ยอดสะสม รายสัปดาห์</h2><div class="chart-box" style="height:360px"><canvas id="chTime"></canvas></div></div>
+    <div class="card purple"><h2>คำขอสะสม — รายสัปดาห์ · 3 สัปดาห์ล่าสุดกางเป็นรายวัน</h2><div class="chart-box" style="height:360px"><canvas id="chTime"></canvas></div></div>
 
     <!-- PIPELINE -->
     <div class="card" id="sec-pipeline">
@@ -1145,7 +1145,8 @@ function renderCharts(){
   // ใช้วันที่แบบ local (กันเพี้ยน -1 วันจาก UTC เพราะเวลาไทยเป็น UTC+7)
   const dkey = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 
-  // ===== กราฟรวม: รายสัปดาห์ + 3 สัปดาห์ล่าสุดแยกรายวัน (แท่ง) + ยอดสะสม (เส้น) =====
+  // ===== กราฟแท่งสะสม: ก่อนหน้ารวมรายสัปดาห์ + 3 สัปดาห์ล่าสุดกางรายวัน =====
+  // แท่ง = ยอดสะสม (ความสูง), ป้าย = ยอดสะสม + จำนวนที่เพิ่มเข้ามาในงวดนั้น (+N)
   const byWeek = {}, byDay = {};
   rows.forEach(r=>{ if(r.dSubmit){
     const wk=weekStart(r.dSubmit).getTime(); byWeek[wk]=(byWeek[wk]||0)+1;
@@ -1159,42 +1160,31 @@ function renderCharts(){
   const tLabels=[], incs=[], isDaily=[];
   earlyWeeks.forEach(k=>{ const x=new Date(k); tLabels.push(x.getDate()+'/'+(x.getMonth()+1)); incs.push(byWeek[k]); isDaily.push(false); });
   dayKeys.filter(dk=> new Date(dk).getTime() >= cutoff).forEach(dk=>{ const x=new Date(dk); tLabels.push(x.getDate()+'/'+(x.getMonth()+1)); incs.push(byDay[dk]); isDaily.push(true); });
-  let c=0; const cums = incs.map(v=>c+=v);
-  const barColors = isDaily.map(d=> d ? '#F4A85C' : '#E8862E');   // รายวัน = ส้มอ่อน, รายสัปดาห์ = ส้มเข้ม
-  const comboLabels = {
-    id:'comboLabels',
+  let c=0; const cums = incs.map(v=>c+=v);                   // ความสูงแท่ง = ยอดสะสม
+  const barColors = isDaily.map(d=> d ? '#E8862E' : '#5A2D82');   // รายวัน = ส้ม, รายสัปดาห์ = ม่วง
+  const cumLabels = {
+    id:'cumLabels',
     afterDatasetsDraw(chart){
       const ctx = chart.ctx;
-      // ป้ายยอดสะสม เฉพาะจุดรายสัปดาห์ + จุดสุดท้าย (กันรก)
-      chart.getDatasetMeta(1).data.forEach((pt,i)=>{
-        if(isDaily[i] && i!==incs.length-1) return;
-        ctx.save(); ctx.textAlign='center';
-        ctx.font='bold 11px Segoe UI, Tahoma'; ctx.fillStyle='#3B2064';
-        ctx.fillText(fmtN(cums[i]), pt.x, pt.y-8);
-        ctx.restore();
-      });
-      // ป้ายจำนวนเข้าใหม่ เหนือแท่ง
       chart.getDatasetMeta(0).data.forEach((bar,i)=>{
         ctx.save(); ctx.textAlign='center';
-        ctx.font='10px Segoe UI, Tahoma'; ctx.fillStyle='#B25E12';
-        ctx.fillText((isDaily[i]?'':'+')+fmtN(incs[i]), bar.x, bar.y-4);
+        ctx.font='bold 11px Segoe UI, Tahoma'; ctx.fillStyle='#3B2064';
+        ctx.fillText(fmtN(cums[i]), bar.x, bar.y-17);            // ยอดสะสม (บน)
+        ctx.font='10px Segoe UI, Tahoma'; ctx.fillStyle='#E8862E';
+        ctx.fillText('+'+fmtN(incs[i]), bar.x, bar.y-5);         // เพิ่มเข้ามางวดนี้ (+N)
         ctx.restore();
       });
     }
   };
-  charts.tm = new Chart($('#chTime'),{
-    data:{labels:tLabels,datasets:[
-      {type:'bar',label:'เข้าใหม่ (สัปดาห์ / 3 สัปดาห์ล่าสุดรายวัน)',data:incs,backgroundColor:barColors,borderRadius:4,yAxisID:'y',order:2},
-      {type:'line',label:'ยอดสะสม',data:cums,borderColor:'#5A2D82',backgroundColor:'#5A2D82',borderWidth:2,tension:.3,pointRadius:3,pointBackgroundColor:'#5A2D82',yAxisID:'y1',order:1}
-    ]},
+  charts.tm = new Chart($('#chTime'),{type:'bar',
+    data:{labels:tLabels,datasets:[{label:'ยอดสะสม',data:cums,backgroundColor:barColors,borderRadius:4}]},
     options:{responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:true,position:'top',labels:{boxWidth:14,font:{size:12}}},
-        tooltip:{callbacks:{title:it=>(isDaily[it[0].dataIndex]?'วันที่ ':'สัปดาห์เริ่ม ')+it[0].label}}},
-      scales:{
-        y:{position:'left',beginAtZero:true,grace:'25%',title:{display:true,text:'เข้าใหม่'}},
-        y1:{position:'right',beginAtZero:true,grace:'18%',grid:{drawOnChartArea:false},title:{display:true,text:'สะสม'}},
-        x:{ticks:{font:{size:10},maxRotation:60,minRotation:0}}}},
-    plugins:[comboLabels]});
+      plugins:{legend:{display:false},
+        tooltip:{callbacks:{
+          title:it=>(isDaily[it[0].dataIndex]?'วันที่ ':'สัปดาห์เริ่ม ')+it[0].label,
+          label:it=>['สะสม '+fmtN(cums[it.dataIndex])+' ราย','เพิ่มงวดนี้ +'+fmtN(incs[it.dataIndex])+' ราย']}}},
+      scales:{y:{beginAtZero:true,grace:'18%'},x:{ticks:{font:{size:10},maxRotation:60,minRotation:0}}}},
+    plugins:[cumLabels]});
 }
 
 /* ================= TABLE ================= */
