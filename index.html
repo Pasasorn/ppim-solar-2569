@@ -254,7 +254,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       </tr></thead><tbody id="weeklyBody"></tbody></table></div>
     </div>
 
-    <div class="card purple"><h2>คำขอสะสม — รายสัปดาห์ · 3 สัปดาห์ล่าสุดกางเป็นรายวัน</h2><div class="chart-box" style="height:360px"><canvas id="chTime"></canvas></div></div>
+    <div class="card purple"><h2>คำขอสะสม ตั้งแต่ 1 ก.ค. 2569 – ปัจจุบัน (รายสัปดาห์ · 3 สัปดาห์ล่าสุดกางเป็นรายวัน)</h2><div class="chart-box" style="height:360px"><canvas id="chTime"></canvas></div></div>
 
     <!-- PIPELINE -->
     <div class="card" id="sec-pipeline">
@@ -702,7 +702,7 @@ function process(){
       const e = o.sla.elapsed;
       o.sla.band = e<=10?'green' : e<=20?'yellow' : e<=30?'red' : 'over';
     }
-    // เส้นตาย COD: ต้อง COD ภายในสิ้นปี 2570 (31 ธ.ค. 2027) เตือนล่วงหน้า 3 เดือน
+    // กรอบเวลา COD: ต้อง COD ภายในสิ้นปี 2570 (31 ธ.ค. 2027) เตือนล่วงหน้า 3 เดือน
     // ครอบคลุมรายที่ทำสัญญาแล้วแต่ยังไม่ COD (ขั้น 4-8) และไม่ยกเลิก
     o.codBand = null; o.codDaysLeft = null;
     if(o.step>=4 && o.step<=9){
@@ -756,7 +756,7 @@ function renderSummary(){
     • จุดรวมงานที่มีคำขอสูงสุด: ${b(topHub||'-')} (${fmtN(hubCnt[topHub]||0)} ราย)`;
 }
 
-/* ================= เส้นตาย COD (ภายในสิ้นปี 2570) ================= */
+/* ================= กรอบเวลา COD (ภายในสิ้นปี 2570) ================= */
 function renderCodDeadline(){
   const el = $('#codDeadline'); if(!el) return;
   const pending = rows.filter(r=>r.codBand!=null);      // ขั้น 4-9 ยังไม่ COD
@@ -773,11 +773,11 @@ function renderCodDeadline(){
   const maxN = Math.max(1,...stepStat.map(x=>x.n));
   // รอ COD แยกตาม กฟฟ.
   const byArea={}; pending.forEach(r=>{ byArea[r.area]=byArea[r.area]||{n:0,kw:0}; byArea[r.area].n++; byArea[r.area].kw+=r.kw; });
-  const topArea = Object.entries(byArea).sort((a,b)=>b[1].n-a[1].n).slice(0,8);
+  const topArea = Object.entries(byArea).sort((a,b)=>b[1].n-a[1].n).slice(0,15);
   const urgent = [...over,...near].sort((a,b)=>a.codDaysLeft-b.codDaysLeft).slice(0,20);
   el.innerHTML = `
     <div class="sla-group g2">
-      <h3>③ เส้นตาย COD : ต้องจ่ายไฟเข้าระบบ (COD) ภายในสิ้นปี 2570 — เตือนล่วงหน้า 3 เดือน</h3>
+      <h3>③ กรอบเวลา COD : ต้องจ่ายไฟเข้าระบบ (COD) ภายในสิ้นปี 2570 — เตือนล่วงหน้า 3 เดือน</h3>
       <div class="pay-note" style="background:#fdeee0;color:#b25e12">📌 ครบกำหนด ${dueTxt} · เหลืออีก ${fmtN(daysLeft)} วัน · หากเลยกำหนดคำขอเป็นอันสิ้นผล</div><br>
       <div class="sla-chips">
         <span class="chip green">✅ COD แล้ว: ${fmtN(done)} ราย</span>
@@ -785,18 +785,16 @@ function renderCodDeadline(){
         <span class="chip red">⚠ ใกล้ครบ ≤3 เดือน: ${fmtN(near.length)} ราย</span>
         <span class="chip over">⛔ เลยกำหนด: ${fmtN(over.length)} ราย</span>
       </div>
-      <div style="font-weight:700;color:#374151;font-size:.85rem;margin:12px 0 6px">🔧 คอขวด: งานรอ COD ค้างอยู่ขั้นไหน (จำนวนราย · kW ใน tooltip)</div>
+      <div style="font-weight:700;color:#374151;font-size:.85rem;margin:12px 0 6px">📊 รายงานสถานะงานรอ COD (จำนวนราย)</div>
       <div class="chart-box" style="height:${Math.max(180, stepStat.length*46)}px"><canvas id="chCod"></canvas></div>
-      <div style="font-weight:700;color:#374151;font-size:.85rem;margin:12px 0 6px">📍 รอ COD สูงสุดตาม กฟฟ. (${fmtN(pendKw/1000)} MW รอเข้าระบบ)</div>
-      <div class="sla-chips">
-        ${topArea.map(([k,v])=>`<span class="chip" style="background:#EFF3FA;color:#2c3e50">${k}: ${fmtN(v.n)} ราย</span>`).join('')}
-      </div>
-      ${urgent.length ? `<div style="font-weight:700;color:#8f1f1f;font-size:.82rem;margin:12px 0 4px">⚠ ต้องเร่ง — ใกล้/เลยเส้นตาย COD (${fmtN(over.length+near.length)} ราย)</div>`+urgent.map(r=>`
+      <div style="font-weight:700;color:#374151;font-size:.85rem;margin:12px 0 6px">📍 รอ COD แยกตาม กฟฟ. เรียงมาก→น้อย (${fmtN(pendKw/1000)} MW รอเข้าระบบ)</div>
+      <div class="chart-box" style="height:${Math.max(200, topArea.length*30)}px"><canvas id="chCodArea"></canvas></div>
+      ${urgent.length ? `<div style="font-weight:700;color:#8f1f1f;font-size:.82rem;margin:12px 0 4px">⚠ ต้องเร่ง — ใกล้/เลยกรอบเวลา COD (${fmtN(over.length+near.length)} ราย)</div>`+urgent.map(r=>`
         <div class="sla-item ${r.codBand==='over'?'over':'red'}">
           <span><strong>${r.reqNo||'-'}</strong> · ${r.area} · <span class="badge ${bcls(r.step)}">${stepName(r.step)}</span></span>
           <span class="sla-badge">${r.codBand==='over'? '⛔ เลยกำหนดมา '+Math.abs(r.codDaysLeft)+' วัน' : '⚠ เหลือ '+r.codDaysLeft+' วัน'}</span>
         </div>`).join('')
-      : '<div class="note" style="margin-top:10px">✅ ยังไม่มีรายที่ใกล้ครบ/เลยเส้นตาย COD (เตือนอัตโนมัติเมื่อเข้าใกล้ 3 เดือนก่อนสิ้นปี 2570)</div>'}
+      : '<div class="note" style="margin-top:10px">✅ ยังไม่มีรายที่ใกล้ครบ/เลยกรอบเวลา COD (เตือนอัตโนมัติเมื่อเข้าใกล้ 3 เดือนก่อนสิ้นปี 2570)</div>'}
     </div>`;
 }
 
@@ -1220,6 +1218,26 @@ function renderCharts(){
         ch.getDatasetMeta(0).data.forEach((bar,i)=>{
           ctx.save(); ctx.font='bold 11px Segoe UI, Tahoma'; ctx.fillStyle='#333'; ctx.textAlign='left';
           ctx.fillText(fmtN(codSteps[i].n)+' ราย', bar.x+6, bar.y+4); ctx.restore();
+        });
+      }}]});
+  }
+
+  // ===== Bar chart: รอ COD แยกตาม กฟฟ. เรียงมาก→น้อย =====
+  const codArea = {};
+  codPend.forEach(r=>{ codArea[r.area]=(codArea[r.area]||0)+1; });
+  const caTop = Object.entries(codArea).sort((a,b)=>b[1]-a[1]).slice(0,15);
+  if(caTop.length && $('#chCodArea')){
+    charts.codArea = new Chart($('#chCodArea'),{type:'bar',
+      data:{labels:caTop.map(x=>x[0]),
+        datasets:[{label:'จำนวนราย',data:caTop.map(x=>x[1]),backgroundColor:'#5A2D82',borderRadius:4}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:it=>fmtN(it.raw)+' ราย'}}},
+        scales:{x:{beginAtZero:true,grace:'12%',title:{display:true,text:'จำนวนราย'}},y:{ticks:{font:{size:11}}}}},
+      plugins:[{id:'codAreaLbl',afterDatasetsDraw(ch){
+        const ctx=ch.ctx;
+        ch.getDatasetMeta(0).data.forEach((bar,i)=>{
+          ctx.save(); ctx.font='bold 11px Segoe UI, Tahoma'; ctx.fillStyle='#333'; ctx.textAlign='left';
+          ctx.fillText(fmtN(caTop[i][1]), bar.x+6, bar.y+4); ctx.restore();
         });
       }}]});
   }
