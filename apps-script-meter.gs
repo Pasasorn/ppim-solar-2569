@@ -24,6 +24,8 @@ var SHEET_ID  = '15MinRHg79n2zToLiOsacmm2Br7N9FUIEaHOxl2eqelo';   // ชีต�
 var MAIN_TAB  = 'PPIM Solar Update';
 var EMP_TAB   = 'พนักงานมิเตอร์';
 var LOG_TAB   = 'ผลสับเปลี่ยนมิเตอร์';
+var LOG_USER_TAB = 'บันทึกการเข้าใช้งาน';   // log ผู้ใช้ (login/register/รายงาน) ใคร-เมื่อไหร่-ทำอะไร
+var TICKER_TAB   = 'ประกาศวิ่ง';            // ข้อความแถบวิ่งด้านล่าง (Admin แก้ไขได้) เก็บใน A1
 var PHOTO_FOLDER_ID = '1iL62z_4VPx9DBFH4S482jhbJ3phnHyvK';        // โฟลเดอร์ Drive เก็บรูปสับเปลี่ยนมิเตอร์
 var STATUS_AFTER_SWAP = 'รอ ผบส.กรอกข้อมูล COD ในระบบ PPIM';   // ผมต. รายงานเสร็จ (ขั้น 9)
 var STATUS_AFTER_COD  = 'แจ้งผล COD เรียบร้อย';                 // ผบส. ยืนยันเสร็จ (ขั้น 10)
@@ -37,6 +39,9 @@ function doPost(e) {
     if (body.action === 'register') return json(doRegister(body));
     if (body.action === 'report')   return json(doReport(body));
     if (body.action === 'cod')      return json(doCod(body));
+    if (body.action === 'log')      return json(doGetLog(body));
+    if (body.action === 'ticker')   return json(doGetTicker());
+    if (body.action === 'setticker')return json(doSetTicker(body));
     return json({ ok:false, error:'unknown action' });
   } catch (err) {
     return json({ ok:false, error:String(err) });
@@ -53,6 +58,16 @@ function json(obj) {
 
 function sheet(tab) {
   return SpreadsheetApp.openById(SHEET_ID).getSheetByName(tab);
+}
+
+// บันทึก log การใช้งาน (สร้างแท็บให้อัตโนมัติ)
+function logUser(emp, name, role, hub, action) {
+  try {
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var lg = ss.getSheetByName(LOG_USER_TAB);
+    if (!lg) { lg = ss.insertSheet(LOG_USER_TAB); lg.appendRow(['เวลา','รหัสพนักงาน','ชื่อ-สกุล','ตำแหน่ง','จุดร่วมงาน','การกระทำ']); }
+    lg.appendRow([ new Date(), String(emp||''), String(name||''), String(role||''), String(hub||''), String(action||'') ]);
+  } catch (e) {}
 }
 
 // หา index คอลัมน์จากชื่อหัว (แถวแรก) — ยืดหยุ่นต่อการสลับคอลัมน์
@@ -75,8 +90,9 @@ function doLogin(b) {
       iD = colIndex(h,'สังกัด'), iH = colIndex(h,'จุดร่วมงาน'), iP = colIndex(h,'password');
   for (var r=1;r<data.length;r++){
     if (String(data[r][iE]).trim() === emp && String(data[r][iP]) === pw) {
-      return { ok:true, name:String(data[r][iN]||''), dept:String(data[r][iD]||''),
-               hub: iH>=0 ? String(data[r][iH]||'') : '', role: iR>=0 ? String(data[r][iR]||'') : '' };
+      var nm=String(data[r][iN]||''), rl=iR>=0?String(data[r][iR]||''):'', hb=iH>=0?String(data[r][iH]||''):'';
+      logUser(emp, nm, rl, hb, 'เข้าสู่ระบบ');
+      return { ok:true, name:nm, dept:String(data[r][iD]||''), hub:hb, role:rl };
     }
   }
   return { ok:false, error:'invalid' };
@@ -109,7 +125,59 @@ function doRegister(b) {
   row[iE]=emp; row[iN]=name; row[iR]=role; row[iD]=dept; row[iH]=hub;
   if (iP>=0) row[iP]=pw; else row.push(pw);
   sh.appendRow(row);
+  logUser(emp, name, role, hub, 'ลงทะเบียน');
   return { ok:true, name:name, dept:dept, hub:hub, role:role };
+}
+
+// ข้อความแถบวิ่ง — อ่าน (สาธารณะ)
+function doGetTicker() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var t = ss.getSheetByName(TICKER_TAB);
+  if (!t) { t = ss.insertSheet(TICKER_TAB); t.getRange('A1').setValue('ยินดีต้อนรับสู่ระบบ PPIM Solar ภาคประชาชน ปี 2569 · การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ)'); }
+  return { ok:true, text: String(t.getRange('A1').getValue()||'') };
+}
+// ข้อความแถบวิ่ง — แก้ไข (เฉพาะ Admin)
+function doSetTicker(b) {
+  if (!isAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var t = ss.getSheetByName(TICKER_TAB) || ss.insertSheet(TICKER_TAB);
+  t.getRange('A1').setValue(String(b.text||''));
+  logUser(b.emp, b.name, 'Admin', '', 'แก้ไขข้อความแถบวิ่ง');
+  return { ok:true };
+}
+// ตรวจสิทธิ์ Admin (ไม่บันทึก log)
+function isAdmin(emp, pw) {
+  var sh = sheet(EMP_TAB); if (!sh) return false;
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iE = colIndex(h,'รหัสพนักงาน'), iP = colIndex(h,'password'), iR = colIndex(h,'ตำแหน่ง');
+  for (var r=1;r<data.length;r++){
+    if (String(data[r][iE]).trim() === String(emp||'').trim() && String(data[r][iP]) === String(pw||'')) {
+      return String(data[r][iR]||'').toLowerCase().indexOf('admin') >= 0;
+    }
+  }
+  return false;
+}
+
+// Admin ดึง log การใช้งาน (ตรวจสิทธิ์ Admin ก่อน — ไม่บันทึก log ซ้ำ)
+function doGetLog(b) {
+  var sh = sheet(EMP_TAB);
+  if (!sh) return { ok:false, error:'no employees' };
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iE = colIndex(h,'รหัสพนักงาน'), iP = colIndex(h,'password'), iR = colIndex(h,'ตำแหน่ง');
+  var isAdmin = false;
+  for (var r=1;r<data.length;r++){
+    if (String(data[r][iE]).trim() === String(b.emp||'').trim() && String(data[r][iP]) === String(b.pw||'')) {
+      isAdmin = String(data[r][iR]||'').toLowerCase().indexOf('admin') >= 0; break;
+    }
+  }
+  if (!isAdmin) return { ok:false, error:'forbidden' };
+  var lg = sheet(LOG_USER_TAB);
+  if (!lg) return { ok:true, rows:[] };
+  var d = lg.getDataRange().getValues();
+  var out = d.slice(1).slice(-500).map(function(x){
+    return { time:String(x[0]), emp:String(x[1]), name:String(x[2]), role:String(x[3]), hub:String(x[4]), action:String(x[5]) };
+  });
+  return { ok:true, rows: out.reverse() };   // ล่าสุดก่อน
 }
 
 // ผบส. ยืนยันแจ้งผล COD (ขั้น 9 → 10)
@@ -166,6 +234,7 @@ function doReport(b) {
   log.appendRow([ new Date(), reqNo, String(b.ca||''), String(b.peaNo||''), String(b.phase||''),
                   String(b.meterNo||''), String(b.reading||''), String(b.codDate||''),
                   String(b.emp||''), String(b.name||''), photoLinks.join('\n') ]);
+  logUser(b.emp, b.name, 'ผมต.', '', 'รายงานสับเปลี่ยนมิเตอร์ ' + reqNo);
 
   return { ok:true, photos:photoLinks.length };
 }
