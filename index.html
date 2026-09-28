@@ -48,6 +48,7 @@ html{scroll-behavior:smooth}
 #sidenav a{display:flex;align-items:center;gap:11px;padding:8px 12px;border-radius:10px;
   text-decoration:none;color:#EFE6F7;font-size:.9rem;font-weight:600;transition:.15s}
 #sidenav a.nav-active{background:rgba(255,255,255,.28);box-shadow:inset 3px 0 0 #fff}
+#sidenav a.hidden{display:none}   /* กันเมนู (เช่น log Admin) ที่ต้องซ่อน ให้ .hidden ชนะ specificity */
 #sidenav a .i{font-size:1.15rem;width:22px;text-align:center}
 #sidenav a .t{flex:1}
 #sidenav a .b{background:rgba(255,255,255,.22);color:#fff;font-size:.72rem;font-weight:800;
@@ -1880,7 +1881,14 @@ if($('#btnTickerSave')) $('#btnTickerSave').onclick = async ()=>{
 };
 loadTicker();
 if($('#mmClose')) $('#mmClose').onclick = ()=>$('#meterModal').classList.remove('show');
-if($('#mmLogout')) $('#mmLogout').onclick = ()=>{ mmSession=null; mmShowLogin(); };
+if($('#mmLogout')) $('#mmLogout').onclick = ()=>{
+  mmSession=null; caAuthed=false;
+  if($('#navLog')) $('#navLog').classList.add('hidden');   // ซ่อนเมนู log Admin เมื่อออกจากระบบ
+  const uc=$('#uploadCard'); if(uc) uc.classList.add('hidden');
+  if(typeof renderCA==='function') renderCA();
+  if($('#sec-log')&&$('#sec-log').getAttribute('data-view')==='log') showView('overview');
+  mmShowLogin();
+};
 if($('#mmDoLogin')) $('#mmDoLogin').onclick = async ()=>{
   const emp=$('#mmEmp').value.trim(), pw=$('#mmPw').value;
   if(!emp||!pw){ $('#mmLoginMsg').textContent='กรอกรหัสพนักงานและรหัสผ่าน'; return; }
