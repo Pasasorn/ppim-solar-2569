@@ -31,6 +31,7 @@ var STATUS_AFTER_SWAP = 'รอ ผบส.กรอกข้อมูล COD ใ
 var STATUS_AFTER_COD  = 'แจ้งผล COD เรียบร้อย';                 // ผบส. ยืนยันเสร็จ (ขั้น 10)
 var COL_SWAP_DATE = 'วันที่รายงานสับเปลี่ยน';   // คอลัมน์เก็บวันที่ ผมต. รายงานผล (ใช้จับเวลา)
 var COL_COD_DATE  = 'วันที่เชื่อมต่อเข้าระบบ';   // คอลัมน์วัน COD (ถ้ามี จะเขียนตอน ผบส. ยืนยัน)
+var ADMIN_SECRET  = 'PEA-N1-ADMIN-2569';   // 🔑 รหัสอนุมัติ Admin — ต้องกรอกให้ตรงตอนสมัครตำแหน่ง Admin (เปลี่ยนเป็นรหัสลับของคุณเอง)
 
 function doPost(e) {
   try {
@@ -106,6 +107,10 @@ function doRegister(b) {
   var hub  = String(b.hub||'').trim();
   var pw   = String(b.pw||'');
   if (!emp || !name || !pw) return { ok:false, error:'missing fields' };
+  // สมัครตำแหน่ง Admin ต้องกรอกรหัสอนุมัติ Admin ให้ตรง (กันไม่ให้ใครตั้งตัวเองเป็น Admin)
+  if (role.toLowerCase().indexOf('admin') >= 0 && String(b.adminCode||'') !== ADMIN_SECRET) {
+    return { ok:false, error:'bad_admin_code' };
+  }
   var sh = sheet(EMP_TAB);
   if (!sh) {  // สร้างแท็บพนักงานให้อัตโนมัติถ้ายังไม่มี
     sh = SpreadsheetApp.openById(SHEET_ID).insertSheet(EMP_TAB);

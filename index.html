@@ -261,6 +261,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <label>สังกัด (ระบุให้ครบ)</label><input id="mmRDept" placeholder="เช่น ผมต.กฟส.นางแล">
       <label>จุดร่วมงาน</label><select id="mmRHub"></select>
       <label>ตั้งรหัสผ่าน</label><input id="mmRPw" type="password">
+      <div id="mmRAdminWrap" class="hidden"><label>🔑 รหัสอนุมัติ Admin</label><input id="mmRAdminCode" type="password" placeholder="รหัสลับสำหรับสมัคร Admin"><div class="note" style="margin-top:2px">ต้องกรอกรหัสนี้ให้ถูกต้องจึงจะสมัคร Admin ได้</div></div>
       <div class="mmsg" id="mmRegMsg"></div>
       <div class="toolbar" style="margin-top:14px">
         <button class="btn btn-primary" id="mmDoRegister">ลงทะเบียน</button>
@@ -1751,6 +1752,8 @@ function mmShowRegister(){
   // ตั้งค่าตำแหน่งตามประตู แล้วล็อกไว้ (ยกเว้นประตู Admin ที่เลือกได้)
   const rn=$('#mmRegNote'); if(rn) rn.innerHTML = g.regNote;
   const sel=$('#mmRRole'); if(sel){ sel.value=g.regRole; sel.disabled=!!g.lockRole; sel.style.opacity=g.lockRole?'.6':'1'; }
+  // ช่องรหัสอนุมัติ Admin: แสดงเฉพาะประตู Admin
+  const aw=$('#mmRAdminWrap'); if(aw){ const showAdmin=(g.regRole==='Admin'); aw.classList.toggle('hidden',!showAdmin); if(!showAdmin){ const ac=$('#mmRAdminCode'); if(ac) ac.value=''; } }
   // จุดร่วมงาน: Admin ไม่ต้องเลือก
   const hubWrap=$('#mmRHub'); if(hubWrap){ const showHub = (g.regRole!=='Admin'); hubWrap.style.display=showHub?'':'none'; const lbl=hubWrap.previousElementSibling; if(lbl&&lbl.tagName==='LABEL') lbl.style.display=showHub?'':'none'; }
   $('#mmRegMsg').textContent='';
@@ -1914,15 +1917,19 @@ if($('#mmGoRegister')) $('#mmGoRegister').onclick = (ev)=>{ ev.preventDefault();
 if($('#mmBackLogin')) $('#mmBackLogin').onclick = ()=>mmShowLogin();
 if($('#mmDoRegister')) $('#mmDoRegister').onclick = async ()=>{
   const emp=$('#mmREmp').value.trim(), name=$('#mmRName').value.trim(), role=$('#mmRRole').value, dept=$('#mmRDept').value.trim(), hub=$('#mmRHub').value, pw=$('#mmRPw').value;
-  const needHub = role!=='Admin';   // Admin ดูแลทุกจุด ไม่ต้องเลือกจุดร่วมงาน
+  const isAdminReg = role==='Admin';
+  const adminCode = isAdminReg ? $('#mmRAdminCode').value : '';
+  const needHub = !isAdminReg;   // Admin ดูแลทุกจุด ไม่ต้องเลือกจุดร่วมงาน
   if(!emp||!name||!dept||(needHub&&!hub)||!pw){ $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">กรอกให้ครบ: รหัสพนักงาน ชื่อ-สกุล ตำแหน่ง สังกัด'+(needHub?' จุดร่วมงาน':'')+' และรหัสผ่าน</span>'; return; }
+  if(isAdminReg && !adminCode){ $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">กรอกรหัสอนุมัติ Admin</span>'; return; }
   $('#mmRegMsg').textContent='กำลังลงทะเบียน...';
   try{
-    const r = await meterApi({action:'register', emp, name, role, dept, hub, pw});
+    const r = await meterApi({action:'register', emp, name, role, dept, hub, pw, adminCode});
     if(r && r.ok){
       alert('ขอบคุณครับ ลงทะเบียนเรียบร้อย');
-      $('#mmRPw').value=''; $('#mmEmp').value=emp; $('#mmPw').value=''; mmShowLogin();  // ไปหน้า login ให้ล็อกอินเอง
+      $('#mmRPw').value=''; if($('#mmRAdminCode')) $('#mmRAdminCode').value=''; $('#mmEmp').value=emp; $('#mmPw').value=''; mmShowLogin();  // ไปหน้า login ให้ล็อกอินเอง
     }
+    else if(r && r.error==='bad_admin_code') $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">รหัสอนุมัติ Admin ไม่ถูกต้อง — สมัคร Admin ไม่ได้</span>';
     else if(r && r.error==='exists') $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">รหัสพนักงานนี้ลงทะเบียนแล้ว — กลับไปเข้าสู่ระบบ</span>';
     else $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">ลงทะเบียนไม่สำเร็จ: '+((r&&r.error)||'')+'</span>';
   }catch(e){ $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
