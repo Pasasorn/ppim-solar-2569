@@ -238,7 +238,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     <!-- METER SUMMARY -->
     <div class="card" id="sec-meter">
       <h2>🔧 สถานะของการสับเปลี่ยนมิเตอร์</h2>
-      <div class="note" style="margin-bottom:10px">🔧 สับเปลี่ยนแล้วจริง = COD แล้ว · 📈 คาดการณ์ = คำขอที่กำลังดำเนินการ (ยังไม่ COD, ไม่ยกเลิก) · แยกเฟสจากคอลัมน์ “จำนวนเฟส”</div>
+      <div class="note" style="margin-bottom:10px">🔧 สับเปลี่ยนแล้วจริง = COD แล้ว · 📈 คาดการณ์ = สถานะ “รอทดสอบเชื่อมต่อ/COD” (รอ ผมต. สับเปลี่ยนมิเตอร์) เท่านั้น · แยกเฟสจากคอลัมน์ “จำนวนเฟส”</div>
       <div id="meterSummary"></div>
     </div>
 
@@ -564,8 +564,28 @@ function loadFile(file){
 }
 
 /* โหลดจาก Google Sheets (ชีตต้องแชร์เป็น "ทุกคนที่มีลิงก์ - ดูได้") */
-const SHEET_ID = '15MinRHg79n2zToLiOsacmm2Br7N9FUIEaHOxl2eqelo';   // ชีต "PPIM Solar"
+const SHEET_ID = '15MinRHg79n2zToLiOsacmm2Br7N9FUIEaHOxl2eqelo';   // ชีต "PPIM Solar" (ข้อมูลหลัก)
 const SHEET_GID = '1459120099';                                     // แท็บ "PPIM Solar Update"
+// ชีตแยกสำหรับ "การควบคุม SLA" (ประมวลผลคนละแหล่งกับข้อมูลหลัก)
+const SLA_SHEET_ID = '1SFqBINbiTy7OsQ_OrDLzv_8slFymddakAkpgAcnWKXE';
+let slaRows = null;                                                 // ข้อมูล SLA จากชีตแยก
+const slaData = () => (slaRows && slaRows.length) ? slaRows : rows;  // มีชีต SLA ใช้อันนั้น ไม่งั้น fallback ข้อมูลหลัก
+async function loadSlaSource(){
+  try{
+    const url = 'https://docs.google.com/spreadsheets/d/'+SLA_SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&nocache='+Date.now();
+    const res = await fetch(url);
+    if(!res.ok) return;
+    const txt = await res.text();
+    const grid = parseDelimited(txt, ',');
+    if(grid.length < 2) return;
+    const hdrs = grid[0].map(h=>String(h).trim());
+    const data = grid.slice(1).filter(r=>r.length>=2).map(r=>{
+      const o={}; hdrs.forEach((h,ix)=>o[h]= r[ix]!=null ? String(r[ix]).trim() : ''); return o;
+    });
+    slaRows = buildRowsFrom(data, computeMapping(hdrs));
+    if(typeof renderSla==='function' && rows && rows.length){ renderSla(); renderSidenav(); }
+  }catch(e){ /* โหลด SLA ไม่ได้ → ใช้ข้อมูลหลักแทน */ }
+}
 // เติม timestamp ท้าย URL เพื่อกันแคช (Google gviz แคชข้อมูล ~5 นาที) — บังคับดึงข้อมูลสดทุกครั้ง
 const bust = () => '&nocache=' + Date.now();
 const SHEET_CSV  = () => 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&gid='+SHEET_GID+bust();
@@ -639,20 +659,22 @@ async function loadFromSheet(silent){
     return false;
   }
 }
-$('#btnSheet').onclick = ()=>loadFromSheet(false);
+$('#btnSheet').onclick = ()=>{ loadFromSheet(false); loadSlaSource(); };
 
-function autoMap(){
-  mapping = {};
+function computeMapping(hdrs){
+  const map = {};
   const norm = s=>String(s).toLowerCase().replace(/\s+/g,'');
   const used = new Set();
   for(const f of FIELDS){
     let hit = null;
-    for(const k of f.kw){ hit = headers.find(h=>!used.has(h)&&norm(h)===norm(k)); if(hit)break; }
-    if(!hit) for(const k of f.kw){ hit = headers.find(h=>!used.has(h)&&norm(h).startsWith(norm(k))); if(hit)break; }
-    if(!hit) for(const k of f.kw){ hit = headers.find(h=>!used.has(h)&&norm(h).includes(norm(k))); if(hit)break; }
-    if(hit){ mapping[f.key] = hit; used.add(hit); }
+    for(const k of f.kw){ hit = hdrs.find(h=>!used.has(h)&&norm(h)===norm(k)); if(hit)break; }
+    if(!hit) for(const k of f.kw){ hit = hdrs.find(h=>!used.has(h)&&norm(h).startsWith(norm(k))); if(hit)break; }
+    if(!hit) for(const k of f.kw){ hit = hdrs.find(h=>!used.has(h)&&norm(h).includes(norm(k))); if(hit)break; }
+    if(hit){ map[f.key] = hit; used.add(hit); }
   }
+  return map;
 }
+function autoMap(){ mapping = computeMapping(headers); }
 function renderMapPanel(){
   const g = $('#mapGrid'); g.innerHTML='';
   for(const f of FIELDS){
@@ -673,10 +695,10 @@ $('#btnApplyMap').onclick = ()=>{
 };
 
 /* ================= PROCESS ================= */
-function process(){
+function buildRowsFrom(rawArr, map){
   const today = new Date(); today.setHours(0,0,0,0);
-  rows = raw.map((r,i)=>{
-    const get = k => mapping[k]!=null ? r[mapping[k]] : '';
+  return rawArr.map((r,i)=>{
+    const get = k => map[k]!=null ? r[map[k]] : '';
     const clean = v => { v=String(v||'').trim(); return v==='-'?'':v; };
     const hubV = clean(get('hub'));
     const o = {
@@ -733,6 +755,9 @@ function process(){
     o.pendDays = o.dSubmit? daysBetween(o.dSubmit,today) : null;
     return o;
   }).filter(o=>o.reqNo);
+}
+function process(){
+  rows = buildRowsFrom(raw, mapping);
   stepFilter=null; page=1;
   renderAll();
   $('#dash').classList.remove('hidden');
@@ -744,8 +769,9 @@ function renderAll(){ renderKpis(); renderMeters(); renderSummary(); renderTarge
 /* ================= ตัวเลขบนแถบเมนู ================= */
 function renderSidenav(){
   const tot = rows.length;
-  const over = rows.filter(r=>r.sla.band==='over').length;
-  const nearY = rows.filter(r=>r.sla.band==='yellow'||r.sla.band==='red').length;
+  const sd = slaData();
+  const over = sd.filter(r=>r.sla.band==='over').length;
+  const nearY = sd.filter(r=>r.sla.band==='yellow'||r.sla.band==='red').length;
   const cod = rows.filter(r=>r.step===10).length;
   const setB = (id,v)=>{ const e=$('#'+id); if(e) e.textContent=fmtN(v); };
   setB('nvTot', tot); setB('nvSla', over||nearY); setB('nvCod', cod);
@@ -970,9 +996,10 @@ function hubMapping(){
 }
 function renderHubOverview(){
   const el = $('#hubOverview'); if(!el) return;
+  const src = slaData();   // จุดรวมงานใช้ข้อมูลชีต SLA แยก (ถ้ามี)
   const map = hubMapping();
   const g = {};
-  rows.forEach(r=>{
+  src.forEach(r=>{
     const hub = r.hub || map[r.area] || r.area;
     const o = g[hub] = g[hub] || {n:0,pass:0,fail:0,wait:0};
     o.n++;
@@ -1010,9 +1037,10 @@ function renderHubOverview(){
 }
 function renderHubs(){
   const el = $('#hubBody'); if(!el) return;
+  const src = slaData();   // จุดรวมงานใช้ข้อมูลชีต SLA แยก (ถ้ามี)
   const map = hubMapping();
   const groups = {};
-  rows.forEach(r=>{
+  src.forEach(r=>{
     const hub = r.hub || map[r.area] || r.area;
     const g = groups[hub] = groups[hub] || {n:0,kw:0,gp:0,g:0,y:0,r:0,o:0,cod:0,cancel:0};
     g.n++; g.kw += r.kw;
@@ -1062,6 +1090,9 @@ function renderMeters(){
     if(r.step===0) return;                       // สถานะยกเลิก — ไม่นับมิเตอร์ทั้งหมด
     const p = r.meterPhase;
     if(p!=='1P' && p!=='3P'){ if(p==='MV') mv++; else none++; return; }
+    // คาดการณ์ = ต้องถึงสถานะ "รอทดสอบเชื่อมต่อ/COD" (ขั้น 8 = รอ ผมต. สับเปลี่ยนมิเตอร์) ก่อนจึงนับ
+    // สับเปลี่ยนแล้วจริง = COD แล้ว (ขั้น 10) · สถานะอื่น ๆ ยังไม่ถึงคิวมิเตอร์ ไม่นับ
+    if(r.step!==8 && r.step!==10) return;
     const a=byArea[r.area]=byArea[r.area]||{'1P':0,'3P':0,done:0};
     if(r.step===10){ swapped[p]++; a.done++; }
     else { fore[p]++; a[p]++; }
@@ -1158,23 +1189,24 @@ function clickStep(id){
 
 const BAND_ICON = {green:'🟢',yellow:'🟡',red:'🔴',over:'⛔'};
 function renderSla(){
+  const src = slaData();   // ใช้ข้อมูลจากชีต SLA แยก (ถ้ามี)
   const groups = [
     {el:'#slaList1', phase:'review',   cls:'g1', title:'① ขั้นตอนที่ 1 → 2 : ตรวจสอบเอกสารและทางเทคนิค (ไม่เกิน 30 วัน นับจากวันยื่นคำขอ)', note:null},
     {el:'#slaList2', phase:'contract', cls:'g2', title:'② ขั้นตอนที่ 2 → 5 : การทำสัญญา (ห้ามเกิน 30 วัน นับจากวันประกาศผล/วันอนุมัติเชื่อมต่อ)', note:'⏳ ช่วงนี้คือการรอลูกค้าชำระเงินและทำสัญญา · 📌 วันชำระเงิน = วันที่ลงนามสัญญา (ตราปั้มวันที่)'}
   ];
   const item = r => `
         <div class="sla-item ${r.sla.band}">
-          <span><strong>${r.reqNo||'-'}</strong> · ${r.area} · <span class="badge ${bcls(r.step)}" title="${r.statusTxt}">${stepName(r.step)}</span></span>
+          <span><strong>${r.reqNo||'-'}</strong> · 📍<b style="color:var(--pea)">${r.area||'ไม่ระบุ กฟฟ.'}</b> · <span class="badge ${bcls(r.step)}" title="${r.statusTxt}">${stepName(r.step)}</span></span>
           <span class="sla-badge">${BAND_ICON[r.sla.band]} ใช้ไป ${r.sla.elapsed} วัน · ครบกำหนด ${fmtD(r.sla.due)}${r.sla.band==='over'?' · เกินมา '+(r.sla.elapsed-30)+' วัน':''}</span>
         </div>`;
   groups.forEach(gr=>{
-    const list = rows.filter(r=>r.sla.phase===gr.phase);
+    const list = src.filter(r=>r.sla.phase===gr.phase);
     const cnt = b => list.filter(r=>r.sla.band===b).length;
     const byE = (a,b)=>(b.sla.elapsed??0)-(a.sla.elapsed??0);
     const over  = list.filter(r=>r.sla.band==='over').sort(byE).slice(0,30);
     const watch = list.filter(r=>r.sla.band==='yellow'||r.sla.band==='red').sort(byE).slice(0,20);
-    const noDate = gr.phase==='contract' ? rows.filter(r=>r.step===3&&!r.dAnnounce&&!r.dConnApprove).length
-                 : rows.filter(r=>(r.step===1||r.step===2)&&!r.dSubmit).length;
+    const noDate = gr.phase==='contract' ? src.filter(r=>r.step===3&&!r.dAnnounce&&!r.dConnApprove).length
+                 : src.filter(r=>(r.step===1||r.step===2)&&!r.dSubmit).length;
     $(gr.el).innerHTML = `<div class="sla-group ${gr.cls}">
       <h3>${gr.title}</h3>
       ${gr.note?`<div class="pay-note" style="display:block;background:#fdf6e3;color:#8a6d00;border-left:4px solid var(--warn);font-weight:700">${gr.note}</div>`:''}
@@ -1487,7 +1519,7 @@ $('#btnSample').onclick = ()=>{
 })();
 
 // เริ่มต้น: ลองโหลดจาก Google Sheets ก่อน ถ้าไม่ได้ใช้ข้อมูลที่บันทึกไว้ในเครื่อง
-(async ()=>{ if(!await loadFromSheet(true)) restore(); })();
+(async ()=>{ if(!await loadFromSheet(true)) restore(); loadSlaSource(); })();
 </script>
 </body>
 </html>
