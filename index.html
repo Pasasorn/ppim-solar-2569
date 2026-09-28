@@ -284,7 +284,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <label id="mmCodLabel">วันที่ COD (สับเปลี่ยนจริง) — 📅 กดเลือกจากปฏิทิน</label><input id="mmCod" type="date">
       <div id="mmSwapPhotos">
         <label>รูปถ่ายการสับเปลี่ยน (แนบได้ไม่เกิน 5 รูป)</label>
-        <input id="mmPhotos" type="file" accept="image/*" capture="environment" multiple>
+        <input id="mmPhotos" type="file" accept="image/*" multiple>
         <div id="mmPhotoPrev" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center"></div>
       </div>
       <div id="mmPbsNote" class="hidden note" style="margin-top:10px;background:#eef4ff;border-left:4px solid #2c66ad;padding:8px 10px;border-radius:6px">✅ สำหรับ ผบส.: ตรวจเอกสาร/อัปโหลดขึ้น PPIM แล้วเลือกวัน COD จริง → กดยืนยัน สถานะจะเปลี่ยนเป็น “แจ้งผล COD เรียบร้อย”</div>
@@ -1766,17 +1766,19 @@ function mmShowReport(){
   $('#mmTitle').textContent = '📝 รายงานผลการสับเปลี่ยนมิเตอร์';
   $('#mmWho').innerHTML='ผู้รายงาน: <b>'+mmSession.name+'</b> · '+(mmSession.dept||'')+' · จุดร่วมงาน <b style="color:var(--pea)">'+(myHub||'-')+'</b>';
   // ภาพรวมงานรอสับเปลี่ยน (ขั้น 8) ทั้ง 18 จุดร่วมงาน (ไฮไลต์จุดของผู้ใช้)
+  const isAdminUser = (mmSession.role||'').toLowerCase().indexOf('admin')>=0;
   const wait8 = rows.filter(r=>r.step===8);
   const cntByHub={}; wait8.forEach(r=>{ const h=reqHub(r); cntByHub[h]=(cntByHub[h]||0)+1; });
-  $('#mmHubOverview').innerHTML = '<div class="note" style="margin-bottom:4px">งานรอสับเปลี่ยนทั้ง 18 จุดร่วมงาน (🟣 = จุดของท่าน · รายงานได้เฉพาะจุดนี้):</div>'
+  $('#mmHubOverview').innerHTML = '<div class="note" style="margin-bottom:4px">งานรอสับเปลี่ยนทั้ง 18 จุดร่วมงาน '+(isAdminUser?'(🟣 Admin เห็น/รายงานได้ทุกจุด):':'(🟣 = จุดของท่าน · รายงานได้เฉพาะจุดนี้):')+'</div>'
     + '<div style="display:flex;flex-wrap:wrap;gap:4px">'
-    + HUB_LIST.map(h=>{ const n=cntByHub[h]||0; const me=h===myHub;
+    + HUB_LIST.map(h=>{ const n=cntByHub[h]||0; const me=isAdminUser||h===myHub;
         return `<span style="font-size:.75rem;padding:3px 7px;border-radius:6px;${me?'background:var(--pea);color:#fff;font-weight:700':'background:#eef0f2;color:#555'}">${h} ${n}</span>`;
       }).join('') + '</div>';
-  const wait = wait8.filter(r=>reqHub(r)===myHub);
+  // Admin เห็นทุก กฟฟ. · ผมต. เห็นเฉพาะจุดร่วมงานตัวเอง
+  const wait = isAdminUser ? wait8 : wait8.filter(r=>reqHub(r)===myHub);
   $('#mmReq').innerHTML = wait.length
     ? wait.map(r=>`<option value="${r.reqNo}">${r.reqNo} · ${r.areaCheck||r.area}</option>`).join('')
-    : '<option value="">— ไม่มีงานรอสับเปลี่ยนในจุดร่วมงานของท่าน —</option>';
+    : '<option value="">'+(isAdminUser?'— ไม่มีงานรอสับเปลี่ยน —':'— ไม่มีงานรอสับเปลี่ยนในจุดร่วมงานของท่าน —')+'</option>';
   $('#mmCod').value = new Date().toISOString().slice(0,10);
   $('#mmReportMsg').textContent='';
   mmPhotos = []; if(typeof mmRenderPhotos==='function') mmRenderPhotos();
