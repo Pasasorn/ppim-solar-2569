@@ -25,8 +25,10 @@ var MAIN_TAB  = 'PPIM Solar Update';
 var EMP_TAB   = 'พนักงานมิเตอร์';
 var LOG_TAB   = 'ผลสับเปลี่ยนมิเตอร์';
 var PHOTO_FOLDER_ID = '1iL62z_4VPx9DBFH4S482jhbJ3phnHyvK';        // โฟลเดอร์ Drive เก็บรูปสับเปลี่ยนมิเตอร์
-var STATUS_AFTER_SWAP = 'รอ ผบส.กรอกข้อมูล COD ในระบบ PPIM';
+var STATUS_AFTER_SWAP = 'รอ ผบส.กรอกข้อมูล COD ในระบบ PPIM';   // ผมต. รายงานเสร็จ (ขั้น 9)
+var STATUS_AFTER_COD  = 'แจ้งผล COD เรียบร้อย';                 // ผบส. ยืนยันเสร็จ (ขั้น 10)
 var COL_SWAP_DATE = 'วันที่รายงานสับเปลี่ยน';   // คอลัมน์เก็บวันที่ ผมต. รายงานผล (ใช้จับเวลา)
+var COL_COD_DATE  = 'วันที่เชื่อมต่อเข้าระบบ';   // คอลัมน์วัน COD (ถ้ามี จะเขียนตอน ผบส. ยืนยัน)
 
 function doPost(e) {
   try {
@@ -34,6 +36,7 @@ function doPost(e) {
     if (body.action === 'login')    return json(doLogin(body));
     if (body.action === 'register') return json(doRegister(body));
     if (body.action === 'report')   return json(doReport(body));
+    if (body.action === 'cod')      return json(doCod(body));
     return json({ ok:false, error:'unknown action' });
   } catch (err) {
     return json({ ok:false, error:String(err) });
@@ -68,11 +71,12 @@ function doLogin(b) {
   if (!sh) return { ok:false, error:'ไม่พบแท็บ '+EMP_TAB };
   var data = sh.getDataRange().getValues();
   var h = data[0];
-  var iE = colIndex(h,'รหัสพนักงาน'), iN = colIndex(h,'ชื่อ-สกุล'),
-      iD = colIndex(h,'สังกัด'), iP = colIndex(h,'password');
+  var iE = colIndex(h,'รหัสพนักงาน'), iN = colIndex(h,'ชื่อ-สกุล'), iR = colIndex(h,'ตำแหน่ง'),
+      iD = colIndex(h,'สังกัด'), iH = colIndex(h,'จุดร่วมงาน'), iP = colIndex(h,'password');
   for (var r=1;r<data.length;r++){
     if (String(data[r][iE]).trim() === emp && String(data[r][iP]) === pw) {
-      return { ok:true, name:String(data[r][iN]||''), dept:String(data[r][iD]||'') };
+      return { ok:true, name:String(data[r][iN]||''), dept:String(data[r][iD]||''),
+               hub: iH>=0 ? String(data[r][iH]||'') : '', role: iR>=0 ? String(data[r][iR]||'') : '' };
     }
   }
   return { ok:false, error:'invalid' };
@@ -81,22 +85,51 @@ function doLogin(b) {
 function doRegister(b) {
   var emp  = String(b.emp||'').trim();
   var name = String(b.name||'').trim();
+  var role = String(b.role||'').trim();
   var dept = String(b.dept||'').trim();
+  var hub  = String(b.hub||'').trim();
   var pw   = String(b.pw||'');
   if (!emp || !name || !pw) return { ok:false, error:'missing fields' };
   var sh = sheet(EMP_TAB);
   if (!sh) {  // สร้างแท็บพนักงานให้อัตโนมัติถ้ายังไม่มี
     sh = SpreadsheetApp.openById(SHEET_ID).insertSheet(EMP_TAB);
-    sh.appendRow(['รหัสพนักงาน','ชื่อ-สกุล','สังกัด','password']);
+    sh.appendRow(['รหัสพนักงาน','ชื่อ-สกุล','ตำแหน่ง','สังกัด','จุดร่วมงาน','password']);
   }
   var data = sh.getDataRange().getValues();
   var h = data[0];
-  var iE = colIndex(h,'รหัสพนักงาน');
+  function ensureCol(nm){ var i=colIndex(h,nm); if(i<0){ i=h.length; sh.getRange(1,i+1).setValue(nm); h.push(nm);} return i; }
+  var iR = ensureCol('ตำแหน่ง');
+  var iH = ensureCol('จุดร่วมงาน');
+  var iE = colIndex(h,'รหัสพนักงาน'), iN = colIndex(h,'ชื่อ-สกุล'),
+      iD = colIndex(h,'สังกัด'), iP = colIndex(h,'password');
   for (var r=1;r<data.length;r++){
     if (String(data[r][iE]).trim() === emp) return { ok:false, error:'exists' };
   }
-  sh.appendRow([ emp, name, dept, pw ]);
-  return { ok:true, name:name, dept:dept };
+  var row = []; for (var c=0;c<h.length;c++) row.push('');
+  row[iE]=emp; row[iN]=name; row[iR]=role; row[iD]=dept; row[iH]=hub;
+  if (iP>=0) row[iP]=pw; else row.push(pw);
+  sh.appendRow(row);
+  return { ok:true, name:name, dept:dept, hub:hub, role:role };
+}
+
+// ผบส. ยืนยันแจ้งผล COD (ขั้น 9 → 10)
+function doCod(b) {
+  var reqNo = String(b.reqNo||'').trim();
+  if (!reqNo) return { ok:false, error:'missing reqNo' };
+  var sh = sheet(MAIN_TAB);
+  if (!sh) return { ok:false, error:'ไม่พบแท็บ '+MAIN_TAB };
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iReq = colIndex(h,'เลขที่คำขอ'), iStatus = colIndex(h,'สถานะคำขอ');
+  if (iReq < 0 || iStatus < 0) return { ok:false, error:'ไม่พบคอลัมน์ เลขที่คำขอ/สถานะคำขอ' };
+  var foundRow = -1;
+  for (var r=1;r<data.length;r++){ if (String(data[r][iReq]).trim() === reqNo) { foundRow = r; break; } }
+  if (foundRow < 0) return { ok:false, error:'ไม่พบคำขอ '+reqNo };
+  sh.getRange(foundRow+1, iStatus+1).setValue(STATUS_AFTER_COD);
+  var iCod = colIndex(h, COL_COD_DATE);
+  if (iCod >= 0 && b.codDate) sh.getRange(foundRow+1, iCod+1).setValue(b.codDate);
+  var log = sheet(LOG_TAB);
+  if (log) log.appendRow([ new Date(), reqNo, '', '', 'COD ยืนยันโดย ผบส.', '', '', String(b.codDate||''), String(b.emp||''), String(b.name||''), '' ]);
+  return { ok:true };
 }
 
 function doReport(b) {
