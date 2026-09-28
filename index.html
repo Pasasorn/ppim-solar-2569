@@ -174,6 +174,15 @@ tr:hover td{background:#F4F7FC}
 .hidden{display:none}
 details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:600;margin-bottom:8px}
 @media print{.no-print{display:none}}
+/* ===== Modal รายงานผลสับเปลี่ยนมิเตอร์ (ผมต.) ===== */
+.mmodal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;display:none;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.mmodal-bg.show{display:flex}
+.mmodal{background:#fff;border-radius:14px;max-width:520px;width:100%;padding:22px;box-shadow:0 12px 44px rgba(0,0,0,.32)}
+.mmodal h3{margin:0}
+.mmodal label{display:block;font-size:.85rem;font-weight:600;margin:12px 0 4px;color:#374151}
+.mmodal input,.mmodal select{width:100%;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;font-size:.95rem;box-sizing:border-box}
+.mmodal .row2{display:flex;gap:10px}.mmodal .row2>div{flex:1}
+.mmsg{font-size:.85rem;margin-top:10px;min-height:18px}
 </style>
 </head>
 <body>
@@ -215,6 +224,55 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
 </nav>
 <div id="navOverlay" class="no-print" onclick="document.body.classList.remove('nav-open')"></div>
 
+<!-- MODAL: รายงานผลการสับเปลี่ยนมิเตอร์ (ผมต. login → ฟอร์ม) -->
+<div class="mmodal-bg no-print" id="meterModal">
+  <div class="mmodal">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <h3 id="mmTitle">🔐 เข้าสู่ระบบ — พนักงานมิเตอร์ (ผมต.)</h3>
+      <button class="btn btn-outline btn-sm" id="mmClose">✕</button>
+    </div>
+    <!-- LOGIN -->
+    <div id="mmLogin">
+      <label>รหัสพนักงาน</label><input id="mmEmp" autocomplete="username" placeholder="เช่น 12345">
+      <label>รหัสผ่าน</label><input id="mmPw" type="password" autocomplete="current-password">
+      <div class="mmsg" id="mmLoginMsg"></div>
+      <div class="toolbar" style="margin-top:14px"><button class="btn btn-primary" id="mmDoLogin">เข้าสู่ระบบ</button></div>
+      <div class="note" style="margin-top:12px">ยังไม่ได้ลงทะเบียน? <a href="#" id="mmGoRegister" style="color:var(--pea);font-weight:700">ลงทะเบียนพนักงานมิเตอร์</a></div>
+    </div>
+    <!-- REGISTER -->
+    <div id="mmRegister" class="hidden">
+      <label>รหัสพนักงาน (ใช้เป็น username)</label><input id="mmREmp" placeholder="เช่น 12345">
+      <label>ชื่อ-สกุล</label><input id="mmRName" placeholder="ชื่อ นามสกุล">
+      <label>สังกัด</label><input id="mmRDept" placeholder="เช่น กฟจ.เชียงใหม่">
+      <label>ตั้งรหัสผ่าน</label><input id="mmRPw" type="password">
+      <div class="mmsg" id="mmRegMsg"></div>
+      <div class="toolbar" style="margin-top:14px">
+        <button class="btn btn-primary" id="mmDoRegister">ลงทะเบียน</button>
+        <button class="btn btn-outline btn-sm" id="mmBackLogin">กลับไปเข้าสู่ระบบ</button>
+      </div>
+    </div>
+    <!-- REPORT -->
+    <div id="mmReport" class="hidden">
+      <div class="note" id="mmWho" style="margin:6px 0 4px"></div>
+      <label>เลขที่คำขอ (สถานะรอสับเปลี่ยนมิเตอร์)</label><select id="mmReq"></select>
+      <div id="mmDetail" style="margin-top:10px"></div>
+      <div class="row2">
+        <div><label>หมายเลขมิเตอร์ (= PEA No.)</label><input id="mmMeterNo" placeholder="ดึงจาก PEA No. อัตโนมัติ"></div>
+        <div><label>เลขอ่านหน่วย ณ วัน COD</label><input id="mmReading" inputmode="decimal" placeholder="หน่วย"></div>
+      </div>
+      <label>วันที่ COD (สับเปลี่ยนจริง) — 📅 กดเลือกจากปฏิทิน</label><input id="mmCod" type="date">
+      <label>รูปถ่ายการสับเปลี่ยน (แนบได้ไม่เกิน 5 รูป)</label>
+      <input id="mmPhotos" type="file" accept="image/*" capture="environment" multiple>
+      <div id="mmPhotoPrev" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center"></div>
+      <div class="mmsg" id="mmReportMsg"></div>
+      <div class="toolbar" style="margin-top:14px">
+        <button class="btn btn-primary" id="mmDoReport">💾 บันทึกผลการสับเปลี่ยน</button>
+        <button class="btn btn-outline btn-sm" id="mmLogout">ออกจากระบบ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="container">
 
   <div id="dash" class="hidden">
@@ -237,7 +295,8 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
 
     <!-- METER SUMMARY -->
     <div class="card" id="sec-meter">
-      <h2>🔧 สถานะของการสับเปลี่ยนมิเตอร์</h2>
+      <h2 style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>🔧 สถานะของการสับเปลี่ยนมิเตอร์</span>
+        <button class="btn btn-primary btn-sm no-print" id="btnMeterReport">📝 รายงานผลการสับเปลี่ยน (สำหรับ ผมต.)</button></h2>
       <div class="note" style="margin-bottom:10px">🔧 สับเปลี่ยนแล้วจริง = COD แล้ว · 📈 คาดการณ์ = สถานะ “รอทดสอบเชื่อมต่อ/COD” (รอ ผมต. สับเปลี่ยนมิเตอร์) เท่านั้น · แยกเฟสจากคอลัมน์ “จำนวนเฟส”</div>
       <div id="meterSummary"></div>
     </div>
@@ -406,6 +465,10 @@ const FIELDS = [
   {key:'trOwner', label:'เจ้าของหม้อแปลง (P/C)',   kw:['เจ้าของหม้อแปลง']},
   {key:'meterV',  label:'ระดับแรงดันมิเตอร์',    kw:['ระดับแรงดันมิเตอร์','แรงดันมิเตอร์']},
   {key:'phaseNo', label:'จำนวนเฟส',            kw:['จำนวนเฟส']},
+  {key:'ca',      label:'หมายเลขผู้ใช้ไฟฟ้า (CA)', kw:['หมายเลขผู้ใช้ไฟฟ้า','ผู้ใช้ไฟฟ้า (ca','ca']},
+  {key:'peaNo',   label:'PEA No.',             kw:['pea no.','pea no','peano']},
+  {key:'lat',     label:'ละติจูด',              kw:['ละติจูด','latitude']},
+  {key:'lng',     label:'ลองจิจูด',             kw:['ลองจิจูด','longitude']},
   {key:'status',  label:'สถานะคำขอ *',         kw:['สถานะคำขอ','สถานะ','status']},
   {key:'kw',      label:'กำลังไฟฟ้า (kW)',      kw:['กำลังการผลิตที่ขอ','ปริมาณเสนอขาย','เสนอขาย','กำลังไฟฟ้า','กิโลวัตต์']},
   {key:'dSubmit', label:'วันที่ยื่นคำขอ',       kw:['วันที่ยื่นคำขอ','วันที่ยื่น','วันยื่น']},
@@ -414,7 +477,8 @@ const FIELDS = [
   {key:'dPay',    label:'วันที่ชำระเงิน',       kw:['วันที่ชำระเงิน','ชำระเงิน']},
   {key:'dConnReq',label:'วันที่ยื่นขอเชื่อมต่อ', kw:['วันที่ยื่นขอเชื่อมต่อ','ยื่นขอเชื่อมต่อ','ยื่นเชื่อมต่อ']},
   {key:'dConnApprove',label:'วันที่อนุมัติเชื่อมต่อ',kw:['วันที่อนุมัติเชื่อมต่อ','อนุมัติเชื่อมต่อ']},
-  {key:'dCod',    label:'วันที่ COD/เชื่อมต่อเข้าระบบ', kw:['วันที่เชื่อมต่อเข้าระบบ','วันที่ cod','cod','เริ่มต้นซื้อขาย']}
+  {key:'dCod',    label:'วันที่ COD/เชื่อมต่อเข้าระบบ', kw:['วันที่เชื่อมต่อเข้าระบบ','วันที่ cod','cod','เริ่มต้นซื้อขาย']},
+  {key:'dSwapReport', label:'วันที่รายงานสับเปลี่ยน', kw:['วันที่รายงานสับเปลี่ยน','รายงานสับเปลี่ยน']}
 ];
 const SLA = {reviewDays:30, signDays:30};
 const LS_KEY = 'ppim_solar_dash_v1';
@@ -462,6 +526,8 @@ function classifyStatus(txt){
   // ===== กรณีพิเศษ เรียงตามลำดับความจำเพาะ (เช็คก่อน loop เพราะข้อความมีคำซ้อนทับกัน) =====
   if(t.includes('เชื่อมต่อเรียบร้อย')||t.includes('เชื่อมต่อเข้าระบบ')) return 10; // COD เสร็จสิ้น
   if(t.includes('ยกเลิก')||t.includes('ไม่ผ่าน')||t.includes('ปฏิเสธ')||t.includes('สิ้นผล')||t.includes('คืนคำขอ')) return 0;
+  if(t.includes('ผบส')||t.includes('กรอกข้อมูล cod')||t.includes('กรอก cod')) return 9; // รอ ผบส.กรอก COD (สับเปลี่ยนแล้ว)
+  if(t.includes('ผมต')) return 8;                                                   // รอ ผมต. สับเปลี่ยนมิเตอร์
   if(t.includes('แก้ไข')) return 5;                                                 // แก้ไขคำขอเชื่อมต่อ
   if(t.includes('ยื่นคำขอเชื่อมต่อ')||t.includes('ยื่นขอเชื่อมต่อ')||t.includes('ยื่นเชื่อมต่อ')) return 4;
   if(t.includes('ทดสอบเชื่อมต่อ')||t.includes('แจ้งวันเริ่มเชื่อมต่อ')||t.includes('วันเริ่มเชื่อมต่อ')||t.includes('first sync')) return 8;
@@ -584,7 +650,8 @@ async function loadSlaSource(){
       const o={}; hdrs.forEach((h,ix)=>o[h]= r[ix]!=null ? String(r[ix]).trim() : ''); return o;
     });
     slaRows = buildRowsFrom(data, computeMapping(hdrs));
-    if(typeof renderSla==='function' && rows && rows.length){ renderSla(); renderSidenav(); }
+    mergeRows();   // เติม Grid/ข้อมูลจากชีต SLA เข้าชุดหลัก แล้ว render ใหม่ทั้งหมด
+    if(rows && rows.length && typeof renderAll==='function') renderAll();
   }catch(e){ /* โหลด SLA ไม่ได้ → ใช้ข้อมูลหลักแทน */ }
 }
 // เติม timestamp ท้าย URL เพื่อกันแคช (Google gviz แคชข้อมูล ~5 นาที) — บังคับดึงข้อมูลสดทุกครั้ง
@@ -709,12 +776,13 @@ function buildRowsFrom(rawArr, map){
       gridChk: clean(get('gridChk')),
       tr: clean(get('tr')), kva: clean(get('kva')), trOwner: clean(get('trOwner')),
       meterV: clean(get('meterV')), phaseNo: clean(get('phaseNo')),
+      ca: clean(get('ca')), peaNo: clean(get('peaNo')), lat: clean(get('lat')), lng: clean(get('lng')),
       statusTxt:clean(get('status')),
       kw: parseFloat(String(get('kw')).replace(/[^\d.]/g,''))||0,
       dSubmit:parseDate(get('dSubmit')), dAnnounce:parseDate(get('dAnnounce')),
       dSign:parseDate(get('dSign')), dPay:parseDate(get('dPay')),
       dConnReq:parseDate(get('dConnReq')), dConnApprove:parseDate(get('dConnApprove')),
-      dCod:parseDate(get('dCod'))
+      dCod:parseDate(get('dCod')), dSwapReport:parseDate(get('dSwapReport'))
     };
     o.gridPass = o.gridChk.includes('ผ่าน') && !o.gridChk.includes('ไม่ผ่าน');
     o.step = classifyStatus(o.statusTxt);
@@ -755,11 +823,29 @@ function buildRowsFrom(rawArr, map){
       o.codBand = d<0 ? 'over' : d<=90 ? 'near' : 'ok';   // near = ภายใน 3 เดือน
     }
     o.pendDays = o.dSubmit? daysBetween(o.dSubmit,today) : null;
+    // ระยะเวลาดำเนินงานมิเตอร์
+    const swapBase = o.dConnApprove||o.dSign||o.dPay||o.dAnnounce;   // วันที่อนุมัติเชื่อมต่อ (fallback วันทำสัญญา)
+    o.swapWaitDays = (o.step===8 && swapBase) ? Math.max(0,daysBetween(swapBase,today)) : null; // รอเปลี่ยนมิเตอร์ นับจากวันอนุมัติเชื่อมต่อ
+    o.codWaitDays  = (o.step===9 && o.dSwapReport) ? Math.max(0,daysBetween(o.dSwapReport,today)) : null; // รอ ผบส.กรอก COD นับจากวันรายงานสับเปลี่ยน
     return o;
   }).filter(o=>o.reqNo);
 }
+// รวมข้อมูล 2 ชีตตาม reqNo — เติมช่องว่างในชุดหลักด้วยข้อมูลจากชีต SLA/Grid (1SFqBINb)
+function mergeRows(){
+  if(!slaRows || !slaRows.length || !rows || !rows.length) return;
+  const idx = {}; slaRows.forEach(s=>{ if(s.reqNo) idx[s.reqNo] = s; });
+  const fillStr  = ['gridChk','hub','ca','peaNo','lat','lng','kva','tr','trOwner','meterV','phaseNo','areaCheck'];
+  const fillDate = ['dAnnounce','dSign','dPay','dConnReq','dConnApprove','dCod','dSwapReport'];
+  rows.forEach(r=>{
+    const s = idx[r.reqNo]; if(!s) return;
+    fillStr.forEach(k=>{ if((r[k]===''||r[k]==null) && s[k]) r[k]=s[k]; });
+    fillDate.forEach(k=>{ if(!r[k] && s[k]) r[k]=s[k]; });
+    r.gridPass = (r.gridChk||'').includes('ผ่าน') && !(r.gridChk||'').includes('ไม่ผ่าน');   // Grid จากชีต 1SFqBINb
+  });
+}
 function process(){
   rows = buildRowsFrom(raw, mapping);
+  mergeRows();
   stepFilter=null; page=1;
   renderAll();
   $('#dash').classList.remove('hidden');
@@ -1088,18 +1174,21 @@ function renderMeters(){
   // แยกเป็น "สับเปลี่ยนแล้วจริง" = COD แล้ว (ขั้น 10) กับ "คาดการณ์" = กำลังดำเนินการ ยังไม่ COD/ยกเลิก
   const swapped = {'1P':0,'3P':0}, fore = {'1P':0,'3P':0}; let mv=0, none=0;
   const byArea = {};                             // กฟฟ. -> {รอสับเปลี่ยน 1P/3P, สับเปลี่ยนแล้ว done}
+  const swapAging=[], codAging=[];               // ระยะเวลาดำเนินงาน
   rows.forEach(r=>{
     if(r.step===0) return;                       // สถานะยกเลิก — ไม่นับมิเตอร์ทั้งหมด
     const p = r.meterPhase;
     if(p!=='1P' && p!=='3P'){ if(p==='MV') mv++; else none++; return; }
-    // คาดการณ์ = ต้องถึงสถานะ "รอทดสอบเชื่อมต่อ/COD" (ขั้น 8 = รอ ผมต. สับเปลี่ยนมิเตอร์) ก่อนจึงนับ
-    // สับเปลี่ยนแล้วจริง = COD แล้ว (ขั้น 10) · สถานะอื่น ๆ ยังไม่ถึงคิวมิเตอร์ ไม่นับ
-    if(r.step!==8 && r.step!==10) return;
+    // รอสับเปลี่ยน = ขั้น 8 (รอ ผมต.) · สับเปลี่ยนแล้ว = ขั้น 9 (รอ ผบส.) + 10 (COD) · อื่น ๆ ไม่นับ
+    if(r.step!==8 && r.step!==9 && r.step!==10) return;
     const gk = r.areaCheck || r.area || 'ไม่ระบุ';   // กฟฟ.ที่รับผิดชอบ = กฟฟ.ที่ตรวจสอบ (คอลัมน์ K)
     const a=byArea[gk]=byArea[gk]||{'1P':0,'3P':0,done:0};
-    if(r.step===10){ swapped[p]++; a.done++; }
-    else { fore[p]++; a[p]++; }
+    if(r.step===8){ fore[p]++; a[p]++; if(r.swapWaitDays!=null) swapAging.push(r.swapWaitDays); }
+    else { swapped[p]++; a.done++; if(r.step===9 && r.codWaitDays!=null) codAging.push(r.codWaitDays); }
   });
+  const agg=arr=>arr.length?{n:arr.length,max:Math.max(...arr),avg:Math.round(arr.reduce((a,b)=>a+b,0)/arr.length)}:{n:0,max:0,avg:0};
+  const swA=agg(swapAging), cdA=agg(codAging);
+  const timeBlock=`<div class="note" style="margin-top:10px;background:#fdf6e3;border-left:4px solid var(--warn);padding:8px 10px;border-radius:6px">⏱ <b>ระยะเวลาดำเนินงาน:</b> · รอเปลี่ยนมิเตอร์ (นับจากวันอนุมัติเชื่อมต่อ): ${fmtN(swA.n)} ราย เฉลี่ย ${swA.avg} วัน นานสุด ${swA.max} วัน &nbsp;|&nbsp; รอ ผบส.กรอก COD (นับจากวันรายงานสับเปลี่ยน): ${fmtN(cdA.n)} ราย เฉลี่ย ${cdA.avg} วัน นานสุด ${cdA.max} วัน</div>`;
   const areaRows = Object.entries(byArea).sort((a,b)=>((b[1]['1P']+b[1]['3P']+b[1].done)-(a[1]['1P']+a[1]['3P']+a[1].done)));
   const pctCell=(done,total)=>{ const pp=total?done/total*100:0; const c=pp>=80?'var(--green)':pp>=50?'var(--warn)':'var(--danger)'; return `<b style="color:${c}">${pctTxt(pp)}</b>`; };
   const gDone=swapped['1P']+swapped['3P'], gPend=fore['1P']+fore['3P'], gAll=gDone+gPend;
@@ -1136,7 +1225,7 @@ function renderMeters(){
       </div>
       <div class="note" style="margin-top:5px">🟢 สับเปลี่ยนแล้ว · 🟡 คาดการณ์ (เทียบยอดจัดสรร)${over?` · <span style="color:var(--danger)">⚠ รวมเกินจัดสรร ${pctTxt(pct)} ต้องขอเพิ่มอีก ${fmtN(total-m.alloc)} เครื่อง</span>`:''}</div>
     </div>`;
-  }).join('') + areaTable + `<div class="note" style="margin-top:8px">นับ “จำนวนเฟส” จากคอลัมน์ในไฟล์ (ถ้าไม่มีใช้ระดับแรงดัน) · มิเตอร์แรงสูง CT (22/33/115 kV) ${fmtN(mv)} ราย ไม่นับในโควตา 5(100)A${none?` · ไม่ระบุเฟส ${fmtN(none)} ราย`:''}</div>`;
+  }).join('') + timeBlock + areaTable + `<div class="note" style="margin-top:8px">นับ “จำนวนเฟส” จากคอลัมน์ในไฟล์ (ถ้าไม่มีใช้ระดับแรงดัน) · มิเตอร์แรงสูง CT (22/33/115 kV) ${fmtN(mv)} ราย ไม่นับในโควตา 5(100)A${none?` · ไม่ระบุเฟส ${fmtN(none)} ราย`:''}</div>`;
 }
 function renderKpis(){
   const tot = rows.length;
@@ -1149,7 +1238,7 @@ function renderKpis(){
   const mtr = {w1:0,w3:0,d1:0,d3:0};
   rows.forEach(r=>{ if(r.meterPhase!=='1P'&&r.meterPhase!=='3P')return;
     if(r.step===8){ r.meterPhase==='1P'?mtr.w1++:mtr.w3++; }
-    else if(r.step===10){ r.meterPhase==='1P'?mtr.d1++:mtr.d3++; } });
+    else if(r.step===9||r.step===10){ r.meterPhase==='1P'?mtr.d1++:mtr.d3++; } });
   const meterWait = mtr.w1+mtr.w3, meterDone = mtr.d1+mtr.d3;
   const g = rows.filter(r=>r.sla.band==='green').length;
   const y = rows.filter(r=>r.sla.band==='yellow').length;
@@ -1530,6 +1619,142 @@ $('#btnSample').onclick = ()=>{
 })();
 
 // เริ่มต้น: ลองโหลดจาก Google Sheets ก่อน ถ้าไม่ได้ใช้ข้อมูลที่บันทึกไว้ในเครื่อง
+/* ================= ระบบรายงานผลสับเปลี่ยนมิเตอร์ (ผมต.) ================= */
+// ตั้งค่า URL ของ Google Apps Script Web App (หลัง deploy) — เก็บใน localStorage หรือใส่ค่าตรงนี้
+const METER_API_URL = localStorage.getItem('meter_api_url') || 'https://script.google.com/macros/s/AKfycbxtZZeNznb3LOMF_P4YrsI7OMcd-DqbKIXrdpeiftFcy4v7s2Bnf0ks-t7U6OjVfTk/exec';
+let mmSession = null;
+async function meterApi(payload){
+  const res = await fetch(METER_API_URL, {method:'POST', body:JSON.stringify(payload)});
+  return res.json();
+}
+function mmShowLogin(){
+  $('#mmLogin').classList.remove('hidden'); $('#mmReport').classList.add('hidden'); $('#mmRegister').classList.add('hidden');
+  $('#mmTitle').textContent='🔐 เข้าสู่ระบบ — พนักงานมิเตอร์ (ผมต.)';
+  $('#mmLoginMsg').textContent='';
+}
+function mmShowRegister(){
+  $('#mmLogin').classList.add('hidden'); $('#mmReport').classList.add('hidden'); $('#mmRegister').classList.remove('hidden');
+  $('#mmTitle').textContent='📋 ลงทะเบียนพนักงานมิเตอร์';
+  $('#mmRegMsg').textContent='';
+}
+function mmShowReport(){
+  $('#mmLogin').classList.add('hidden'); $('#mmReport').classList.remove('hidden'); $('#mmRegister').classList.add('hidden');
+  $('#mmTitle').textContent='📝 รายงานผลการสับเปลี่ยนมิเตอร์';
+  $('#mmWho').innerHTML='ผู้รายงาน: <b>'+mmSession.name+'</b> · '+(mmSession.dept||'')+' (รหัส '+mmSession.emp+')';
+  const wait = rows.filter(r=>r.step===8);
+  $('#mmReq').innerHTML = wait.length
+    ? wait.map(r=>`<option value="${r.reqNo}">${r.reqNo} · ${r.areaCheck||r.area}</option>`).join('')
+    : '<option value="">— ไม่มีงานสถานะรอสับเปลี่ยน —</option>';
+  $('#mmCod').value = new Date().toISOString().slice(0,10);
+  $('#mmReportMsg').textContent='';
+  mmPhotos = []; if(typeof mmRenderPhotos==='function') mmRenderPhotos();
+  mmFillDetail();
+}
+// ดึงข้อมูลงานที่เลือกมาแสดงอัตโนมัติ (ไม่ต้องกรอกเอง)
+function mmFillDetail(){
+  const req = $('#mmReq').value;
+  const r = rows.find(x=>x.reqNo===req);
+  const el = $('#mmDetail'); if(!el) return;
+  if(!r){ el.innerHTML=''; return; }
+  const phase = r.meterPhase==='1P' ? 'มิเตอร์ 1 เฟส (1P2W 5(100)A · รหัส 1060070703)'
+              : r.meterPhase==='3P' ? 'มิเตอร์ 3 เฟส (3P4W 5(100)A · รหัส 1060070709)'
+              : 'ไม่ระบุเฟส';
+  let mapLink = '<span style="color:var(--gray)">— ไม่มีพิกัดในระบบ —</span>';
+  if(r.lat && r.lng){
+    const q = encodeURIComponent(r.lat.trim()+','+r.lng.trim());
+    mapLink = `<a href="https://www.google.com/maps?q=${q}" target="_blank" rel="noopener" style="color:#fff;background:var(--danger);padding:6px 12px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block">📍 ปักหมุดพิกัด — เปิดแผนที่นำทาง</a>`;
+  }
+  el.innerHTML = `
+    <div style="background:#F4F7FC;border:1px solid var(--border);border-radius:10px;padding:12px;line-height:1.9;font-size:.9rem">
+      <div><b>📍 กฟฟ.ที่รับผิดชอบ:</b> ${r.areaCheck||r.area||'-'}</div>
+      <div><b>🔢 CA ลูกค้า (PPIM):</b> ${r.ca||'-'} &nbsp;·&nbsp; <b>PEA No.:</b> ${r.peaNo||'-'}</div>
+      <div><b>⚡ ชนิดมิเตอร์:</b> ${phase}</div>
+      ${r.swapWaitDays!=null?`<div><b>⏱ รอเปลี่ยนมิเตอร์:</b> ${fmtN(r.swapWaitDays)} วัน (นับจากวันอนุมัติเชื่อมต่อ)</div>`:''}
+      <div style="margin-top:8px">${mapLink}</div>
+    </div>`;
+  $('#mmMeterNo').value = r.peaNo||'';   // หมายเลขมิเตอร์ = PEA No. (ดึงอัตโนมัติ)
+}
+if($('#mmReq')) $('#mmReq').onchange = mmFillDetail;
+
+// ===== แนบรูป (ย่อขนาดในเครื่องก่อนส่ง) สูงสุด 5 รูป =====
+let mmPhotos = [];
+function mmRenderPhotos(){
+  const p=$('#mmPhotoPrev'); if(!p) return;
+  p.innerHTML = mmPhotos.map((src,i)=>`<div style="position:relative">
+      <img src="${src}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">
+      <button data-i="${i}" class="mmDelPhoto" title="ลบ" style="position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:11px;line-height:1">✕</button>
+    </div>`).join('') + (mmPhotos.length?`<span class="note">${mmPhotos.length}/5</span>`:'');
+  p.querySelectorAll('.mmDelPhoto').forEach(b=>b.onclick=()=>{ mmPhotos.splice(+b.dataset.i,1); mmRenderPhotos(); });
+}
+function mmResizeImg(file){
+  return new Promise(res=>{
+    const img=new Image();
+    img.onload=()=>{ let w=img.width,h=img.height,M=1280;
+      if(w>M){h=Math.round(h*M/w);w=M;} if(h>M){w=Math.round(w*M/h);h=M;}
+      const c=document.createElement('canvas'); c.width=w; c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      res(c.toDataURL('image/jpeg',0.7)); URL.revokeObjectURL(img.src); };
+    img.onerror=()=>res(null); img.src=URL.createObjectURL(file);
+  });
+}
+if($('#mmPhotos')) $('#mmPhotos').onchange = async (e)=>{
+  const files=[...e.target.files];
+  for(const f of files){ if(mmPhotos.length>=5) break; const d=await mmResizeImg(f); if(d) mmPhotos.push(d); }
+  if(mmPhotos.length>5) mmPhotos=mmPhotos.slice(0,5);
+  e.target.value=''; mmRenderPhotos();
+  if(mmPhotos.length>=5) $('#mmReportMsg').textContent='แนบครบ 5 รูปแล้ว';
+};
+function openMeterModal(){
+  if(!METER_API_URL){
+    alert('ยังไม่ได้ตั้งค่าระบบรายงาน (Google Apps Script)\n\nวิธีตั้งค่า: หลัง deploy Apps Script แล้ว เปิด Console (F12) พิมพ์:\nlocalStorage.setItem("meter_api_url","<URL ที่ deploy>")\nแล้วรีเฟรชหน้า');
+    return;
+  }
+  $('#meterModal').classList.add('show');
+  mmSession ? mmShowReport() : mmShowLogin();
+}
+if($('#btnMeterReport')) $('#btnMeterReport').onclick = openMeterModal;
+if($('#mmClose')) $('#mmClose').onclick = ()=>$('#meterModal').classList.remove('show');
+if($('#mmLogout')) $('#mmLogout').onclick = ()=>{ mmSession=null; mmShowLogin(); };
+if($('#mmDoLogin')) $('#mmDoLogin').onclick = async ()=>{
+  const emp=$('#mmEmp').value.trim(), pw=$('#mmPw').value;
+  if(!emp||!pw){ $('#mmLoginMsg').textContent='กรอกรหัสพนักงานและรหัสผ่าน'; return; }
+  $('#mmLoginMsg').textContent='กำลังตรวจสอบ...';
+  try{
+    const r = await meterApi({action:'login', emp, pw});
+    if(r && r.ok){ mmSession={emp, name:r.name, dept:r.dept}; $('#mmPw').value=''; mmShowReport(); }
+    else $('#mmLoginMsg').innerHTML='<span style="color:var(--danger)">รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง — ยังไม่ได้ลงทะเบียน? กด “ลงทะเบียนพนักงานมิเตอร์” ด้านล่าง</span>';
+  }catch(e){ $('#mmLoginMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
+};
+if($('#mmGoRegister')) $('#mmGoRegister').onclick = (ev)=>{ ev.preventDefault(); $('#mmREmp').value=$('#mmEmp').value.trim(); mmShowRegister(); };
+if($('#mmBackLogin')) $('#mmBackLogin').onclick = ()=>mmShowLogin();
+if($('#mmDoRegister')) $('#mmDoRegister').onclick = async ()=>{
+  const emp=$('#mmREmp').value.trim(), name=$('#mmRName').value.trim(), dept=$('#mmRDept').value.trim(), pw=$('#mmRPw').value;
+  if(!emp||!name||!pw){ $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">กรอกรหัสพนักงาน ชื่อ-สกุล และรหัสผ่าน</span>'; return; }
+  $('#mmRegMsg').textContent='กำลังลงทะเบียน...';
+  try{
+    const r = await meterApi({action:'register', emp, name, dept, pw});
+    if(r && r.ok){ mmSession={emp, name, dept}; $('#mmRPw').value=''; $('#mmReportMsg')&&($('#mmReportMsg').textContent=''); mmShowReport(); }
+    else if(r && r.error==='exists') $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">รหัสพนักงานนี้ลงทะเบียนแล้ว — กลับไปเข้าสู่ระบบ</span>';
+    else $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">ลงทะเบียนไม่สำเร็จ: '+((r&&r.error)||'')+'</span>';
+  }catch(e){ $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
+};
+if($('#mmDoReport')) $('#mmDoReport').onclick = async ()=>{
+  const reqNo=$('#mmReq').value, meterNo=$('#mmMeterNo').value.trim(), reading=$('#mmReading').value.trim(), codDate=$('#mmCod').value;
+  if(!reqNo){ $('#mmReportMsg').textContent='ไม่มีคำขอให้รายงาน'; return; }
+  if(!meterNo||!codDate){ $('#mmReportMsg').innerHTML='<span style="color:var(--danger)">กรอกหมายเลขมิเตอร์และวันที่ COD</span>'; return; }
+  $('#mmReportMsg').textContent='กำลังบันทึก...';
+  const sel = rows.find(x=>x.reqNo===reqNo) || {};
+  const phase = sel.meterPhase==='1P'?'1P2W':sel.meterPhase==='3P'?'3P4W':'';
+  try{
+    const r = await meterApi({action:'report', emp:mmSession.emp, name:mmSession.name, reqNo, meterNo, reading, codDate, phase, ca:sel.ca||'', peaNo:sel.peaNo||'', photos:mmPhotos});
+    if(r && r.ok){
+      $('#mmReportMsg').innerHTML='<span style="color:var(--green)">✅ บันทึกสำเร็จ! สถานะเปลี่ยนเป็น “รอ ผบส.กรอกข้อมูล COD ในระบบ PPIM”</span>';
+      $('#mmReading').value=''; mmPhotos=[]; mmRenderPhotos();
+      setTimeout(()=>loadFromSheet(true), 1500);
+    } else $('#mmReportMsg').innerHTML='<span style="color:var(--danger)">บันทึกไม่สำเร็จ: '+((r&&r.error)||'ไม่พบคำขอ')+'</span>';
+  }catch(e){ $('#mmReportMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
+};
+
 (async ()=>{ if(!await loadFromSheet(true)) restore(); loadSlaSource(); })();
 </script>
 </body>
