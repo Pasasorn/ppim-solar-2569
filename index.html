@@ -307,6 +307,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
         <div class="s">แผนกส่งเสริมพลังงานทดแทนและอนุรักษ์พลังงาน · กองวิศวกรรมและวางแผน<br>การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ) · ระบบ PPIM</div>
       </div>
       <div class="hero-update" id="lastUpdate">ยังไม่มีข้อมูล</div>
+      <button class="btn btn-sm no-print" id="btnReload" style="position:absolute;right:12px;bottom:10px">⟳ โหลดข้อมูลล่าสุด</button>
     </div>
 
     <!-- KPI -->
@@ -771,6 +772,7 @@ async function loadFromSheet(silent){
   }
 }
 $('#btnSheet').onclick = ()=>{ loadFromSheet(false); loadSlaSource(); };
+{ const rb=$('#btnReload'); if(rb) rb.onclick = ()=>{ loadFromSheet(false); loadSlaSource(); }; }
 
 function computeMapping(hdrs){
   const map = {};
@@ -1916,6 +1918,7 @@ if($('#mmDoReport')) $('#mmDoReport').onclick = async ()=>{
 
 /* ===== สลับหน้าตามเมนู sidebar (กดซ้าย → แสดงเฉพาะหน้านั้นด้านขวา) ===== */
 function showView(v){
+  $('#dash').classList.remove('hidden');   // เผยแผงขวาเสมอ (แม้ข้อมูลยังไม่โหลด จะได้เห็นสถานะ/ปุ่มโหลดใหม่)
   document.querySelectorAll('#dash > [data-view]').forEach(el=>{ el.style.display = el.getAttribute('data-view')===v ? '' : 'none'; });
   document.querySelectorAll('#sidenav a[data-view]').forEach(a=>a.classList.toggle('nav-active', a.getAttribute('data-view')===v));
   document.body.classList.remove('nav-open');
