@@ -1145,6 +1145,12 @@ function renderKpis(){
   const cod = rows.filter(r=>r.step===10).length;
   const rej = rows.filter(r=>r.step===0).length;
   const gridWait = rows.filter(r=>!r.gridPass && r.step!==0 && !(r.gridChk&&r.gridChk.includes('ไม่ผ่าน'))).length;
+  // มิเตอร์: รอสับเปลี่ยน = ขั้น 8, สับเปลี่ยนแล้ว = ขั้น 10 (COD) แยก 1P/3P
+  const mtr = {w1:0,w3:0,d1:0,d3:0};
+  rows.forEach(r=>{ if(r.meterPhase!=='1P'&&r.meterPhase!=='3P')return;
+    if(r.step===8){ r.meterPhase==='1P'?mtr.w1++:mtr.w3++; }
+    else if(r.step===10){ r.meterPhase==='1P'?mtr.d1++:mtr.d3++; } });
+  const meterWait = mtr.w1+mtr.w3, meterDone = mtr.d1+mtr.d3;
   const g = rows.filter(r=>r.sla.band==='green').length;
   const y = rows.filter(r=>r.sla.band==='yellow').length;
   const rd = rows.filter(r=>r.sla.band==='red').length;
@@ -1157,6 +1163,8 @@ function renderKpis(){
     <div class="kpi ok"><div class="ic">✅</div><div class="v">${fmtN(gridPassN)}${pc(gridPassN)}</div><div class="l">ผ่านตรวจ Grid Capacity</div></div>
     <div class="kpi info"><div class="ic">🔎</div><div class="v">${fmtN(gridWait)}${pc(gridWait)}</div><div class="l">รอพิจารณา Grid Capacity</div></div>
     <div class="kpi ok"><div class="ic">👍</div><div class="v">${fmtN(passed)}${pc(passed)}</div><div class="l">ผ่านการพิจารณาแล้ว</div></div>
+    <div class="kpi warn"><div class="ic">🔧</div><div class="v">${fmtN(meterWait)}</div><div class="l">รอสับเปลี่ยนมิเตอร์ (ขั้น 8) · 1P ${fmtN(mtr.w1)} / 3P ${fmtN(mtr.w3)}</div></div>
+    <div class="kpi ok"><div class="ic">✅</div><div class="v">${fmtN(meterDone)}</div><div class="l">สับเปลี่ยนมิเตอร์แล้ว (COD) · 1P ${fmtN(mtr.d1)} / 3P ${fmtN(mtr.d3)}</div></div>
     <div class="kpi ok"><div class="ic">🔌</div><div class="v">${fmtN(cod)}${pc(cod)}</div><div class="l">เชื่อมต่อแล้ว / COD</div></div>
     <div class="kpi danger"><div class="ic">❌</div><div class="v">${fmtN(rej)}${pc(rej)}</div><div class="l">ไม่ผ่าน/ยกเลิก</div></div>
     <div class="kpi warn"><div class="ic">⏱️</div><div class="v" style="font-size:1.15rem">🟢${fmtN(g)} 🟡${fmtN(y)} 🔴${fmtN(rd)}</div><div class="l">สถานะ SLA (ตรวจสอบ+ทำสัญญา)</div></div>
