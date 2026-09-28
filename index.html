@@ -254,7 +254,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     </div>
     <!-- REGISTER -->
     <div id="mmRegister" class="hidden">
-      <div class="note" style="margin-bottom:8px;background:#f3edfa;border-left:3px solid var(--pea);padding:6px 9px;border-radius:6px;color:var(--pea)">⚠ ลงทะเบียนได้เฉพาะพนักงานของ <b>ผซฟ.กบฟ.(น1)</b></div>
+      <div class="note" id="mmRegNote" style="margin-bottom:8px;background:#f3edfa;border-left:3px solid var(--pea);padding:6px 9px;border-radius:6px;color:var(--pea)">⚠ ลงทะเบียนได้เฉพาะพนักงานของ <b>ผซฟ.กบฟ.(น1)</b></div>
       <label>รหัสพนักงาน (ใช้เป็น username)</label><input id="mmREmp" placeholder="เช่น 12345">
       <label>ชื่อ-สกุล</label><input id="mmRName" placeholder="ชื่อ นามสกุล">
       <label>ตำแหน่ง</label><select id="mmRRole"><option value="ผมต.">ผมต. (พนักงานมิเตอร์ — รายงานสับเปลี่ยน)</option><option value="ผซฟ.">ผซฟ. (สร้างบัญชี CA 82 — ดูสถานะการสร้างบัญชี)</option><option value="Admin">Admin (ผู้ดูแลระบบ — นำเข้าข้อมูล/ตั้งค่า)</option></select>
@@ -1717,9 +1717,9 @@ function roleKind(role){ const r=(role||''); if(r.toLowerCase().indexOf('admin')
 function gateAllows(gate, kind){ if(kind==='admin') return true; if(gate==='meter') return kind==='meter'; if(gate==='ca') return kind==='ca'; return false; }
 // ข้อมูลกำกับแต่ละประตู
 const GATE_INFO = {
-  meter:{ title:'🔐 เข้าสู่ระบบ — พนักงานมิเตอร์ (ผมต.)', note:'⚠ เฉพาะ <b>ผมต. (แผนกมิเตอร์)</b> ของ ผซฟ.กบฟ.(น1) — สำหรับรายงานผลสับเปลี่ยนมิเตอร์', regRole:'ผมต.', lockRole:true },
-  ca:{ title:'🔐 เข้าสู่ระบบ — ผซฟ. (สร้างบัญชี CA 82)', note:'⚠ เฉพาะ <b>ผซฟ.</b> ของ ผซฟ.กบฟ.(น1) — สำหรับดูสถานะการสร้างบัญชี CA 82', regRole:'ผซฟ.', lockRole:true },
-  admin:{ title:'🔐 เข้าสู่ระบบเจ้าหน้าที่ / ผู้ดูแลระบบ (Admin)', note:'⚠ สำหรับ <b>ผู้ดูแลระบบ (Admin)</b> — ตอนลงทะเบียนเลือกตำแหน่ง Admin (เห็นข้อมูลทุกส่วน)', regRole:'Admin', lockRole:false }
+  meter:{ title:'🔐 เข้าสู่ระบบ — พนักงานมิเตอร์ (ผมต.)', note:'⚠ เฉพาะ <b>พนักงานมิเตอร์ (ผมต.)</b> เท่านั้น', regNote:'⚠ ลงทะเบียนได้เฉพาะ <b>พนักงานมิเตอร์ (ผมต.)</b>', regRole:'ผมต.', lockRole:true },
+  ca:{ title:'🔐 เข้าสู่ระบบ — ผซฟ.กบฟ.(น1) (สร้างบัญชี CA 82)', note:'⚠ เฉพาะ <b>ผซฟ.กบฟ.(น1)</b> เท่านั้น', regNote:'⚠ ลงทะเบียนได้เฉพาะ <b>ผซฟ.กบฟ.(น1)</b>', regRole:'ผซฟ.', lockRole:true },
+  admin:{ title:'🔐 เข้าสู่ระบบ — ผู้ดูแลระบบ (Admin)', note:'⚠ เฉพาะ <b>ผู้ดูแลระบบ (Admin)</b> เท่านั้น', regNote:'⚠ ลงทะเบียน <b>ผู้ดูแลระบบ (Admin)</b> — เห็นข้อมูลทุกส่วน', regRole:'Admin', lockRole:false }
 };
 // รายชื่อจุดร่วมงาน 18 แห่ง (ค่าตายตัว)
 const HUB_LIST = ['กฟจ.เชียงราย','กฟจ.เชียงใหม่','กฟจ.เชียงใหม่ 2','กฟจ.พะเยา','กฟจ.ลำปาง','กฟจ.ลำพูน','กฟจ.แม่ฮ่องสอน','กฟอ.เกาะคา','กฟอ.จอมทอง','กฟอ.เทิง','กฟอ.ฝาง','กฟอ.พาน','กฟอ.แม่ริม','กฟอ.แม่สาย','กฟอ.สันกำแพง','กฟอ.สันทราย','กฟอ.สันป่าตอง','กฟอ.หางดง'];
@@ -1749,6 +1749,7 @@ function mmShowRegister(){
   const g = GATE_INFO[mmGate] || GATE_INFO.meter;
   $('#mmTitle').textContent = mmGate==='admin' ? '📋 ลงทะเบียนผู้ดูแลระบบ (Admin)' : (mmGate==='ca' ? '📋 ลงทะเบียน ผซฟ. (CA 82)' : '📋 ลงทะเบียนพนักงานมิเตอร์ (ผมต.)');
   // ตั้งค่าตำแหน่งตามประตู แล้วล็อกไว้ (ยกเว้นประตู Admin ที่เลือกได้)
+  const rn=$('#mmRegNote'); if(rn) rn.innerHTML = g.regNote;
   const sel=$('#mmRRole'); if(sel){ sel.value=g.regRole; sel.disabled=!!g.lockRole; sel.style.opacity=g.lockRole?'.6':'1'; }
   // จุดร่วมงาน: Admin ไม่ต้องเลือก
   const hubWrap=$('#mmRHub'); if(hubWrap){ const showHub = (g.regRole!=='Admin'); hubWrap.style.display=showHub?'':'none'; const lbl=hubWrap.previousElementSibling; if(lbl&&lbl.tagName==='LABEL') lbl.style.display=showHub?'':'none'; }
