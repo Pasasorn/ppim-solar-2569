@@ -201,7 +201,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     <div class="brand-txt"><b>โครงการโซลาร์ภาคประชาชน ปี 2569</b><span>รายงานสถานะคำขอ · ระบบ PPIM</span></div>
   </div>
   <a href="#sec-overview"><span class="i">📊</span><span class="t">ภาพรวม</span></a>
-  <a href="#sec-meter"><span class="i">📦</span><span class="t">มิเตอร์ที่ต้องใช้</span></a>
+  <a href="#sec-meter"><span class="i">🔧</span><span class="t">สับเปลี่ยนมิเตอร์</span></a>
   <a href="#sec-summary"><span class="i">📋</span><span class="t">สรุปผลดำเนินงาน</span></a>
   <a href="#sec-target"><span class="i">🎯</span><span class="t">เป้าหมาย/แนวโน้ม</span></a>
   <a href="#sec-weekly"><span class="i">📅</span><span class="t">รายงานรายสัปดาห์</span></a>
@@ -237,7 +237,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
 
     <!-- METER SUMMARY -->
     <div class="card" id="sec-meter">
-      <h2>📦 มิเตอร์ที่ต้องใช้ TOU 5(100)A — เทียบยอดจัดสรร</h2>
+      <h2>🔧 สถานะของการสับเปลี่ยนมิเตอร์</h2>
       <div class="note" style="margin-bottom:10px">🔧 สับเปลี่ยนแล้วจริง = COD แล้ว · 📈 คาดการณ์ = คำขอที่กำลังดำเนินการ (ยังไม่ COD, ไม่ยกเลิก) · แยกเฟสจากคอลัมน์ “จำนวนเฟส”</div>
       <div id="meterSummary"></div>
     </div>
@@ -1057,12 +1057,26 @@ function renderMeters(){
   const el = $('#meterSummary'); if(!el) return;
   // แยกเป็น "สับเปลี่ยนแล้วจริง" = COD แล้ว (ขั้น 10) กับ "คาดการณ์" = กำลังดำเนินการ ยังไม่ COD/ยกเลิก
   const swapped = {'1P':0,'3P':0}, fore = {'1P':0,'3P':0}; let mv=0, none=0;
+  const byArea = {};                             // กฟฟ. -> {รอสับเปลี่ยน 1P/3P, สับเปลี่ยนแล้ว done}
   rows.forEach(r=>{
+    if(r.step===0) return;                       // สถานะยกเลิก — ไม่นับมิเตอร์ทั้งหมด
     const p = r.meterPhase;
     if(p!=='1P' && p!=='3P'){ if(p==='MV') mv++; else none++; return; }
-    if(r.step===10) swapped[p]++;
-    else if(r.step!==0) fore[p]++;
+    const a=byArea[r.area]=byArea[r.area]||{'1P':0,'3P':0,done:0};
+    if(r.step===10){ swapped[p]++; a.done++; }
+    else { fore[p]++; a[p]++; }
   });
+  const areaRows = Object.entries(byArea).sort((a,b)=>((b[1]['1P']+b[1]['3P']+b[1].done)-(a[1]['1P']+a[1]['3P']+a[1].done)));
+  const pctCell=(done,total)=>{ const pp=total?done/total*100:0; const c=pp>=80?'var(--green)':pp>=50?'var(--warn)':'var(--danger)'; return `<b style="color:${c}">${pctTxt(pp)}</b>`; };
+  const gDone=swapped['1P']+swapped['3P'], gPend=fore['1P']+fore['3P'], gAll=gDone+gPend;
+  const areaTable = `
+    <div style="font-weight:700;color:#374151;font-size:.9rem;margin:16px 0 8px">📍 ผลการสับเปลี่ยนมิเตอร์ แยกตาม กฟฟ. (ผลดำเนินงาน = สับเปลี่ยนแล้ว ÷ ทั้งหมด)</div>
+    <div style="overflow-x:auto"><table><thead><tr>
+      <th>กฟฟ.</th><th>1P2W รอ</th><th>3P4W รอ</th><th>รอสับเปลี่ยน</th><th>สับเปลี่ยนแล้ว</th><th>ทั้งหมด</th><th>ผลดำเนินงาน</th>
+    </tr></thead><tbody>
+    ${areaRows.map(([k,v])=>{const pend=v['1P']+v['3P'], tot=pend+v.done; return `<tr><td><b>${k}</b></td><td>${v['1P']||'-'}</td><td>${v['3P']||'-'}</td><td>${pend||'-'}</td><td class="cell-green">${v.done||'-'}</td><td><b>${fmtN(tot)}</b></td><td>${pctCell(v.done,tot)}</td></tr>`;}).join('')}
+    <tr style="background:#F4F7FC;font-weight:700"><td>รวม ${areaRows.length} กฟฟ.</td><td>${fmtN(fore['1P'])}</td><td>${fmtN(fore['3P'])}</td><td>${fmtN(gPend)}</td><td>${fmtN(gDone)}</td><td>${fmtN(gAll)}</td><td>${pctCell(gDone,gAll)}</td></tr>
+    </tbody></table></div>`;
   el.innerHTML = METERS.map(m=>{
     const done = swapped[m.key]||0, need = fore[m.key]||0, total = done+need;
     const pct = m.alloc ? total/m.alloc*100 : 0;
@@ -1088,7 +1102,7 @@ function renderMeters(){
       </div>
       <div class="note" style="margin-top:5px">🟢 สับเปลี่ยนแล้ว · 🟡 คาดการณ์ (เทียบยอดจัดสรร)${over?` · <span style="color:var(--danger)">⚠ รวมเกินจัดสรร ${pctTxt(pct)} ต้องขอเพิ่มอีก ${fmtN(total-m.alloc)} เครื่อง</span>`:''}</div>
     </div>`;
-  }).join('') + `<div class="note">นับ “จำนวนเฟส” จากคอลัมน์ในไฟล์ (ถ้าไม่มีใช้ระดับแรงดัน) · มิเตอร์แรงสูง CT (22/33/115 kV) ${fmtN(mv)} ราย ไม่นับในโควตา 5(100)A${none?` · ไม่ระบุเฟส ${fmtN(none)} ราย`:''}</div>`;
+  }).join('') + areaTable + `<div class="note" style="margin-top:8px">นับ “จำนวนเฟส” จากคอลัมน์ในไฟล์ (ถ้าไม่มีใช้ระดับแรงดัน) · มิเตอร์แรงสูง CT (22/33/115 kV) ${fmtN(mv)} ราย ไม่นับในโควตา 5(100)A${none?` · ไม่ระบุเฟส ${fmtN(none)} ราย`:''}</div>`;
 }
 function renderKpis(){
   const tot = rows.length;
