@@ -201,6 +201,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     <div class="brand-txt"><b>โครงการโซลาร์ภาคประชาชน ปี 2569</b><span>รายงานสถานะคำขอ · ระบบ PPIM</span></div>
   </div>
   <a href="#sec-overview"><span class="i">📊</span><span class="t">ภาพรวม</span></a>
+  <a href="#sec-meter"><span class="i">📦</span><span class="t">มิเตอร์ที่ต้องใช้</span></a>
   <a href="#sec-summary"><span class="i">📋</span><span class="t">สรุปผลดำเนินงาน</span></a>
   <a href="#sec-target"><span class="i">🎯</span><span class="t">เป้าหมาย/แนวโน้ม</span></a>
   <a href="#sec-weekly"><span class="i">📅</span><span class="t">รายงานรายสัปดาห์</span></a>
@@ -232,6 +233,13 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     <div class="card purple" id="sec-overview">
       <h2>ภาพรวมของโครงการโซลาร์ภาคประชาชน ปี 2569</h2>
       <div class="kpis" id="kpis" style="margin-bottom:0"></div>
+    </div>
+
+    <!-- METER SUMMARY -->
+    <div class="card" id="sec-meter">
+      <h2>📦 มิเตอร์ที่ต้องใช้ TOU 5(100)A — เทียบยอดจัดสรร</h2>
+      <div class="note" style="margin-bottom:10px">🔧 สับเปลี่ยนแล้วจริง = COD แล้ว · 📈 คาดการณ์ = คำขอที่กำลังดำเนินการ (ยังไม่ COD, ไม่ยกเลิก) · แยกเฟสจากคอลัมน์ “จำนวนเฟส”</div>
+      <div id="meterSummary"></div>
     </div>
 
     <!-- SUMMARY -->
@@ -395,6 +403,8 @@ const FIELDS = [
   {key:'tr',      label:'TR PEA No. (หม้อแปลง)',  kw:['tr pea','tr no','tr']},
   {key:'kva',     label:'พิกัดหม้อแปลง (kVA)',     kw:['kva']},
   {key:'trOwner', label:'เจ้าของหม้อแปลง (P/C)',   kw:['เจ้าของหม้อแปลง']},
+  {key:'meterV',  label:'ระดับแรงดันมิเตอร์',    kw:['ระดับแรงดันมิเตอร์','แรงดันมิเตอร์']},
+  {key:'phaseNo', label:'จำนวนเฟส',            kw:['จำนวนเฟส']},
   {key:'status',  label:'สถานะคำขอ *',         kw:['สถานะคำขอ','สถานะ','status']},
   {key:'kw',      label:'กำลังไฟฟ้า (kW)',      kw:['กำลังการผลิตที่ขอ','ปริมาณเสนอขาย','เสนอขาย','กำลังไฟฟ้า','กิโลวัตต์']},
   {key:'dSubmit', label:'วันที่ยื่นคำขอ',       kw:['วันที่ยื่นคำขอ','วันที่ยื่น','วันยื่น']},
@@ -554,11 +564,12 @@ function loadFile(file){
 }
 
 /* โหลดจาก Google Sheets (ชีตต้องแชร์เป็น "ทุกคนที่มีลิงก์ - ดูได้") */
-const SHEET_ID = '1SFqBINbiTy7OsQ_OrDLzv_8slFymddakAkpgAcnWKXE';
+const SHEET_ID = '15MinRHg79n2zToLiOsacmm2Br7N9FUIEaHOxl2eqelo';   // ชีต "PPIM Solar"
+const SHEET_GID = '1459120099';                                     // แท็บ "PPIM Solar Update"
 // เติม timestamp ท้าย URL เพื่อกันแคช (Google gviz แคชข้อมูล ~5 นาที) — บังคับดึงข้อมูลสดทุกครั้ง
 const bust = () => '&nocache=' + Date.now();
-const SHEET_CSV  = () => 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1'+bust();
-const SHEET_JSON = () => 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:json&headers=1'+bust();
+const SHEET_CSV  = () => 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&gid='+SHEET_GID+bust();
+const SHEET_JSON = () => 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+'/gviz/tq?tqx=out:json&headers=1&gid='+SHEET_GID+bust();
 
 function applySheetData(r){
   raw = r.data; headers = r.hdrs;
@@ -673,6 +684,7 @@ function process(){
       hub: (hubV==='#N/A'||hubV.toLowerCase()==='x') ? '' : hubV,
       gridChk: clean(get('gridChk')),
       tr: clean(get('tr')), kva: clean(get('kva')), trOwner: clean(get('trOwner')),
+      meterV: clean(get('meterV')), phaseNo: clean(get('phaseNo')),
       statusTxt:clean(get('status')),
       kw: parseFloat(String(get('kw')).replace(/[^\d.]/g,''))||0,
       dSubmit:parseDate(get('dSubmit')), dAnnounce:parseDate(get('dAnnounce')),
@@ -682,6 +694,13 @@ function process(){
     };
     o.gridPass = o.gridChk.includes('ผ่าน') && !o.gridChk.includes('ไม่ผ่าน');
     o.step = classifyStatus(o.statusTxt);
+    // แยกเฟสมิเตอร์: ใช้คอลัมน์ "จำนวนเฟส" ก่อน (มี 3=3P4W, มี 1=1P2W)
+    // ถ้าไม่มี ใช้ระดับแรงดันแทน: 220V=1 เฟส, 380V=3 เฟส, แรงสูง(kV)=มิเตอร์ CT
+    const pv = (o.phaseNo||'').toString();
+    const mv = (o.meterV||'').replace(/\s/g,'');
+    o.meterPhase = /3/.test(pv) ? '3P' : /1/.test(pv) ? '1P'
+                 : mv.startsWith('220') ? '1P' : mv.startsWith('380') ? '3P'
+                 : (/kv/i.test(o.meterV)) ? 'MV' : '';
     // SLA — 2 จุดควบคุม
     o.sla = {phase:null, band:null, elapsed:null, due:null, label:''};
     if(o.step===1||o.step===2){
@@ -720,7 +739,7 @@ function process(){
 }
 
 /* ================= RENDER ================= */
-function renderAll(){ renderKpis(); renderSummary(); renderTarget(); renderWeekly(); renderPipeline(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); renderSidenav(); }
+function renderAll(){ renderKpis(); renderMeters(); renderSummary(); renderTarget(); renderWeekly(); renderPipeline(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); renderSidenav(); }
 
 /* ================= ตัวเลขบนแถบเมนู ================= */
 function renderSidenav(){
@@ -1030,6 +1049,47 @@ $('#btnHubFill').onclick = ()=>{
   $('#hubCfg').value = (cur? cur+'\n' : '') + '(แก้ชื่อจุดรวมงานตรงนี้) = ' + areas.join(', ');
 };
 
+const METERS = [
+  {key:'1P', name:'Meter TOU 1P2W 5(100)A', code:'1060070703', alloc:600},
+  {key:'3P', name:'Meter TOU 3P4W 5(100)A', code:'1060070709', alloc:90}
+];
+function renderMeters(){
+  const el = $('#meterSummary'); if(!el) return;
+  // แยกเป็น "สับเปลี่ยนแล้วจริง" = COD แล้ว (ขั้น 10) กับ "คาดการณ์" = กำลังดำเนินการ ยังไม่ COD/ยกเลิก
+  const swapped = {'1P':0,'3P':0}, fore = {'1P':0,'3P':0}; let mv=0, none=0;
+  rows.forEach(r=>{
+    const p = r.meterPhase;
+    if(p!=='1P' && p!=='3P'){ if(p==='MV') mv++; else none++; return; }
+    if(r.step===10) swapped[p]++;
+    else if(r.step!==0) fore[p]++;
+  });
+  el.innerHTML = METERS.map(m=>{
+    const done = swapped[m.key]||0, need = fore[m.key]||0, total = done+need;
+    const pct = m.alloc ? total/m.alloc*100 : 0;
+    const over = pct>100;
+    const dPct = m.alloc ? done/m.alloc*100 : 0, nPct = m.alloc ? need/m.alloc*100 : 0;
+    const headColor = over ? 'var(--danger)' : pct>=80 ? 'var(--warn)' : 'var(--green)';
+    return `
+    <div style="border:1.5px solid var(--border);border-radius:10px;padding:14px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:baseline">
+        <div style="font-weight:800;color:var(--pea);font-size:1.05rem">${m.name}</div>
+        <div class="note">รหัสพัสดุ: <b>${m.code}</b></div>
+      </div>
+      <div style="display:flex;gap:26px;flex-wrap:wrap;margin:12px 0 8px">
+        <div><div class="note">จัดสรร</div><div style="font-size:1.5rem;font-weight:800">${fmtN(m.alloc)}<span style="font-size:.8rem;font-weight:400"> เครื่อง</span></div></div>
+        <div><div class="note">🔧 สับเปลี่ยนแล้วจริง</div><div style="font-size:1.5rem;font-weight:800;color:var(--green)">${fmtN(done)}<span style="font-size:.8rem;font-weight:400"> · ${pctTxt(dPct)}</span></div></div>
+        <div><div class="note">📈 คาดการณ์ (ยังต้องใช้)</div><div style="font-size:1.5rem;font-weight:800;color:var(--pea)">${fmtN(need)}<span style="font-size:.8rem;font-weight:400"> · ${pctTxt(nPct)}</span></div></div>
+        <div><div class="note">รวมต้องใช้</div><div style="font-size:1.5rem;font-weight:800;color:${headColor}">${fmtN(total)}<span style="font-size:.8rem;font-weight:400"> · ${pctTxt(pct)}</span></div></div>
+        <div><div class="note">${over?'ขาดอีก':'คงเหลือ'}</div><div style="font-size:1.5rem;font-weight:800;color:${over?'var(--danger)':'var(--green)'}">${fmtN(Math.abs(m.alloc-total))}<span style="font-size:.8rem;font-weight:400"> เครื่อง</span></div></div>
+      </div>
+      <div style="background:#eceff3;border-radius:8px;height:16px;overflow:hidden;display:flex">
+        <div title="สับเปลี่ยนแล้ว ${fmtN(done)}" style="background:var(--green);height:100%;width:${Math.min(100,dPct)}%"></div>
+        <div title="คาดการณ์ ${fmtN(need)}" style="background:${over?'var(--danger)':'var(--warn)'};height:100%;width:${Math.min(100-Math.min(100,dPct),nPct)}%"></div>
+      </div>
+      <div class="note" style="margin-top:5px">🟢 สับเปลี่ยนแล้ว · 🟡 คาดการณ์ (เทียบยอดจัดสรร)${over?` · <span style="color:var(--danger)">⚠ รวมเกินจัดสรร ${pctTxt(pct)} ต้องขอเพิ่มอีก ${fmtN(total-m.alloc)} เครื่อง</span>`:''}</div>
+    </div>`;
+  }).join('') + `<div class="note">นับ “จำนวนเฟส” จากคอลัมน์ในไฟล์ (ถ้าไม่มีใช้ระดับแรงดัน) · มิเตอร์แรงสูง CT (22/33/115 kV) ${fmtN(mv)} ราย ไม่นับในโควตา 5(100)A${none?` · ไม่ระบุเฟส ${fmtN(none)} ราย`:''}</div>`;
+}
 function renderKpis(){
   const tot = rows.length;
   const kwSum = rows.filter(r=>r.step!==0).reduce((s,r)=>s+r.kw,0); // หักรายที่ยกเลิกออก
