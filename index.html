@@ -245,7 +245,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     </div>
     <!-- LOGIN -->
     <div id="mmLogin">
-      <div class="note" style="margin-bottom:8px;background:#f3edfa;border-left:3px solid var(--pea);padding:6px 9px;border-radius:6px;color:var(--pea)">⚠ เฉพาะพนักงานของ <b>ผซฟ.กบฟ.(น1)</b> เท่านั้น</div>
+      <div class="note" id="mmLoginNote" style="margin-bottom:8px;background:#f3edfa;border-left:3px solid var(--pea);padding:6px 9px;border-radius:6px;color:var(--pea)">⚠ เฉพาะพนักงานของ <b>ผซฟ.กบฟ.(น1)</b> เท่านั้น</div>
       <label>รหัสพนักงาน</label><input id="mmEmp" autocomplete="username" placeholder="เช่น 12345">
       <label>รหัสผ่าน</label><input id="mmPw" type="password" autocomplete="current-password">
       <div class="mmsg" id="mmLoginMsg"></div>
@@ -1710,6 +1710,17 @@ $('#btnSample').onclick = ()=>{
 // ตั้งค่า URL ของ Google Apps Script Web App (หลัง deploy) — เก็บใน localStorage หรือใส่ค่าตรงนี้
 const METER_API_URL = localStorage.getItem('meter_api_url') || 'https://script.google.com/macros/s/AKfycbxtZZeNznb3LOMF_P4YrsI7OMcd-DqbKIXrdpeiftFcy4v7s2Bnf0ks-t7U6OjVfTk/exec';
 let mmSession = null;
+let mmGate = 'meter';   // ประตูที่เปิด login: 'meter' (ผมต.) | 'ca' (ผซฟ.) | 'admin'
+// จำแนกชนิดบัญชีจากตำแหน่ง
+function roleKind(role){ const r=(role||''); if(r.toLowerCase().indexOf('admin')>=0) return 'admin'; if(r.indexOf('ผซฟ')>=0) return 'ca'; return 'meter'; }
+// ประตูนี้อนุญาตบัญชีชนิดนี้ไหม (Admin เข้าได้ทุกประตู)
+function gateAllows(gate, kind){ if(kind==='admin') return true; if(gate==='meter') return kind==='meter'; if(gate==='ca') return kind==='ca'; return false; }
+// ข้อมูลกำกับแต่ละประตู
+const GATE_INFO = {
+  meter:{ title:'🔐 เข้าสู่ระบบ — พนักงานมิเตอร์ (ผมต.)', note:'⚠ เฉพาะ <b>ผมต. (แผนกมิเตอร์)</b> ของ ผซฟ.กบฟ.(น1) — สำหรับรายงานผลสับเปลี่ยนมิเตอร์', regRole:'ผมต.', lockRole:true },
+  ca:{ title:'🔐 เข้าสู่ระบบ — ผซฟ. (สร้างบัญชี CA 82)', note:'⚠ เฉพาะ <b>ผซฟ.</b> ของ ผซฟ.กบฟ.(น1) — สำหรับดูสถานะการสร้างบัญชี CA 82', regRole:'ผซฟ.', lockRole:true },
+  admin:{ title:'🔐 เข้าสู่ระบบเจ้าหน้าที่ / ผู้ดูแลระบบ (Admin)', note:'⚠ สำหรับ <b>ผู้ดูแลระบบ (Admin)</b> — ตอนลงทะเบียนเลือกตำแหน่ง Admin (เห็นข้อมูลทุกส่วน)', regRole:'Admin', lockRole:false }
+};
 // รายชื่อจุดร่วมงาน 18 แห่ง (ค่าตายตัว)
 const HUB_LIST = ['กฟจ.เชียงราย','กฟจ.เชียงใหม่','กฟจ.เชียงใหม่ 2','กฟจ.พะเยา','กฟจ.ลำปาง','กฟจ.ลำพูน','กฟจ.แม่ฮ่องสอน','กฟอ.เกาะคา','กฟอ.จอมทอง','กฟอ.เทิง','กฟอ.ฝาง','กฟอ.พาน','กฟอ.แม่ริม','กฟอ.แม่สาย','กฟอ.สันกำแพง','กฟอ.สันทราย','กฟอ.สันป่าตอง','กฟอ.หางดง'];
 if($('#mmRHub')) $('#mmRHub').innerHTML = '<option value="">— เลือกจุดร่วมงาน —</option>' + HUB_LIST.map(h=>`<option>${h}</option>`).join('');
@@ -1728,12 +1739,19 @@ async function meterApi(payload){
 }
 function mmShowLogin(){
   $('#mmLogin').classList.remove('hidden'); $('#mmReport').classList.add('hidden'); $('#mmRegister').classList.add('hidden');
-  $('#mmTitle').textContent='🔐 เข้าสู่ระบบ — พนักงานมิเตอร์ (ผมต.)';
+  const g = GATE_INFO[mmGate] || GATE_INFO.meter;
+  $('#mmTitle').textContent = g.title;
+  const ln = $('#mmLoginNote'); if(ln) ln.innerHTML = g.note;
   $('#mmLoginMsg').textContent='';
 }
 function mmShowRegister(){
   $('#mmLogin').classList.add('hidden'); $('#mmReport').classList.add('hidden'); $('#mmRegister').classList.remove('hidden');
-  $('#mmTitle').textContent='📋 ลงทะเบียนพนักงานมิเตอร์';
+  const g = GATE_INFO[mmGate] || GATE_INFO.meter;
+  $('#mmTitle').textContent = mmGate==='admin' ? '📋 ลงทะเบียนผู้ดูแลระบบ (Admin)' : (mmGate==='ca' ? '📋 ลงทะเบียน ผซฟ. (CA 82)' : '📋 ลงทะเบียนพนักงานมิเตอร์ (ผมต.)');
+  // ตั้งค่าตำแหน่งตามประตู แล้วล็อกไว้ (ยกเว้นประตู Admin ที่เลือกได้)
+  const sel=$('#mmRRole'); if(sel){ sel.value=g.regRole; sel.disabled=!!g.lockRole; sel.style.opacity=g.lockRole?'.6':'1'; }
+  // จุดร่วมงาน: Admin ไม่ต้องเลือก
+  const hubWrap=$('#mmRHub'); if(hubWrap){ const showHub = (g.regRole!=='Admin'); hubWrap.style.display=showHub?'':'none'; const lbl=hubWrap.previousElementSibling; if(lbl&&lbl.tagName==='LABEL') lbl.style.display=showHub?'':'none'; }
   $('#mmRegMsg').textContent='';
 }
 function mmShowReport(){
@@ -1813,7 +1831,8 @@ if($('#mmPhotos')) $('#mmPhotos').onchange = async (e)=>{
   e.target.value=''; mmRenderPhotos();
   if(mmPhotos.length>=5) $('#mmReportMsg').textContent='แนบครบ 5 รูปแล้ว';
 };
-function openMeterModal(){
+function openMeterModal(gate){
+  if(gate) mmGate = gate;
   if(!METER_API_URL){
     alert('ยังไม่ได้ตั้งค่าระบบรายงาน (Google Apps Script)\n\nวิธีตั้งค่า: หลัง deploy Apps Script แล้ว เปิด Console (F12) พิมพ์:\nlocalStorage.setItem("meter_api_url","<URL ที่ deploy>")\nแล้วรีเฟรชหน้า');
     return;
@@ -1821,9 +1840,9 @@ function openMeterModal(){
   $('#meterModal').classList.add('show');
   mmSession ? mmShowReport() : mmShowLogin();
 }
-if($('#btnMeterReport')) $('#btnMeterReport').onclick = openMeterModal;
-if($('#btnCaLogin')) $('#btnCaLogin').onclick = ()=>{ if(caAuthed){ renderCA(); } else openMeterModal(); };
-if($('#navLogin')) $('#navLogin').onclick = (e)=>{ e.preventDefault(); openMeterModal(); };
+if($('#btnMeterReport')) $('#btnMeterReport').onclick = ()=>openMeterModal('meter');
+if($('#btnCaLogin')) $('#btnCaLogin').onclick = ()=>{ if(caAuthed){ renderCA(); } else openMeterModal('ca'); };
+if($('#navLogin')) $('#navLogin').onclick = (e)=>{ e.preventDefault(); openMeterModal('admin'); };
 // ===== log การใช้งาน (Admin) =====
 function fmtLogTime(t){ const d=new Date(t); return isNaN(d)?(t||'-'):d.toLocaleString('th-TH'); }
 async function loadLog(){
@@ -1864,7 +1883,16 @@ if($('#mmDoLogin')) $('#mmDoLogin').onclick = async ()=>{
   $('#mmLoginMsg').textContent='กำลังตรวจสอบ...';
   try{
     const r = await meterApi({action:'login', emp, pw});
-    if(r && r.ok){ mmSession={emp, name:r.name, dept:r.dept, hub:r.hub, role:r.role, pw}; $('#mmPw').value='';
+    if(r && r.ok){
+      const kind = roleKind(r.role);
+      // เช็คว่าบัญชีนี้ตรงกับประตูที่เข้ามาไหม (Admin ผ่านได้ทุกประตู)
+      if(!gateAllows(mmGate, kind)){
+        const nm = {meter:'ผมต. (แผนกมิเตอร์)', ca:'ผซฟ. (CA 82)', admin:'ผู้ดูแลระบบ (Admin)'};
+        const has = {meter:'ผมต.', ca:'ผซฟ.', admin:'Admin'};
+        $('#mmLoginMsg').innerHTML='<span style="color:var(--danger)">บัญชีนี้เป็น <b>'+(has[kind]||kind)+'</b> เข้าผ่านประตูนี้ไม่ได้ — ประตูนี้สำหรับ <b>'+(nm[mmGate]||mmGate)+'</b> เท่านั้น</span>';
+        return;
+      }
+      mmSession={emp, name:r.name, dept:r.dept, hub:r.hub, role:r.role, pw}; $('#mmPw').value='';
       const rl=(mmSession.role||'');
       if(rl.toLowerCase().indexOf('admin')>=0){   // Admin → เห็นทุกอย่าง: ปลดล็อก CA 82 + แผงผู้ดูแล + log
         caAuthed=true; renderCA();
