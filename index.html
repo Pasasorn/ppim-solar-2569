@@ -398,6 +398,7 @@ const STEPS = [
 const FIELDS = [
   {key:'reqNo',   label:'เลขที่คำขอ *',        kw:['เลขที่คำขอ','เลขคำขอ','request']},
   {key:'area',    label:'พื้นที่ / กฟฟ.',       kw:['กฟฟ.พื้นที่','พื้นที่ กฟฟ','พื้นที่','การไฟฟ้า','สังกัด']},
+  {key:'areaCheck',label:'กฟฟ.ที่ตรวจสอบ',      kw:['กฟฟ.ที่ตรวจสอบ','กฟฟ.ตรวจสอบ']},
   {key:'hub',     label:'จุดรวมงาน (ถ้ามีในไฟล์)', kw:['กฟฟ.จุดรวมงาน','จุดรวมงาน','จุดร่วมงาน']},
   {key:'gridChk', label:'ผลตรวจ Grid Capacity',   kw:['ผลการตรวจสอบ grid','grid capacity','grid']},
   {key:'tr',      label:'TR PEA No. (หม้อแปลง)',  kw:['tr pea','tr no','tr']},
@@ -703,6 +704,7 @@ function buildRowsFrom(rawArr, map){
     const hubV = clean(get('hub'));
     const o = {
       i, reqNo:clean(get('reqNo')), area:clean(get('area'))||'ไม่ระบุ',
+      areaCheck: clean(get('areaCheck')),
       hub: (hubV==='#N/A'||hubV.toLowerCase()==='x') ? '' : hubV,
       gridChk: clean(get('gridChk')),
       tr: clean(get('tr')), kva: clean(get('kva')), trOwner: clean(get('trOwner')),
@@ -1093,7 +1095,8 @@ function renderMeters(){
     // คาดการณ์ = ต้องถึงสถานะ "รอทดสอบเชื่อมต่อ/COD" (ขั้น 8 = รอ ผมต. สับเปลี่ยนมิเตอร์) ก่อนจึงนับ
     // สับเปลี่ยนแล้วจริง = COD แล้ว (ขั้น 10) · สถานะอื่น ๆ ยังไม่ถึงคิวมิเตอร์ ไม่นับ
     if(r.step!==8 && r.step!==10) return;
-    const a=byArea[r.area]=byArea[r.area]||{'1P':0,'3P':0,done:0};
+    const gk = r.areaCheck || r.area || 'ไม่ระบุ';   // กฟฟ.ที่รับผิดชอบ = กฟฟ.ที่ตรวจสอบ (คอลัมน์ K)
+    const a=byArea[gk]=byArea[gk]||{'1P':0,'3P':0,done:0};
     if(r.step===10){ swapped[p]++; a.done++; }
     else { fore[p]++; a[p]++; }
   });
