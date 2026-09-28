@@ -211,6 +211,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
   </div>
   <a href="#sec-overview"><span class="i">📊</span><span class="t">ภาพรวม</span></a>
   <a href="#sec-meter"><span class="i">🔧</span><span class="t">สับเปลี่ยนมิเตอร์</span></a>
+  <a href="#sec-ca"><span class="i">🧾</span><span class="t">สร้างบัญชี CA 82</span></a>
   <a href="#sec-summary"><span class="i">📋</span><span class="t">สรุปผลดำเนินงาน</span></a>
   <a href="#sec-target"><span class="i">🎯</span><span class="t">เป้าหมาย/แนวโน้ม</span></a>
   <a href="#sec-weekly"><span class="i">📅</span><span class="t">รายงานรายสัปดาห์</span></a>
@@ -243,6 +244,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     <div id="mmRegister" class="hidden">
       <label>รหัสพนักงาน (ใช้เป็น username)</label><input id="mmREmp" placeholder="เช่น 12345">
       <label>ชื่อ-สกุล</label><input id="mmRName" placeholder="ชื่อ นามสกุล">
+      <label>ตำแหน่ง</label><select id="mmRRole"><option value="ผมต.">ผมต. (พนักงานมิเตอร์ — รายงานสับเปลี่ยน)</option><option value="ผบฟ.">ผบฟ. (สร้างบัญชี CA 82 — ดูสถานะการสร้างบัญชี)</option></select>
       <label>สังกัด (ระบุให้ครบ)</label><input id="mmRDept" placeholder="เช่น ผมต.กฟส.นางแล">
       <label>จุดร่วมงาน</label><select id="mmRHub"></select>
       <label>ตั้งรหัสผ่าน</label><input id="mmRPw" type="password">
@@ -306,6 +308,13 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
         <button class="btn btn-primary btn-sm no-print" id="btnMeterReport">📝 รายงานผลการสับเปลี่ยน (สำหรับ ผมต.)</button></h2>
       <div class="note" style="margin-bottom:10px">🔧 สับเปลี่ยนแล้วจริง = COD แล้ว · 📈 คาดการณ์ = สถานะ “รอทดสอบเชื่อมต่อ/COD” (รอ ผมต. สับเปลี่ยนมิเตอร์) เท่านั้น · แยกเฟสจากคอลัมน์ “จำนวนเฟส”</div>
       <div id="meterSummary"></div>
+    </div>
+
+    <!-- CA 82 ACCOUNT CREATION (ผบฟ. เท่านั้น) -->
+    <div class="card" id="sec-ca">
+      <h2 style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>🧾 สถานะการสร้างบัญชีแสดงสัญญาผู้ผลิตไฟฟ้า (CA 82)</span>
+        <button class="btn btn-primary btn-sm no-print" id="btnCaLogin">🔐 เข้าสู่ระบบ ผบฟ.</button></h2>
+      <div id="caContent"></div>
     </div>
 
     <!-- SUMMARY -->
@@ -485,7 +494,8 @@ const FIELDS = [
   {key:'dConnReq',label:'วันที่ยื่นขอเชื่อมต่อ', kw:['วันที่ยื่นขอเชื่อมต่อ','ยื่นขอเชื่อมต่อ','ยื่นเชื่อมต่อ']},
   {key:'dConnApprove',label:'วันที่อนุมัติเชื่อมต่อ',kw:['วันที่อนุมัติเชื่อมต่อ','อนุมัติเชื่อมต่อ']},
   {key:'dCod',    label:'วันที่ COD/เชื่อมต่อเข้าระบบ', kw:['วันที่เชื่อมต่อเข้าระบบ','วันที่ cod','cod','เริ่มต้นซื้อขาย']},
-  {key:'dSwapReport', label:'วันที่รายงานสับเปลี่ยน', kw:['วันที่รายงานสับเปลี่ยน','รายงานสับเปลี่ยน']}
+  {key:'dSwapReport', label:'วันที่รายงานสับเปลี่ยน', kw:['วันที่รายงานสับเปลี่ยน','รายงานสับเปลี่ยน']},
+  {key:'caStatus', label:'สถานะการสร้างบัญชี CA', kw:['สถานะการสร้างบัญชี','สถานะสร้างบัญชี','สร้างบัญชีแสดงสัญญา','บัญชีแสดงสัญญา','สร้างบัญชี ca','สถานะบัญชี','สร้างบัญชี']}
 ];
 const SLA = {reviewDays:30, signDays:30};
 const LS_KEY = 'ppim_solar_dash_v1';
@@ -790,8 +800,10 @@ function buildRowsFrom(rawArr, map){
       dSubmit:parseDate(get('dSubmit')), dAnnounce:parseDate(get('dAnnounce')),
       dSign:parseDate(get('dSign')), dPay:parseDate(get('dPay')),
       dConnReq:parseDate(get('dConnReq')), dConnApprove:parseDate(get('dConnApprove')),
-      dCod:parseDate(get('dCod')), dSwapReport:parseDate(get('dSwapReport'))
+      dCod:parseDate(get('dCod')), dSwapReport:parseDate(get('dSwapReport')),
+      caStatus: clean(get('caStatus'))
     };
+    o.caCreated = !!o.caStatus && !/ยัง|รอ|ไม่|กำลัง/.test(o.caStatus);   // มีค่า+ไม่ใช่ "ยัง/รอ/ไม่" = สร้างบัญชีแล้ว
     o.gridPass = o.gridChk.includes('ผ่าน') && !o.gridChk.includes('ไม่ผ่าน');
     o.step = classifyStatus(o.statusTxt);
     // แยกเฟสมิเตอร์: ใช้คอลัมน์ "จำนวนเฟส" ก่อน (มี 3=3P4W, มี 1=1P2W)
@@ -840,16 +852,21 @@ function buildRowsFrom(rawArr, map){
 }
 // รวมข้อมูล 2 ชีตตาม reqNo — เติมช่องว่างในชุดหลักด้วยข้อมูลจากชีต SLA/Grid (1SFqBINb)
 function mergeRows(){
-  if(!slaRows || !slaRows.length || !rows || !rows.length) return;
-  const idx = {}; slaRows.forEach(s=>{ if(s.reqNo) idx[s.reqNo] = s; });
-  const fillStr  = ['gridChk','hub','ca','peaNo','lat','lng','kva','tr','trOwner','meterV','phaseNo','areaCheck'];
+  if(!slaRows || !slaRows.length) return;
+  if(!rows) rows = [];
+  const fillStr  = ['gridChk','hub','ca','peaNo','lat','lng','kva','tr','trOwner','meterV','phaseNo','areaCheck','caStatus'];
   const fillDate = ['dAnnounce','dSign','dPay','dConnReq','dConnApprove','dCod','dSwapReport'];
-  rows.forEach(r=>{
-    const s = idx[r.reqNo]; if(!s) return;
-    fillStr.forEach(k=>{ if((r[k]===''||r[k]==null) && s[k]) r[k]=s[k]; });
-    fillDate.forEach(k=>{ if(!r[k] && s[k]) r[k]=s[k]; });
-    r.gridPass = (r.gridChk||'').includes('ผ่าน') && !(r.gridChk||'').includes('ไม่ผ่าน');   // Grid จากชีต 1SFqBINb
+  const idxMain = {}; rows.forEach(r=>{ if(r.reqNo) idxMain[r.reqNo] = r; });
+  slaRows.forEach(s=>{
+    const r = idxMain[s.reqNo];
+    if(r){   // reqNo ตรงกัน → เติมช่องว่างในชุดหลักด้วยข้อมูลจากชีต SLA/Grid
+      fillStr.forEach(k=>{ if((r[k]===''||r[k]==null) && s[k]) r[k]=s[k]; });
+      fillDate.forEach(k=>{ if(!r[k] && s[k]) r[k]=s[k]; });
+    } else {  // union: คำขอที่มีเฉพาะในชีต SLA → เพิ่มเข้าชุดหลักด้วย (ไม่ให้ตกหล่น)
+      rows.push(s); idxMain[s.reqNo]=s;
+    }
   });
+  rows.forEach(r=>{ r.gridPass = (r.gridChk||'').includes('ผ่าน') && !(r.gridChk||'').includes('ไม่ผ่าน'); });
 }
 function process(){
   rows = buildRowsFrom(raw, mapping);
@@ -860,7 +877,7 @@ function process(){
 }
 
 /* ================= RENDER ================= */
-function renderAll(){ renderKpis(); renderMeters(); renderSummary(); renderTarget(); renderWeekly(); renderPipeline(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); renderSidenav(); }
+function renderAll(){ renderKpis(); renderMeters(); renderCA(); renderSummary(); renderTarget(); renderWeekly(); renderPipeline(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); renderSidenav(); }
 
 /* ================= ตัวเลขบนแถบเมนู ================= */
 function renderSidenav(){
@@ -1174,6 +1191,30 @@ $('#btnHubFill').onclick = ()=>{
 };
 
 function mtrToggle(id){ const e=document.getElementById(id); if(e) e.style.display = (e.style.display==='none'||!e.style.display)?'table-row':'none'; }
+// ===== สถานะการสร้างบัญชี CA 82 (ผบฟ. เท่านั้น) — ดึงจากคำขอขั้น 8 =====
+let caAuthed = false;
+function renderCA(){
+  const el = $('#caContent'); if(!el) return;
+  if(!caAuthed){ el.innerHTML = '<div class="note">🔒 เฉพาะ ผบฟ. — กดปุ่ม “🔐 เข้าสู่ระบบ ผบฟ.” ด้านบนเพื่อดูสถานะการสร้างบัญชี CA 82 (ลงทะเบียนเลือกตำแหน่ง “ผบฟ.”)</div>'; return; }
+  const pop = rows.filter(r=>r.step===8);   // ดึงจากสถานะ ทดสอบเชื่อมต่อ/COD
+  const total = pop.length, done = pop.filter(r=>r.caCreated).length, pct = total?done/total*100:0;
+  const c = pct>=80?'var(--green)':pct>=50?'var(--warn)':'var(--danger)';
+  const byHub={}; pop.forEach(r=>{ const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; const o=byHub[h]=byHub[h]||{t:0,d:0}; o.t++; if(r.caCreated)o.d++; });
+  const rowsHtml = Object.entries(byHub).sort((a,b)=>b[1].t-a[1].t).map(([h,o])=>`<tr><td><b>${h}</b></td><td class="cell-green">${o.d||'-'}</td><td><b>${o.t}</b></td><td>${pctTxt(o.t?o.d/o.t*100:0)}</td></tr>`).join('');
+  el.innerHTML = `
+    <div class="note" style="margin-bottom:10px">ผู้ใช้งาน: <b>${mmSession.name}</b> (ผบฟ. · ${mmSession.dept||''}) · นับจากคำขอสถานะ “ทดสอบเชื่อมต่อ/COD” (ขั้น 8)</div>
+    <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <div><div class="note">สร้างบัญชี CA แล้ว</div><div style="font-size:1.7rem;font-weight:800;color:var(--green)">${fmtN(done)}<span style="font-size:.85rem;font-weight:400"> / ${fmtN(total)} ราย</span></div></div>
+      <div><div class="note">คงเหลือ (ยังไม่สร้าง)</div><div style="font-size:1.7rem;font-weight:800;color:var(--pea)">${fmtN(total-done)}</div></div>
+      <div><div class="note">คิดเป็น</div><div style="font-size:1.7rem;font-weight:800;color:${c}">${pctTxt(pct)}</div></div>
+      <div style="flex:1;min-width:200px"><div style="background:#eceff3;border-radius:8px;height:18px;overflow:hidden"><div style="background:${c};height:100%;width:${Math.min(100,pct)}%;transition:width .4s"></div></div></div>
+    </div>
+    <div style="font-weight:700;color:#374151;font-size:.85rem;margin:6px 0">📍 แยกตามจุดร่วมงาน</div>
+    <div style="overflow-x:auto"><table><thead><tr><th>จุดร่วมงาน</th><th>สร้างแล้ว</th><th>ทั้งหมด</th><th>%</th></tr></thead><tbody>
+      ${rowsHtml}
+      <tr style="background:#F4F7FC;font-weight:700"><td>รวม</td><td>${fmtN(done)}</td><td>${fmtN(total)}</td><td>${pctTxt(pct)}</td></tr>
+    </tbody></table></div>`;
+}
 const METERS = [
   {key:'1P', name:'Meter TOU 1P2W 5(100)A', code:'1060070703', alloc:600},
   {key:'3P', name:'Meter TOU 3P4W 5(100)A', code:'1060070709', alloc:90}
@@ -1750,6 +1791,7 @@ function openMeterModal(){
   mmSession ? mmShowReport() : mmShowLogin();
 }
 if($('#btnMeterReport')) $('#btnMeterReport').onclick = openMeterModal;
+if($('#btnCaLogin')) $('#btnCaLogin').onclick = ()=>{ if(caAuthed){ renderCA(); } else openMeterModal(); };
 if($('#mmClose')) $('#mmClose').onclick = ()=>$('#meterModal').classList.remove('show');
 if($('#mmLogout')) $('#mmLogout').onclick = ()=>{ mmSession=null; mmShowLogin(); };
 if($('#mmDoLogin')) $('#mmDoLogin').onclick = async ()=>{
@@ -1758,18 +1800,23 @@ if($('#mmDoLogin')) $('#mmDoLogin').onclick = async ()=>{
   $('#mmLoginMsg').textContent='กำลังตรวจสอบ...';
   try{
     const r = await meterApi({action:'login', emp, pw});
-    if(r && r.ok){ mmSession={emp, name:r.name, dept:r.dept, hub:r.hub, role:r.role}; $('#mmPw').value=''; mmShowReport(); }
+    if(r && r.ok){ mmSession={emp, name:r.name, dept:r.dept, hub:r.hub, role:r.role}; $('#mmPw').value='';
+      if((mmSession.role||'').indexOf('ผบฟ')>=0){   // ผบฟ. → เปิดสถานะสร้างบัญชี CA 82
+        caAuthed=true; $('#meterModal').classList.remove('show'); renderCA();
+        const sc=$('#sec-ca'); if(sc) sc.scrollIntoView({behavior:'smooth',block:'start'});
+      } else mmShowReport();   // ผมต. → ฟอร์มรายงานสับเปลี่ยน
+    }
     else $('#mmLoginMsg').innerHTML='<span style="color:var(--danger)">รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง — ยังไม่ได้ลงทะเบียน? กด “ลงทะเบียนพนักงานมิเตอร์” ด้านล่าง</span>';
   }catch(e){ $('#mmLoginMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
 };
 if($('#mmGoRegister')) $('#mmGoRegister').onclick = (ev)=>{ ev.preventDefault(); $('#mmREmp').value=$('#mmEmp').value.trim(); mmShowRegister(); };
 if($('#mmBackLogin')) $('#mmBackLogin').onclick = ()=>mmShowLogin();
 if($('#mmDoRegister')) $('#mmDoRegister').onclick = async ()=>{
-  const emp=$('#mmREmp').value.trim(), name=$('#mmRName').value.trim(), dept=$('#mmRDept').value.trim(), hub=$('#mmRHub').value, pw=$('#mmRPw').value;
-  if(!emp||!name||!dept||!hub||!pw){ $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">กรอกให้ครบ: รหัสพนักงาน ชื่อ-สกุล สังกัด จุดร่วมงาน และรหัสผ่าน</span>'; return; }
+  const emp=$('#mmREmp').value.trim(), name=$('#mmRName').value.trim(), role=$('#mmRRole').value, dept=$('#mmRDept').value.trim(), hub=$('#mmRHub').value, pw=$('#mmRPw').value;
+  if(!emp||!name||!dept||!hub||!pw){ $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">กรอกให้ครบ: รหัสพนักงาน ชื่อ-สกุล ตำแหน่ง สังกัด จุดร่วมงาน และรหัสผ่าน</span>'; return; }
   $('#mmRegMsg').textContent='กำลังลงทะเบียน...';
   try{
-    const r = await meterApi({action:'register', emp, name, role:'ผมต.', dept, hub, pw});
+    const r = await meterApi({action:'register', emp, name, role, dept, hub, pw});
     if(r && r.ok){
       alert('ขอบคุณครับ ลงทะเบียนเรียบร้อย');
       $('#mmRPw').value=''; $('#mmEmp').value=emp; $('#mmPw').value=''; mmShowLogin();  // ไปหน้า login ให้ล็อกอินเอง
