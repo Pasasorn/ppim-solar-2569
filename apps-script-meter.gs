@@ -29,6 +29,7 @@ var TICKER_TAB   = 'ประกาศวิ่ง';            // ข้อค�
 var PHOTO_FOLDER_ID = '1iL62z_4VPx9DBFH4S482jhbJ3phnHyvK';        // โฟลเดอร์ Drive เก็บรูปสับเปลี่ยนมิเตอร์
 var STATUS_AFTER_SWAP = 'รอ ผบส.กรอกข้อมูล COD ในระบบ PPIM';   // ผมต. รายงานเสร็จ (ขั้น 9)
 var STATUS_AFTER_COD  = 'แจ้งผล COD เรียบร้อย';                 // ผบส. ยืนยันเสร็จ (ขั้น 10)
+var STATUS_REVERT     = 'รอทดสอบเชื่อมต่อ/COD';                 // ย้อนกลับเป็น "รอสับเปลี่ยนมิเตอร์" (ขั้น 8)
 var COL_SWAP_DATE = 'วันที่รายงานสับเปลี่ยน';   // คอลัมน์เก็บวันที่ ผมต. รายงานผล (ใช้จับเวลา)
 var COL_COD_DATE  = 'วันที่เชื่อมต่อเข้าระบบ';   // คอลัมน์วัน COD (ถ้ามี จะเขียนตอน ผบส. ยืนยัน)
 var ADMIN_SECRET  = 'PEA-N1-ADMIN-2569';   // 🔑 รหัสอนุมัติ Admin — ต้องกรอกให้ตรงตอนสมัครตำแหน่ง Admin (เปลี่ยนเป็นรหัสลับของคุณเอง)
@@ -39,6 +40,7 @@ function doPost(e) {
     if (body.action === 'login')    return json(doLogin(body));
     if (body.action === 'register') return json(doRegister(body));
     if (body.action === 'report')   return json(doReport(body));
+    if (body.action === 'revert')   return json(doRevert(body));
     if (body.action === 'cod')      return json(doCod(body));
     if (body.action === 'log')      return json(doGetLog(body));
     if (body.action === 'ticker')   return json(doGetTicker());
@@ -244,6 +246,26 @@ function doReport(b) {
   return { ok:true, photos:photoLinks.length };
 }
 
+// ย้อนสถานะสับเปลี่ยน (เฉพาะ Admin): รอ ผบส. (ขั้น 9) → รอสับเปลี่ยน (ขั้น 8) + ล้างวันที่รายงาน
+function doRevert(b) {
+  if (!isAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  var reqNo = String(b.reqNo||'').trim();
+  if (!reqNo) return { ok:false, error:'missing reqNo' };
+  var sh = sheet(MAIN_TAB);
+  if (!sh) return { ok:false, error:'ไม่พบแท็บ '+MAIN_TAB };
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iReq = colIndex(h,'เลขที่คำขอ'), iStatus = colIndex(h,'สถานะคำขอ');
+  if (iReq < 0 || iStatus < 0) return { ok:false, error:'ไม่พบคอลัมน์ เลขที่คำขอ/สถานะคำขอ' };
+  var foundRow = -1;
+  for (var r=1;r<data.length;r++){ if (String(data[r][iReq]).trim() === reqNo) { foundRow = r; break; } }
+  if (foundRow < 0) return { ok:false, error:'ไม่พบคำขอ '+reqNo };
+  sh.getRange(foundRow+1, iStatus+1).setValue(STATUS_REVERT);
+  var iSwapDate = colIndex(h, COL_SWAP_DATE);
+  if (iSwapDate >= 0) sh.getRange(foundRow+1, iSwapDate+1).setValue('');   // ล้างวันที่รายงานสับเปลี่ยน
+  logUser(b.emp, b.name, 'Admin', '', 'ย้อนสถานะสับเปลี่ยน ' + reqNo);
+  return { ok:true };
+}
+
 // อัปโหลด base64 dataURL เข้าโฟลเดอร์ Drive "PPIM_Meter_Photos" (สร้างให้อัตโนมัติ) คืน array ลิงก์
 function savePhotos(photos, reqNo) {
   var links = [];
@@ -259,4 +281,20 @@ function savePhotos(photos, reqNo) {
     links.push(file.getUrl());
   }
   return links;
+}
+
+/**
+ * 🔧 ฟังก์ชันทดสอบสิทธิ์ Drive — เลือกฟังก์ชันนี้ในเมนู แล้วกด ▶ Run
+ * จะเด้งขอสิทธิ์ Google Drive → กด Allow ให้ครบ → error เรื่องรูปจะหาย
+ * ถ้า Run แล้วขึ้นชื่อโฟลเดอร์ใน Execution log = สิทธิ์ครบ + เข้าถึงโฟลเดอร์ได้
+ * ถ้าขึ้น "not found / no permission" หลัง Allow = โฟลเดอร์ไม่ได้แชร์ให้บัญชีนี้
+ */
+function testDrive() {
+  var folder = DriveApp.getFolderById(PHOTO_FOLDER_ID);
+  Logger.log('✅ เข้าถึงโฟลเดอร์ได้: ' + folder.getName());
+  // ทดลองสร้าง+ลบไฟล์เปล่า เพื่อยืนยันสิทธิ์เขียน
+  var f = folder.createFile(Utilities.newBlob('test','text/plain','__perm_test.txt'));
+  Logger.log('✅ สร้างไฟล์ทดสอบได้: ' + f.getName());
+  f.setTrashed(true);
+  return 'OK';
 }

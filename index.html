@@ -293,6 +293,13 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
         <button class="btn btn-primary" id="mmDoReport">💾 บันทึกผลการสับเปลี่ยน</button>
         <button class="btn btn-outline btn-sm" id="mmLogout">ออกจากระบบ</button>
       </div>
+      <!-- แผงย้อนสถานะ (เฉพาะ Admin) -->
+      <div id="mmRevertWrap" class="hidden" style="margin-top:16px;border-top:1px dashed var(--border);padding-top:12px">
+        <div class="note" style="background:#fff4f4;border-left:4px solid var(--danger);padding:8px 10px;border-radius:6px;margin-bottom:8px">↩ <b>ย้อนสถานะการสับเปลี่ยน (เฉพาะ Admin)</b> — ดึงงานที่รายงานไปแล้ว (รอ ผบส.) กลับเป็น “รอสับเปลี่ยนมิเตอร์” กรณีรายงานผิด</div>
+        <label>เลือกงานที่รายงานไปแล้ว (สถานะ รอ ผบส.)</label><select id="mmRevertReq"></select>
+        <div class="mmsg" id="mmRevertMsg"></div>
+        <div class="toolbar" style="margin-top:10px"><button class="btn btn-sm" id="mmRevertBtn" style="background:var(--danger);color:#fff">↩ ย้อนสถานะกลับเป็น “รอสับเปลี่ยน”</button></div>
+      </div>
     </div>
   </div>
 </div>
@@ -572,7 +579,7 @@ function classifyStatus(txt){
   if(t.includes('เชื่อมต่อเรียบร้อย')||t.includes('เชื่อมต่อเข้าระบบ')) return 10; // COD เสร็จสิ้น
   if(t.includes('cod') && t.includes('เรียบร้อย')) return 10;                    // แจ้งผล COD เรียบร้อย (ผบส. ยืนยันแล้ว)
   if(t.includes('ยกเลิก')||t.includes('ไม่ผ่าน')||t.includes('ปฏิเสธ')||t.includes('สิ้นผล')||t.includes('คืนคำขอ')) return 0;
-  if(t.includes('ผบส')||t.includes('กรอกข้อมูล cod')||t.includes('กรอก cod')) return 9; // รอ ผบส.กรอก COD (สับเปลี่ยนแล้ว)
+  if((t.includes('ผบส') && t.includes('cod'))||t.includes('กรอกข้อมูล cod')||t.includes('กรอก cod')) return 9; // รอ ผบส.กรอก COD (สับเปลี่ยนแล้ว) — ต้องมี "ผบส"+"cod" คู่กัน ไม่ใช่แค่ "ผบส" ลอยๆ
   if(t.includes('ผมต')) return 8;                                                   // รอ ผมต. สับเปลี่ยนมิเตอร์
   if(t.includes('แก้ไข')) return 5;                                                 // แก้ไขคำขอเชื่อมต่อ
   if(t.includes('ยื่นคำขอเชื่อมต่อ')||t.includes('ยื่นขอเชื่อมต่อ')||t.includes('ยื่นเชื่อมต่อ')) return 4;
@@ -1782,6 +1789,18 @@ function mmShowReport(){
   $('#mmCod').value = new Date().toISOString().slice(0,10);
   $('#mmReportMsg').textContent='';
   mmPhotos = []; if(typeof mmRenderPhotos==='function') mmRenderPhotos();
+  // แผงย้อนสถานะ — เฉพาะ Admin: ดึงงานขั้น 9 (รอ ผบส.) ทุก กฟฟ.
+  const rw=$('#mmRevertWrap');
+  if(rw){
+    if(isAdminUser){
+      rw.classList.remove('hidden');
+      const done9 = rows.filter(r=>r.step===9);
+      $('#mmRevertReq').innerHTML = done9.length
+        ? done9.map(r=>`<option value="${r.reqNo}">${r.reqNo} · ${r.areaCheck||r.area}</option>`).join('')
+        : '<option value="">— ไม่มีงานที่รายงานไปแล้ว —</option>';
+      $('#mmRevertMsg').textContent='';
+    } else rw.classList.add('hidden');
+  }
   mmFillDetail();
 }
 // ดึงข้อมูลงานที่เลือกมาแสดงอัตโนมัติ (ไม่ต้องกรอกเอง)
@@ -1943,6 +1962,21 @@ if($('#mmDoRegister')) $('#mmDoRegister').onclick = async ()=>{
     else if(r && r.error==='exists') $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">รหัสพนักงานนี้ลงทะเบียนแล้ว — กลับไปเข้าสู่ระบบ</span>';
     else $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">ลงทะเบียนไม่สำเร็จ: '+((r&&r.error)||'')+'</span>';
   }catch(e){ $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
+};
+if($('#mmRevertBtn')) $('#mmRevertBtn').onclick = async ()=>{
+  if(!mmSession || (mmSession.role||'').toLowerCase().indexOf('admin')<0){ $('#mmRevertMsg').textContent='เฉพาะ Admin'; return; }
+  const reqNo=$('#mmRevertReq').value;
+  if(!reqNo){ $('#mmRevertMsg').textContent='ไม่มีงานให้ย้อนสถานะ'; return; }
+  if(!confirm('ย้อนสถานะคำขอ '+reqNo+' กลับเป็น “รอสับเปลี่ยนมิเตอร์” ?\n(จะล้างวันที่รายงานสับเปลี่ยนออกด้วย)')) return;
+  $('#mmRevertMsg').textContent='กำลังย้อนสถานะ...';
+  try{
+    const r = await meterApi({action:'revert', emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name, reqNo});
+    if(r && r.ok){
+      $('#mmRevertMsg').innerHTML='<span style="color:var(--green)">✅ ย้อนสถานะแล้ว — กำลังโหลดข้อมูลใหม่</span>';
+      await loadFromSheet(true); loadSlaSource();
+      if(mmSession) mmShowReport();
+    } else $('#mmRevertMsg').innerHTML='<span style="color:var(--danger)">ไม่สำเร็จ: '+((r&&r.error)||'')+'</span>';
+  }catch(e){ $('#mmRevertMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
 };
 if($('#mmDoReport')) $('#mmDoReport').onclick = async ()=>{
   const reqNo=$('#mmReq').value, codDate=$('#mmCod').value;
