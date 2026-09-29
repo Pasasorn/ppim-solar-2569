@@ -31,6 +31,7 @@ var STATUS_AFTER_SWAP = 'รอ ผบส.กรอกข้อมูล COD ใ
 var STATUS_AFTER_COD  = 'แจ้งผล COD เรียบร้อย';                 // ผบส. ยืนยันเสร็จ (ขั้น 10)
 var STATUS_REVERT     = 'รอทดสอบเชื่อมต่อ/COD';                 // ย้อนกลับเป็น "รอสับเปลี่ยนมิเตอร์" (ขั้น 8)
 var COL_SWAP_DATE = 'วันที่รายงานสับเปลี่ยน';   // คอลัมน์เก็บวันที่ ผมต. รายงานผล (ใช้จับเวลา)
+var COL_SWAP_STATUS = 'สถานะการสับเปลี่ยน (ระบบ)';   // คอลัมน์ใหม่ เก็บสถานะรายงานสับเปลี่ยน แยกจาก "สถานะคำขอ" ของ PPIM (ไม่เขียนทับระบบ)
 var COL_COD_DATE  = 'วันที่เชื่อมต่อเข้าระบบ';   // คอลัมน์วัน COD (ถ้ามี จะเขียนตอน ผบส. ยืนยัน)
 var ADMIN_SECRET  = 'PEA-N1-ADMIN-2569';   // 🔑 รหัสอนุมัติ Admin — ต้องกรอกให้ตรงตอนสมัครตำแหน่ง Admin (เปลี่ยนเป็นรหัสลับของคุณเอง)
 
@@ -221,13 +222,15 @@ function doReport(b) {
   }
   if (foundRow < 0) return { ok:false, error:'ไม่พบคำขอ '+reqNo };
 
-  // เขียนสถานะกลับ (แถว foundRow, คอลัมน์ iStatus) — getRange ใช้ 1-based
-  sh.getRange(foundRow+1, iStatus+1).setValue(STATUS_AFTER_SWAP);
-
-  // เขียน "วันที่รายงานสับเปลี่ยน" ลงคอลัมน์ท้ายสุด (สร้างหัวถ้ายังไม่มี) — ใช้จับเวลาขั้น รอ ผบส.
+  // ⚠️ ไม่เขียนทับ "สถานะคำขอ" ของระบบ PPIM อีกต่อไป — แยกไปเก็บในคอลัมน์ของเราเอง
+  // เขียน "วันที่รายงานสับเปลี่ยน" (สร้างหัวถ้ายังไม่มี) — ใช้จับเวลาขั้น รอ ผบส.
   var iSwapDate = colIndex(h, COL_SWAP_DATE);
-  if (iSwapDate < 0) { iSwapDate = h.length; sh.getRange(1, iSwapDate+1).setValue(COL_SWAP_DATE); }
+  if (iSwapDate < 0) { iSwapDate = h.length; sh.getRange(1, iSwapDate+1).setValue(COL_SWAP_DATE); h.push(COL_SWAP_DATE); }
   sh.getRange(foundRow+1, iSwapDate+1).setValue(new Date());
+  // เขียน "สถานะการสับเปลี่ยน (ระบบ)" ในคอลัมน์แยก (สร้างต่อท้ายถ้ายังไม่มี)
+  var iSwapStatus = colIndex(h, COL_SWAP_STATUS);
+  if (iSwapStatus < 0) { iSwapStatus = h.length; sh.getRange(1, iSwapStatus+1).setValue(COL_SWAP_STATUS); h.push(COL_SWAP_STATUS); }
+  sh.getRange(foundRow+1, iSwapStatus+1).setValue(STATUS_AFTER_SWAP);
 
   // อัปโหลดรูป (ถ้ามี) เข้า Google Drive แล้วเก็บลิงก์
   var photoLinks = savePhotos(b.photos, reqNo);
@@ -254,14 +257,16 @@ function doRevert(b) {
   var sh = sheet(MAIN_TAB);
   if (!sh) return { ok:false, error:'ไม่พบแท็บ '+MAIN_TAB };
   var data = sh.getDataRange().getValues(), h = data[0];
-  var iReq = colIndex(h,'เลขที่คำขอ'), iStatus = colIndex(h,'สถานะคำขอ');
-  if (iReq < 0 || iStatus < 0) return { ok:false, error:'ไม่พบคอลัมน์ เลขที่คำขอ/สถานะคำขอ' };
+  var iReq = colIndex(h,'เลขที่คำขอ');
+  if (iReq < 0) return { ok:false, error:'ไม่พบคอลัมน์ เลขที่คำขอ' };
   var foundRow = -1;
   for (var r=1;r<data.length;r++){ if (String(data[r][iReq]).trim() === reqNo) { foundRow = r; break; } }
   if (foundRow < 0) return { ok:false, error:'ไม่พบคำขอ '+reqNo };
-  sh.getRange(foundRow+1, iStatus+1).setValue(STATUS_REVERT);
+  // ⚠️ ไม่แตะ "สถานะคำขอ" ของ PPIM — แค่ล้างคอลัมน์ของระบบเราเอง
+  var iSwapStatus = colIndex(h, COL_SWAP_STATUS);
+  if (iSwapStatus >= 0) sh.getRange(foundRow+1, iSwapStatus+1).setValue('');   // ล้างสถานะการสับเปลี่ยน (ระบบ)
   var iSwapDate = colIndex(h, COL_SWAP_DATE);
-  if (iSwapDate >= 0) sh.getRange(foundRow+1, iSwapDate+1).setValue('');   // ล้างวันที่รายงานสับเปลี่ยน
+  if (iSwapDate >= 0) sh.getRange(foundRow+1, iSwapDate+1).setValue('');       // ล้างวันที่รายงานสับเปลี่ยน
   logUser(b.emp, b.name, 'Admin', '', 'ย้อนสถานะสับเปลี่ยน ' + reqNo);
   return { ok:true };
 }

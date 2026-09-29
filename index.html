@@ -530,6 +530,7 @@ const FIELDS = [
   {key:'dConnApprove',label:'วันที่อนุมัติเชื่อมต่อ',kw:['วันที่อนุมัติเชื่อมต่อ','อนุมัติเชื่อมต่อ']},
   {key:'dCod',    label:'วันที่ COD/เชื่อมต่อเข้าระบบ', kw:['วันที่เชื่อมต่อเข้าระบบ','วันที่ cod','cod','เริ่มต้นซื้อขาย']},
   {key:'dSwapReport', label:'วันที่รายงานสับเปลี่ยน', kw:['วันที่รายงานสับเปลี่ยน','รายงานสับเปลี่ยน']},
+  {key:'swapStatus', label:'สถานะการสับเปลี่ยน (ระบบ)', kw:['สถานะการสับเปลี่ยน','สถานะสับเปลี่ยน','ผลการสับเปลี่ยน']},
   {key:'caStatus', label:'สถานะการสร้างบัญชี CA', kw:['สถานะการสร้างบัญชี','สถานะสร้างบัญชี','สร้างบัญชีแสดงสัญญา','บัญชีแสดงสัญญา','สร้างบัญชี ca','สถานะบัญชี','สร้างบัญชี']}
 ];
 const SLA = {reviewDays:30, signDays:30};
@@ -592,6 +593,30 @@ function classifyStatus(txt){
     if(st.kw.some(k=>t.includes(k.toLowerCase()))) return st.id;
   }
   return null;
+}
+// คำนวณ SLA ของ 1 แถว (เรียกได้ทั้งตอน build และหลังเติมวันที่ข้ามชีต)
+function computeSla(o){
+  const today = new Date(); today.setHours(0,0,0,0);
+  o.sla = {phase:null, band:null, elapsed:null, due:null, label:''};
+  if(o.step===1||o.step===2){
+    if(o.dSubmit){
+      o.sla.phase='review'; o.sla.label='ตรวจสอบเอกสาร/เทคนิค';
+      o.sla.due = addD(o.dSubmit,SLA.reviewDays);
+      o.sla.elapsed = Math.max(0,daysBetween(o.dSubmit,today));
+    }
+  } else if(o.step===3){
+    const base = o.dAnnounce || o.dConnApprove;
+    if(base){
+      o.sla.phase='contract'; o.sla.label='ทำสัญญา/ชำระเงิน';
+      o.sla.due = addD(base,SLA.signDays);
+      o.sla.elapsed = Math.max(0,daysBetween(base,today));
+    }
+  }
+  if(o.sla.elapsed!=null){
+    const e = o.sla.elapsed;
+    o.sla.band = e<=10?'green' : e<=20?'yellow' : e<=30?'red' : 'over';
+  }
+  return o;
 }
 function daysBetween(a,b){ return Math.floor((b-a)/86400000); }
 function addD(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); x.setHours(0,0,0,0); return x; }
@@ -837,38 +862,22 @@ function buildRowsFrom(rawArr, map){
       dSign:parseDate(get('dSign')), dPay:parseDate(get('dPay')),
       dConnReq:parseDate(get('dConnReq')), dConnApprove:parseDate(get('dConnApprove')),
       dCod:parseDate(get('dCod')), dSwapReport:parseDate(get('dSwapReport')),
+      swapStatus: clean(get('swapStatus')),
       caStatus: clean(get('caStatus'))
     };
     o.caCreated = !!o.caStatus && !/ยัง|รอ|ไม่|กำลัง/.test(o.caStatus);   // มีค่า+ไม่ใช่ "ยัง/รอ/ไม่" = สร้างบัญชีแล้ว
     o.gridPass = o.gridChk.includes('ผ่าน') && !o.gridChk.includes('ไม่ผ่าน');
     o.step = classifyStatus(o.statusTxt);
-    // แยกเฟสมิเตอร์: ใช้คอลัมน์ "จำนวนเฟส" ก่อน (มี 3=3P4W, มี 1=1P2W)
+    // ระบบรายงานสับเปลี่ยน (คอลัมน์แยก "สถานะการสับเปลี่ยน (ระบบ)") — ไม่ยุ่งกับ "สถานะคำขอ" ของ PPIM
+    // ถ้ามีการรายงานสับเปลี่ยนแล้ว (swapStatus มีค่า) และสถานะระบบยังไม่ถึงขั้น 9 → เลื่อนเป็นขั้น 9 (รอ ผบส.กด COD)
+    if(o.swapStatus && (o.step==null || o.step<9)) o.step = 9;
     // ถ้าไม่มี ใช้ระดับแรงดันแทน: 220V=1 เฟส, 380V=3 เฟส, แรงสูง(kV)=มิเตอร์ CT
     const pv = (o.phaseNo||'').toString();
     const mv = (o.meterV||'').replace(/\s/g,'');
     o.meterPhase = /3/.test(pv) ? '3P' : /1/.test(pv) ? '1P'
                  : mv.startsWith('220') ? '1P' : mv.startsWith('380') ? '3P'
                  : (/kv/i.test(o.meterV)) ? 'MV' : '';
-    // SLA — 2 จุดควบคุม
-    o.sla = {phase:null, band:null, elapsed:null, due:null, label:''};
-    if(o.step===1||o.step===2){
-      if(o.dSubmit){
-        o.sla.phase='review'; o.sla.label='ตรวจสอบเอกสาร/เทคนิค';
-        o.sla.due = addD(o.dSubmit,SLA.reviewDays);
-        o.sla.elapsed = Math.max(0,daysBetween(o.dSubmit,today));
-      }
-    } else if(o.step===3){
-      const base = o.dAnnounce || o.dConnApprove;
-      if(base){
-        o.sla.phase='contract'; o.sla.label='ทำสัญญา/ชำระเงิน';
-        o.sla.due = addD(base,SLA.signDays);
-        o.sla.elapsed = Math.max(0,daysBetween(base,today));
-      }
-    }
-    if(o.sla.elapsed!=null){
-      const e = o.sla.elapsed;
-      o.sla.band = e<=10?'green' : e<=20?'yellow' : e<=30?'red' : 'over';
-    }
+    computeSla(o);   // SLA — 2 จุดควบคุม (แยกเป็นฟังก์ชันเพื่อคำนวณซ้ำได้หลังเติมวันที่ข้ามชีต)
     // กรอบเวลา COD: ต้อง COD ภายในสิ้นปี 2570 (31 ธ.ค. 2027) เตือนล่วงหน้า 3 เดือน
     // ครอบคลุมรายที่ทำสัญญาแล้วแต่ยังไม่ COD (ขั้น 4-8) และไม่ยกเลิก
     o.codBand = null; o.codDaysLeft = null;
@@ -903,6 +912,17 @@ function mergeRows(){
     }
   });
   rows.forEach(r=>{ r.gridPass = (r.gridChk||'').includes('ผ่าน') && !(r.gridChk||'').includes('ไม่ผ่าน'); });
+  // ↔ เติมย้อนกลับ: ชีต SLA แถวไหนไม่มีวันที่อ้างอิง → ดึงจากชีตหลักมาเติม แล้วคำนวณ SLA ใหม่
+  // (การ์ด SLA อ่านจาก slaData()=slaRows เป็นหลัก จึงต้องเติมวันที่ให้ครบก่อน)
+  const fillDate2 = ['dSubmit','dAnnounce','dConnApprove','dSign','dPay','dConnReq','dCod','dSwapReport'];
+  slaRows.forEach(s=>{
+    const m = idxMain[s.reqNo];
+    if(m){
+      let changed=false;
+      fillDate2.forEach(k=>{ if(!s[k] && m[k]){ s[k]=m[k]; changed=true; } });
+      if(changed) computeSla(s);   // มีวันที่เพิ่ม → คำนวณ SLA ใหม่
+    }
+  });
 }
 function process(){
   rows = buildRowsFrom(raw, mapping);
