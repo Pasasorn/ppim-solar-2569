@@ -789,6 +789,29 @@ function tryJsonp(){
     document.body.appendChild(s);
   });
 }
+// โหลดข้อมูลผ่าน Apps Script (ต้อง login) — ชีตเป็น private ได้ ไม่ต้องเปิด gviz สาธารณะ
+async function loadDashboardData(){
+  if(!mmSession){ $('#lastUpdate').textContent='กรุณาเข้าสู่ระบบก่อนดูข้อมูล'; return false; }
+  $('#lastUpdate').textContent='กำลังโหลดข้อมูล...';
+  try{
+    const r = await meterApi({action:'data', emp:mmSession.emp, pw:mmSession.pw});
+    if(!r || !r.ok) throw new Error((r&&r.error)||'โหลดไม่ได้');
+    // main → raw/headers (แปลง array เป็น object ตามหัวคอลัมน์)
+    headers = r.main.headers||[];
+    raw = (r.main.rows||[]).map(row=>{ const o={}; headers.forEach((h,i)=>o[h]= row[i]!=null?String(row[i]):''); return o; });
+    autoMap(); renderMapPanel();
+    // sla → slaRows
+    if(r.sla && (r.sla.headers||[]).length){
+      const sh=r.sla.headers;
+      const sdata=(r.sla.rows||[]).map(row=>{ const o={}; sh.forEach((h,i)=>o[h]= row[i]!=null?String(row[i]):''); return o; });
+      slaRows = buildRowsFrom(sdata, computeMapping(sh));
+    }
+    process();   // ไม่บันทึกลง localStorage — โหลดสดผ่าน API ทุกครั้งหลัง login (กันข้อมูลส่วนบุคคลค้างในเครื่อง)
+    const now=new Date();
+    $('#lastUpdate').textContent='PPIM Update: '+now.toLocaleDateString('th-TH')+' เวลา '+now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})+' น.';
+    return true;
+  }catch(e){ $('#lastUpdate').textContent='โหลดข้อมูลไม่สำเร็จ: '+e.message; return false; }
+}
 async function loadFromSheet(silent){
   $('#lastUpdate').textContent = 'กำลังโหลดข้อมูล...';
   try{
@@ -805,8 +828,8 @@ async function loadFromSheet(silent){
     return false;
   }
 }
-$('#btnSheet').onclick = ()=>{ loadFromSheet(false); loadSlaSource(); };
-{ const rb=$('#btnReload'); if(rb) rb.onclick = ()=>{ loadFromSheet(false); loadSlaSource(); }; }
+$('#btnSheet').onclick = ()=>{ mmSession ? loadDashboardData() : openMeterModal('view'); };
+{ const rb=$('#btnReload'); if(rb) rb.onclick = ()=>{ mmSession ? loadDashboardData() : openMeterModal('view'); }; }
 
 function computeMapping(hdrs){
   const map = {};
@@ -1743,12 +1766,13 @@ let mmGate = 'meter';   // ประตูที่เปิด login: 'meter' (
 // จำแนกชนิดบัญชีจากตำแหน่ง
 function roleKind(role){ const r=(role||''); if(r.toLowerCase().indexOf('admin')>=0) return 'admin'; if(r.indexOf('ผซฟ')>=0) return 'ca'; return 'meter'; }
 // ประตูนี้อนุญาตบัญชีชนิดนี้ไหม (Admin เข้าได้ทุกประตู)
-function gateAllows(gate, kind){ if(kind==='admin') return true; if(gate==='meter') return kind==='meter'; if(gate==='ca') return kind==='ca'; return false; }
+function gateAllows(gate, kind){ if(gate==='view') return true; if(kind==='admin') return true; if(gate==='meter') return kind==='meter'; if(gate==='ca') return kind==='ca'; return false; }
 // ข้อมูลกำกับแต่ละประตู
 const GATE_INFO = {
   meter:{ title:'🔐 เข้าสู่ระบบ — พนักงานมิเตอร์ (ผมต.)', note:'⚠ เฉพาะ <b>พนักงานมิเตอร์ (ผมต.)</b> เท่านั้น', regNote:'⚠ ลงทะเบียนได้เฉพาะ <b>พนักงานมิเตอร์ (ผมต.)</b>', regRole:'ผมต.', lockRole:true },
   ca:{ title:'🔐 เข้าสู่ระบบ — ผซฟ.กบฟ.(น1) (สร้างบัญชี CA 82)', note:'⚠ เฉพาะ <b>ผซฟ.กบฟ.(น1)</b> เท่านั้น', regNote:'⚠ ลงทะเบียนได้เฉพาะ <b>ผซฟ.กบฟ.(น1)</b>', regRole:'ผซฟ.', lockRole:true },
-  admin:{ title:'🔐 เข้าสู่ระบบ — ผู้ดูแลระบบ (Admin)', note:'⚠ เฉพาะ <b>ผู้ดูแลระบบ (Admin)</b> เท่านั้น', regNote:'⚠ ลงทะเบียน <b>ผู้ดูแลระบบ (Admin)</b> — เห็นข้อมูลทุกส่วน', regRole:'Admin', lockRole:false }
+  admin:{ title:'🔐 เข้าสู่ระบบ — ผู้ดูแลระบบ (Admin)', note:'⚠ เฉพาะ <b>ผู้ดูแลระบบ (Admin)</b> เท่านั้น', regNote:'⚠ ลงทะเบียน <b>ผู้ดูแลระบบ (Admin)</b> — เห็นข้อมูลทุกส่วน', regRole:'Admin', lockRole:false },
+  view:{ title:'🔐 เข้าสู่ระบบเพื่อดูข้อมูล', note:'⚠ ระบบภายใน — เฉพาะพนักงาน <b>ผซฟ.กบฟ.(น1)</b> · ต้องเข้าสู่ระบบก่อนดูข้อมูล', regNote:'⚠ ลงทะเบียนเฉพาะพนักงาน <b>ผซฟ.กบฟ.(น1)</b>', regRole:'ผมต.', lockRole:false }
 };
 // รายชื่อจุดร่วมงาน 18 แห่ง (ค่าตายตัว)
 const HUB_LIST = ['กฟจ.เชียงราย','กฟจ.เชียงใหม่','กฟจ.เชียงใหม่ 2','กฟจ.พะเยา','กฟจ.ลำปาง','กฟจ.ลำพูน','กฟจ.แม่ฮ่องสอน','กฟอ.เกาะคา','กฟอ.จอมทอง','กฟอ.เทิง','กฟอ.ฝาง','กฟอ.พาน','กฟอ.แม่ริม','กฟอ.แม่สาย','กฟอ.สันกำแพง','กฟอ.สันทราย','กฟอ.สันป่าตอง','กฟอ.หางดง'];
@@ -1924,11 +1948,13 @@ loadTicker();
 if($('#mmClose')) $('#mmClose').onclick = ()=>$('#meterModal').classList.remove('show');
 if($('#mmLogout')) $('#mmLogout').onclick = ()=>{
   mmSession=null; caAuthed=false;
+  rows=[]; raw=[]; slaRows=null;   // ล้างข้อมูลในหน่วยความจำเมื่อออกจากระบบ
+  try{ localStorage.removeItem(LS_KEY); }catch(e){}
   if($('#navLog')) $('#navLog').classList.add('hidden');   // ซ่อนเมนู log Admin เมื่อออกจากระบบ
   const uc=$('#uploadCard'); if(uc) uc.classList.add('hidden');
-  if(typeof renderCA==='function') renderCA();
-  if($('#sec-log')&&$('#sec-log').getAttribute('data-view')==='log') showView('overview');
-  mmShowLogin();
+  $('#dash').classList.add('hidden');
+  $('#lastUpdate').textContent='กรุณาเข้าสู่ระบบเพื่อดูข้อมูล';
+  mmGate='view'; $('#meterModal').classList.add('show'); mmShowLogin();
 };
 if($('#mmDoLogin')) $('#mmDoLogin').onclick = async ()=>{
   const emp=$('#mmEmp').value.trim(), pw=$('#mmPw').value;
@@ -1946,18 +1972,24 @@ if($('#mmDoLogin')) $('#mmDoLogin').onclick = async ()=>{
         return;
       }
       mmSession={emp, name:r.name, dept:r.dept, hub:r.hub, role:r.role, pw}; $('#mmPw').value='';
+      $('#mmLoginMsg').textContent='กำลังโหลดข้อมูล...';
+      await loadDashboardData();   // โหลดข้อมูลผ่าน API (ต้อง login ก่อน)
       const rl=(mmSession.role||'');
-      if(rl.toLowerCase().indexOf('admin')>=0){   // Admin → เห็นทุกอย่าง: ปลดล็อก CA 82 + แผงผู้ดูแล + log
-        caAuthed=true; renderCA();
-        $('#meterModal').classList.remove('show');
+      const isAdm = rl.toLowerCase().indexOf('admin')>=0;
+      // ปลดล็อกความสามารถตามตำแหน่ง
+      if(isAdm){
+        caAuthed=true;
         const c=$('#uploadCard'); if(c){ c.classList.remove('hidden'); $('#uploadBody').classList.remove('hidden'); $('#uploadArrow').textContent='▾'; }
         if($('#navLog')) $('#navLog').classList.remove('hidden');   // เปิดเมนู log
         loadLog();
-        showView('overview');
-      } else if(rl.indexOf('ผซฟ')>=0){   // ผซฟ. → เปิดสถานะสร้างบัญชี CA 82
-        caAuthed=true; $('#meterModal').classList.remove('show'); renderCA();
-        const sc=$('#sec-ca'); if(sc) sc.scrollIntoView({behavior:'smooth',block:'start'});
-      } else mmShowReport();   // ผมต. → ฟอร์มรายงานสับเปลี่ยน
+      } else if(kind==='ca'){ caAuthed=true; }
+      renderCA();
+      // ไปหน้าตามประตูที่เข้ามา
+      if(mmGate==='meter'){ mmShowReport(); }   // ประตูมิเตอร์ → ฟอร์มรายงาน (ผมต./Admin)
+      else {
+        $('#meterModal').classList.remove('show');
+        showView(mmGate==='ca' ? 'ca' : 'overview');
+      }
     }
     else $('#mmLoginMsg').innerHTML='<span style="color:var(--danger)">รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง — ยังไม่ได้ลงทะเบียน? กด “ลงทะเบียนพนักงานมิเตอร์” ด้านล่าง</span>';
   }catch(e){ $('#mmLoginMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
@@ -1993,7 +2025,7 @@ if($('#mmRevertBtn')) $('#mmRevertBtn').onclick = async ()=>{
     const r = await meterApi({action:'revert', emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name, reqNo});
     if(r && r.ok){
       $('#mmRevertMsg').innerHTML='<span style="color:var(--green)">✅ ย้อนสถานะแล้ว — กำลังโหลดข้อมูลใหม่</span>';
-      await loadFromSheet(true); loadSlaSource();
+      await loadDashboardData();
       if(mmSession) mmShowReport();
     } else $('#mmRevertMsg').innerHTML='<span style="color:var(--danger)">ไม่สำเร็จ: '+((r&&r.error)||'')+'</span>';
   }catch(e){ $('#mmRevertMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
@@ -2011,7 +2043,7 @@ if($('#mmDoReport')) $('#mmDoReport').onclick = async ()=>{
     if(r && r.ok){
       $('#mmReportMsg').innerHTML='<span style="color:var(--green)">✅ บันทึกสำเร็จ! สถานะเปลี่ยนเป็น “รอ ผบส.กรอกข้อมูล COD ในระบบ PPIM”</span>';
       $('#mmReading').value=''; mmPhotos=[]; mmRenderPhotos();
-      setTimeout(()=>loadFromSheet(true), 1500);
+      setTimeout(()=>loadDashboardData(), 1500);
     } else $('#mmReportMsg').innerHTML='<span style="color:var(--danger)">บันทึกไม่สำเร็จ: '+((r&&r.error)||'ไม่พบคำขอ')+'</span>';
   }catch(e){ $('#mmReportMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
 };
@@ -2030,7 +2062,9 @@ document.querySelectorAll('#sidenav a[data-view]').forEach(a=>{
 });
 showView('overview');   // หน้าเริ่มต้น
 
-(async ()=>{ if(!await loadFromSheet(true)) restore(); loadSlaSource(); })();
+// ต้องเข้าสู่ระบบก่อนถึงจะโหลดข้อมูล (ชีตเป็น private — อ่านผ่าน Apps Script เท่านั้น)
+$('#lastUpdate').textContent='กรุณาเข้าสู่ระบบเพื่อดูข้อมูล';
+openMeterModal('view');
 </script>
 </body>
 </html>

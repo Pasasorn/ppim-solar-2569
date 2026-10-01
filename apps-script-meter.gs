@@ -21,6 +21,7 @@
  */
 
 var SHEET_ID  = '15MinRHg79n2zToLiOsacmm2Br7N9FUIEaHOxl2eqelo';   // ชีตมิเตอร์ (ข้อมูล+สถานะ+ทะเบียนพนักงาน+log)
+var SLA_SHEET_ID = '1SFqBINbiTy7OsQ_OrDLzv_8slFymddakAkpgAcnWKXE';   // ชีต SLA/Grid (จุดรวมงาน)
 var MAIN_TAB  = 'PPIM Solar Update';
 var EMP_TAB   = 'พนักงานมิเตอร์';
 var LOG_TAB   = 'ผลสับเปลี่ยนมิเตอร์';
@@ -39,6 +40,7 @@ function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents || '{}');
     if (body.action === 'login')    return json(doLogin(body));
+    if (body.action === 'data')     return json(doGetData(body));
     if (body.action === 'register') return json(doRegister(body));
     if (body.action === 'report')   return json(doReport(body));
     if (body.action === 'revert')   return json(doRevert(body));
@@ -154,6 +156,45 @@ function doSetTicker(b) {
   return { ok:true };
 }
 // ตรวจสิทธิ์ Admin (ไม่บันทึก log)
+// ตรวจว่าเป็นพนักงานที่ลงทะเบียนไว้ไหม (ทุกตำแหน่ง) — ใช้ก่อนส่งข้อมูลให้ดู
+function isRegistered(emp, pw) {
+  var sh = sheet(EMP_TAB); if (!sh) return false;
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iE = colIndex(h,'รหัสพนักงาน'), iP = colIndex(h,'password');
+  for (var r=1;r<data.length;r++){
+    if (String(data[r][iE]).trim() === String(emp||'').trim() && String(data[r][iP]) === String(pw||'')) return true;
+  }
+  return false;
+}
+
+// อ่านค่าทั้งชีต → {headers, rows} (แปลงวันที่เป็นสตริง เพื่อให้ frontend parse ได้)
+function readSheetValues(ss, tabName) {
+  var sh = tabName ? ss.getSheetByName(tabName) : ss.getSheets()[0];
+  if (!sh) return { headers:[], rows:[] };
+  var vals = sh.getDataRange().getValues();
+  if (!vals.length) return { headers:[], rows:[] };
+  var headers = vals[0].map(function(x){ return String(x).trim(); });
+  var tz = Session.getScriptTimeZone();
+  var rows = [];
+  for (var r=1;r<vals.length;r++){
+    rows.push(vals[r].map(function(c){
+      if (c instanceof Date) return Utilities.formatDate(c, tz, 'yyyy-MM-dd HH:mm:ss');
+      return (c===null||c===undefined) ? '' : String(c);
+    }));
+  }
+  return { headers:headers, rows:rows };
+}
+
+// ส่งข้อมูลทั้ง 2 ชีตให้ dashboard (ต้อง login ก่อน) — แทนการอ่าน gviz ตรงๆ เพื่อให้ชีตเป็น private ได้
+function doGetData(b) {
+  if (!isRegistered(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  var main = readSheetValues(SpreadsheetApp.openById(SHEET_ID), MAIN_TAB);
+  var sla;
+  try { sla = readSheetValues(SpreadsheetApp.openById(SLA_SHEET_ID), null); }
+  catch(e){ sla = { headers:[], rows:[] }; }
+  return { ok:true, main:main, sla:sla };
+}
+
 function isAdmin(emp, pw) {
   var sh = sheet(EMP_TAB); if (!sh) return false;
   var data = sh.getDataRange().getValues(), h = data[0];
