@@ -335,7 +335,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <div class="kpis" id="kpis" style="margin-bottom:0"></div>
     </div>
     <div class="card" data-view="overview" id="ovSlaCard">
-      <h2>⏱️ งานเกิน / ใกล้เกิน SLA — เกินฝั่งไหน</h2>
+      <h2>⏱️ งานเกิน / ใกล้เกิน SLA</h2>
       <div class="note" style="margin-bottom:8px">👷 ฝั่งเจ้าหน้าที่ = ขั้นตรวจสอบ/พิจารณา (กฟภ.) · 🧑‍💼 ฝั่งลูกค้า = รอชำระเงิน/ทำสัญญา</div>
       <div id="ovSlaList"></div>
     </div>
@@ -992,22 +992,26 @@ function renderOvSla(){
   const el=$('#ovSlaList'); if(!el) return;
   const over=rows.filter(r=>r.sla.band==='over');
   const near=rows.filter(r=>r.sla.band==='red'||r.sla.band==='yellow');
-  const sideOf=r=> r.sla.phase==='contract'
-    ? {ic:'🧑‍💼',t:'ฝั่งลูกค้า',sub:'รอชำระเงิน/ทำสัญญา',col:'#2F7FD1'}
-    : {ic:'👷',t:'ฝั่งเจ้าหน้าที่',sub:'ตรวจสอบ/พิจารณา',col:'#8E6BB5'};
-  const row=(r,isOver)=>{ const s=sideOf(r); const d=r.sla.elapsed??0; const ex=isOver?(' · เกินมา '+(d-30)+' วัน'):'';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:${isOver?'#fdf0f0':'#fdf7ec'};margin-bottom:6px">
-      <div style="font-size:1.5rem">${s.ic}</div>
+  const isStaff=r=> r.sla.phase!=='contract';   // review (ขั้น 1-2) = เจ้าหน้าที่ · contract (ขั้น 3) = ลูกค้า
+  const byE=(a,b)=>(b.sla.elapsed||0)-(a.sla.elapsed||0);
+  const row=(r,isOver)=>{ const d=r.sla.elapsed??0; const ex=isOver?('เกินมา '+(d-30)+' วัน'):('ครบกำหนด '+(r.sla.due?fmtD(r.sla.due):'-'));
+    return `<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:10px;background:${isOver?'#fdf0f0':'#fdf7ec'};margin-bottom:6px">
       <div style="flex:1;min-width:0">
         <div style="font-weight:800">${r.reqNo||'-'} <span style="font-weight:600;color:var(--gray)">· 📍 ${r.areaCheck||r.area||'-'}</span></div>
-        <div style="font-size:.76rem;color:var(--gray)"><b style="color:${s.col}">${s.t}</b> · ${s.sub} · <span class="badge ${bcls(r.step)}">${stepName(r.step)}</span></div>
+        <div style="font-size:.76rem;color:var(--gray)"><span class="badge ${bcls(r.step)}">${stepName(r.step)}</span></div>
       </div>
-      <div style="text-align:right;font-weight:800;white-space:nowrap;color:${isOver?'var(--danger)':'#b07c00'}">${fmtN(d)} วัน<div style="font-size:.68rem;font-weight:600;color:var(--gray)">${ex||('ครบกำหนด '+(r.sla.due?fmtD(r.sla.due):'-'))}</div></div>
+      <div style="text-align:right;font-weight:800;white-space:nowrap;color:${isOver?'var(--danger)':'#b07c00'}">${fmtN(d)} วัน<div style="font-size:.68rem;font-weight:600;color:var(--gray)">${ex}</div></div>
     </div>`;
   };
+  const sideSec=(list,isOver,cap)=>{
+    const staff=list.filter(isStaff).sort(byE), cust=list.filter(r=>!isStaff(r)).sort(byE);
+    const sub=(ic,t,arr,col)=>`<div style="font-size:.82rem;font-weight:700;color:${col};margin:8px 0 5px">${ic} ${t} — ${fmtN(arr.length)} ราย</div>`
+      + (arr.length ? (cap?arr.slice(0,cap):arr).map(r=>row(r,isOver)).join('') + (cap&&arr.length>cap?`<div class="note">…และอีก ${fmtN(arr.length-cap)} ราย</div>`:'') : '<div class="note" style="margin-bottom:4px">— ไม่มี —</div>');
+    return sub('👷','ฝั่งเจ้าหน้าที่ (ตรวจสอบ/พิจารณา)',staff,'#8E6BB5') + sub('🧑‍💼','ฝั่งลูกค้า (รอชำระเงิน/ทำสัญญา)',cust,'#2F7FD1');
+  };
   let html='';
-  if(over.length) html+='<div style="font-weight:700;color:var(--danger);margin-bottom:6px">⛔ เกิน SLA (30 วัน) — '+fmtN(over.length)+' ราย</div>'+over.slice().sort((a,b)=>(b.sla.elapsed||0)-(a.sla.elapsed||0)).map(r=>row(r,true)).join('');
-  if(near.length) html+='<div style="font-weight:700;color:#b07c00;margin:12px 0 6px">🟡 ใกล้เกิน (11-30 วัน) — '+fmtN(near.length)+' ราย</div>'+near.slice().sort((a,b)=>(b.sla.elapsed||0)-(a.sla.elapsed||0)).slice(0,10).map(r=>row(r,false)).join('');
+  if(over.length) html+='<div style="font-weight:800;color:var(--danger);margin-bottom:2px">⛔ เกิน SLA (30 วัน) — '+fmtN(over.length)+' ราย</div>'+sideSec(over,true,null);
+  if(near.length) html+='<div style="font-weight:800;color:#b07c00;margin:14px 0 2px">🟡 ใกล้เกิน (11-30 วัน) — '+fmtN(near.length)+' ราย</div>'+sideSec(near,false,8);
   if(!over.length && !near.length) html='<div class="note">✅ ไม่มีงานเกินหรือใกล้เกิน SLA</div>';
   el.innerHTML=html;
 }
@@ -1049,30 +1053,41 @@ function renderExec(){
   const best=[...hubs].sort((a,b)=>b.pct-a.pct||b.t-a.t).slice(0,5);
   const worst=[...hubs].sort((a,b)=>a.pct-b.pct||b.t-a.t).slice(0,5);
   const hubRow=x=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><div style="flex:1;font-size:.82rem"><b>${x.h}</b> <span style="color:var(--gray)">(${fmtN(x.t)} ราย)</span></div><div style="width:90px;background:#eef0f3;border-radius:6px;height:14px;overflow:hidden"><div style="width:${Math.min(100,x.pct)}%;height:100%;background:${x.pct>=60?'#22A45D':x.pct>=35?'#E8862E':'#D64545'}"></div></div><div style="width:42px;text-align:right;font-weight:700;font-size:.82rem;color:${x.pct>=60?'#1f9d57':x.pct>=35?'#b07c00':'var(--danger)'}">${pctTxt(x.pct)}</div></div>`;
-  const box=(title,inner,bg)=>`<div style="background:${bg||'#fff'};border:1px solid var(--border);border-radius:14px;padding:14px 16px;box-shadow:0 2px 8px rgba(107,44,145,.05)"><div style="font-weight:800;color:var(--pea);margin-bottom:10px;font-size:.95rem">${title}</div>${inner}</div>`;
+  const codN=rows.filter(r=>r.step===10).length;
+  const contractedN=rows.filter(r=>r.step>=3&&r.step!==0).length;
+  const pctContract=active.length?contractedN/active.length*100:0;
+  const box=(ic,title,inner,bg,ac)=>`<div style="background:${bg||'#fff'};border:1px solid var(--border);border-radius:16px;padding:16px 18px;box-shadow:0 3px 12px rgba(107,44,145,.06)"><div style="display:flex;align-items:center;gap:9px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #00000010"><span style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:10px;background:${ac||'#f1ebf8'};font-size:1.1rem">${ic}</span><span style="font-weight:800;color:var(--pea);font-size:1rem">${title}</span></div>${inner}</div>`;
+  const stat=(ic,v,l,col,bg)=>`<div style="background:${bg};border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px"><span style="display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:50%;background:#ffffffcc;font-size:1.5rem;box-shadow:0 2px 6px rgba(0,0,0,.08)">${ic}</span><div><div style="font-size:1.5rem;font-weight:800;color:${col};line-height:1.05">${v}</div><div style="font-size:.74rem;color:#5a606b;font-weight:600;margin-top:2px">${l}</div></div></div>`;
   el.innerHTML=`
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px">
-    ${box('🎯 ความคืบหน้าต่อเป้าหมายรับซื้อ',
-      `<div style="display:flex;gap:22px;flex-wrap:wrap;align-items:baseline;margin-bottom:10px">
-        <div><div class="note">รับซื้อแล้ว (เสนอขายรวม)</div><div style="font-size:1.9rem;font-weight:800;color:var(--pea)">${mw.toFixed(2)}<span style="font-size:.9rem"> MW</span></div></div>
-        <div><div class="note">เทียบเป้า ${TARGET_MW} MW</div><div style="font-size:1.9rem;font-weight:800;color:#E8862E">${pctT.toFixed(1)}%</div></div>
-      </div>
-      <div style="background:#eef0f3;border-radius:9px;height:20px;overflow:hidden;margin-bottom:8px"><div style="width:${pctT}%;height:100%;background:linear-gradient(90deg,#8A4DB0,#E8862E)"></div></div>
-      <div class="note">💰 ประมาณการมูลค่ารับซื้อ/ปี <b style="color:var(--green)">${baht(valYr)}</b> <span style="font-size:.7rem">(สมมติ CF 15% · 2.20 บ./หน่วย)</span></div>
-      <div class="note" style="margin-top:4px">เป้า 250 MW = เป้าทั้งประเทศ (12 เขต) · ตัวเลขนี้คือเขต กฟน.1</div>`,'#faf7fd')}
-    ${box('⚠️ คอขวด & งานเสี่ยงเกินเวลา',
-      `<div style="display:flex;gap:22px;flex-wrap:wrap">
-        <div><div class="note">ขั้นที่ค้างมากสุด</div><div style="font-size:1.1rem;font-weight:800;color:var(--pea)">${topS}. ${stepName(topS)}</div><div style="font-size:1.5rem;font-weight:800;color:#E8862E">${fmtN(stc[topS])} ราย</div></div>
-        <div><div class="note">เกิน SLA (30 วัน)</div><div style="font-size:1.9rem;font-weight:800;color:var(--danger)">${fmtN(ov)}</div></div>
-        <div><div class="note">ใกล้เกิน (11-30 วัน)</div><div style="font-size:1.9rem;font-weight:800;color:#b07c00">${fmtN(near)}</div></div>
-      </div>
-      <div class="note" style="margin-top:10px">❌ ยกเลิก/ไม่ผ่าน <b style="color:var(--danger)">${fmtN(cancelled)} ราย (${cancelPct.toFixed(1)}%)</b> ของคำขอทั้งหมด</div>`,'#fffaf6')}
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:13px;margin-bottom:16px">
+    ${stat('📥', fmtN(active.length), 'คำขอที่อยู่ระหว่างดำเนินการ', 'var(--pea)', '#f4eefb')}
+    ${stat('⚡', mw.toFixed(2)+' <span style="font-size:.85rem">MW</span>', 'พลังงานไฟฟ้าเสนอขายสะสม', '#2F7FD1', '#eaf3fc')}
+    ${stat('✅', fmtN(contractedN)+' <span style="font-size:.8rem">('+pctContract.toFixed(0)+'%)</span>', 'ผ่านการพิจารณา/ทำสัญญา', '#1f9d57', '#eaf7ef')}
+    ${stat('🏁', fmtN(codN), 'จ่ายไฟเชิงพาณิชย์ (COD)', '#0E7C86', '#e7f4f5')}
   </div>
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:14px">
-    ${box('🔻 อัตราความสำเร็จในแต่ละขั้นตอน', funnelHtml + `<div class="note" style="margin-top:4px">% = สัดส่วนเทียบจำนวนคำขอที่ยังดำเนินการ · รวมขั้นสับเปลี่ยนมิเตอร์ถึง COD</div>`)}
-    ${box('📍 อันดับพื้นที่ (% ผ่านพิจารณา)',
-      `<div style="font-size:.8rem;font-weight:700;color:#1f9d57;margin-bottom:6px">🏆 เด่นสุด 5 อันดับ</div>${best.map(hubRow).join('')||'<div class="note">—</div>'}
-       <div style="font-size:.8rem;font-weight:700;color:var(--danger);margin:10px 0 6px">🐢 ควรเร่ง 5 อันดับ</div>${worst.map(hubRow).join('')||'<div class="note">—</div>'}`)}
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:14px">
+    ${box('🎯','ความคืบหน้าการรับซื้อไฟฟ้าเทียบเป้าหมาย',
+      `<div style="display:flex;gap:26px;flex-wrap:wrap;align-items:baseline;margin-bottom:12px">
+        <div><div class="note">ปริมาณพลังงานไฟฟ้าเสนอขายสะสม</div><div style="font-size:2rem;font-weight:800;color:var(--pea)">${mw.toFixed(2)}<span style="font-size:.9rem"> MW</span></div></div>
+        <div><div class="note">สัดส่วนต่อเป้าหมาย ${TARGET_MW} เมกะวัตต์</div><div style="font-size:2rem;font-weight:800;color:#E8862E">${pctT.toFixed(1)}%</div></div>
+      </div>
+      <div style="background:#eef0f3;border-radius:10px;height:22px;overflow:hidden;margin-bottom:10px"><div style="width:${pctT}%;height:100%;background:linear-gradient(90deg,#8A4DB0,#E8862E)"></div></div>
+      <div style="background:#f0faf4;border-radius:10px;padding:8px 12px;font-size:.84rem"><b>💰 ประมาณการมูลค่าการรับซื้อไฟฟ้าต่อปี</b> <span style="color:var(--green);font-weight:800">${baht(valYr)}</span><div style="font-size:.7rem;color:var(--gray);margin-top:2px">สมมติฐาน: ตัวประกอบกำลังผลิต (CF) ร้อยละ 15 · อัตรารับซื้อ 2.20 บาท/หน่วย</div></div>
+      <div class="note" style="margin-top:8px">หมายเหตุ: เป้าหมาย 250 เมกะวัตต์ เป็นเป้าหมายระดับประเทศ (12 เขต) · ข้อมูลที่แสดงเป็นของการไฟฟ้าส่วนภูมิภาค เขต 1</div>`,'#faf7fd','#f1ebf8')}
+    ${box('⚠️','จุดคงค้างและงานเสี่ยงเกินกรอบเวลา (SLA)',
+      `<div style="display:flex;gap:26px;flex-wrap:wrap">
+        <div><div class="note">ขั้นตอนที่มีงานคงค้างสูงสุด</div><div style="font-size:1.05rem;font-weight:800;color:var(--pea)">${topS}. ${stepName(topS)}</div><div style="font-size:1.6rem;font-weight:800;color:#E8862E">${fmtN(stc[topS])} <span style="font-size:.8rem">ราย</span></div></div>
+        <div><div class="note">เกินกรอบเวลา (เกิน 30 วัน)</div><div style="font-size:2rem;font-weight:800;color:var(--danger)">${fmtN(ov)}</div></div>
+        <div><div class="note">ใกล้ครบกรอบเวลา (11–30 วัน)</div><div style="font-size:2rem;font-weight:800;color:#b07c00">${fmtN(near)}</div></div>
+      </div>
+      <div style="background:#fdf0f0;border-radius:10px;padding:8px 12px;font-size:.84rem;margin-top:12px">คำขอที่ยกเลิก/ไม่ผ่านการพิจารณา <b style="color:var(--danger)">${fmtN(cancelled)} ราย</b> คิดเป็นร้อยละ <b style="color:var(--danger)">${cancelPct.toFixed(1)}</b> ของคำขอทั้งหมด</div>`,'#fffaf6','#fdecdb')}
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));gap:14px;margin-top:14px">
+    ${box('📊','อัตราความสำเร็จจำแนกตามขั้นตอนการดำเนินงาน', funnelHtml + `<div class="note" style="margin-top:6px">หมายเหตุ: ร้อยละคำนวณเทียบกับจำนวนคำขอที่อยู่ระหว่างดำเนินการ ครอบคลุมถึงขั้นตอนสับเปลี่ยนมิเตอร์และการจ่ายไฟเชิงพาณิชย์ (COD)</div>`,'#fff','#eaf3fc')}
+    ${box('📍','การจัดอันดับการไฟฟ้าตามสัดส่วนความคืบหน้า',
+      `<div style="font-size:.82rem;font-weight:800;color:#1f9d57;margin-bottom:7px">▲ ดำเนินการได้ดี 5 อันดับแรก</div>${best.map(hubRow).join('')||'<div class="note">—</div>'}
+       <div style="font-size:.82rem;font-weight:800;color:var(--danger);margin:12px 0 7px">▼ ควรเร่งรัดการดำเนินงาน 5 อันดับแรก</div>${worst.map(hubRow).join('')||'<div class="note">—</div>'}
+       <div class="note" style="margin-top:6px">หมายเหตุ: สัดส่วนความคืบหน้า = คำขอที่ผ่านการพิจารณา (ขั้น 3 ขึ้นไป) ต่อคำขอทั้งหมดในพื้นที่</div>`,'#fff','#eaf7ef')}
   </div>`;
 }
 /* ================= สรุปผลการดำเนินงาน (สไตล์ LightScout) ================= */
