@@ -1354,10 +1354,12 @@ async function loadCaFiles(reqNo){
     if(!r||!r.ok){ el.innerHTML='<span style="color:var(--danger)">โหลดเอกสารไม่ได้: '+((r&&r.error)||'')+'</span>'; return; }
     const fs=r.files||[];
     if(!fs.length){ el.innerHTML='<span style="color:var(--gray)">— ไม่พบเอกสารแนบของคำขอนี้ (ชื่อไฟล์ต้องมีเลขคำขอ) —</span>'; return; }
+    const docLabel=nm=>{ const u=nm.toUpperCase(); if(/_ID|บัตร/i.test(nm)) return '🪪 สำเนาบัตรประชาชน'; if(/VAT20|VAT_?20|ภพ/i.test(u)||/ภพ/.test(nm)) return '🧾 สำเนา ภพ.20'; return '📄 '+nm; };
     el.innerHTML=fs.map(f=>{
-      if(f.data && f.mime.indexOf('image/')===0) return `<div style="margin-bottom:8px"><div class="note">${f.name}</div><a href="${f.data}" target="_blank"><img src="${f.data}" style="max-width:100%;border:1px solid var(--border);border-radius:8px"></a></div>`;
-      if(f.data && f.mime==='application/pdf') return `<div style="margin-bottom:8px"><div class="note">${f.name} (PDF)</div><iframe src="${f.data}" style="width:100%;height:420px;border:1px solid var(--border);border-radius:8px"></iframe></div>`;
-      return `<div style="margin-bottom:6px">📄 ${f.name} — <a href="${f.url}" target="_blank" rel="noopener">เปิดใน Drive</a></div>`;
+      const lbl=docLabel(f.name);
+      if(f.data && f.mime.indexOf('image/')===0) return `<div style="margin-bottom:8px"><div class="note"><b>${lbl}</b> · ${f.name}</div><a href="${f.data}" target="_blank"><img src="${f.data}" style="max-width:100%;border:1px solid var(--border);border-radius:8px"></a></div>`;
+      if(f.data && f.mime==='application/pdf') return `<div style="margin-bottom:8px"><div class="note"><b>${lbl}</b> (PDF) · ${f.name}</div><iframe src="${f.data}" style="width:100%;height:420px;border:1px solid var(--border);border-radius:8px"></iframe></div>`;
+      return `<div style="margin-bottom:6px">${lbl} (${f.name}) — <a href="${f.url}" target="_blank" rel="noopener">เปิดใน Drive</a></div>`;
     }).join('');
   }catch(e){ el.innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
 }
