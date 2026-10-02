@@ -334,6 +334,11 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <h2>ภาพรวมของโครงการโซลาร์ภาคประชาชน ปี 2569</h2>
       <div class="kpis" id="kpis" style="margin-bottom:0"></div>
     </div>
+    <div class="card" data-view="overview" id="ovSlaCard">
+      <h2>⏱️ งานเกิน / ใกล้เกิน SLA — เกินฝั่งไหน</h2>
+      <div class="note" style="margin-bottom:8px">👷 ฝั่งเจ้าหน้าที่ = ขั้นตรวจสอบ/พิจารณา (กฟภ.) · 🧑‍💼 ฝั่งลูกค้า = รอชำระเงิน/ทำสัญญา</div>
+      <div id="ovSlaList"></div>
+    </div>
 
     <!-- METER SUMMARY -->
     <div class="card" id="sec-meter" data-view="meter">
@@ -969,7 +974,7 @@ function process(){
 }
 
 /* ================= RENDER ================= */
-function renderAll(){ renderKpis(); renderMeters(); renderCA(); renderExec(); renderWeekly(); renderPipeline(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); renderSidenav(); }
+function renderAll(){ renderKpis(); renderOvSla(); renderMeters(); renderCA(); renderExec(); renderWeekly(); renderPipeline(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); renderSidenav(); }
 
 /* ================= ตัวเลขบนแถบเมนู ================= */
 function renderSidenav(){
@@ -982,6 +987,30 @@ function renderSidenav(){
   setB('nvTot', tot); setB('nvSla', over||nearY); setB('nvCod', cod);
 }
 
+/* ================= งานเกิน SLA ในหน้าภาพรวม (แยกฝั่งเจ้าหน้าที่/ลูกค้า) ================= */
+function renderOvSla(){
+  const el=$('#ovSlaList'); if(!el) return;
+  const over=rows.filter(r=>r.sla.band==='over');
+  const near=rows.filter(r=>r.sla.band==='red'||r.sla.band==='yellow');
+  const sideOf=r=> r.sla.phase==='contract'
+    ? {ic:'🧑‍💼',t:'ฝั่งลูกค้า',sub:'รอชำระเงิน/ทำสัญญา',col:'#2F7FD1'}
+    : {ic:'👷',t:'ฝั่งเจ้าหน้าที่',sub:'ตรวจสอบ/พิจารณา',col:'#8E6BB5'};
+  const row=(r,isOver)=>{ const s=sideOf(r); const d=r.sla.elapsed??0; const ex=isOver?(' · เกินมา '+(d-30)+' วัน'):'';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:${isOver?'#fdf0f0':'#fdf7ec'};margin-bottom:6px">
+      <div style="font-size:1.5rem">${s.ic}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800">${r.reqNo||'-'} <span style="font-weight:600;color:var(--gray)">· 📍 ${r.areaCheck||r.area||'-'}</span></div>
+        <div style="font-size:.76rem;color:var(--gray)"><b style="color:${s.col}">${s.t}</b> · ${s.sub} · <span class="badge ${bcls(r.step)}">${stepName(r.step)}</span></div>
+      </div>
+      <div style="text-align:right;font-weight:800;white-space:nowrap;color:${isOver?'var(--danger)':'#b07c00'}">${fmtN(d)} วัน<div style="font-size:.68rem;font-weight:600;color:var(--gray)">${ex||('ครบกำหนด '+(r.sla.due?fmtD(r.sla.due):'-'))}</div></div>
+    </div>`;
+  };
+  let html='';
+  if(over.length) html+='<div style="font-weight:700;color:var(--danger);margin-bottom:6px">⛔ เกิน SLA (30 วัน) — '+fmtN(over.length)+' ราย</div>'+over.slice().sort((a,b)=>(b.sla.elapsed||0)-(a.sla.elapsed||0)).map(r=>row(r,true)).join('');
+  if(near.length) html+='<div style="font-weight:700;color:#b07c00;margin:12px 0 6px">🟡 ใกล้เกิน (11-30 วัน) — '+fmtN(near.length)+' ราย</div>'+near.slice().sort((a,b)=>(b.sla.elapsed||0)-(a.sla.elapsed||0)).slice(0,10).map(r=>row(r,false)).join('');
+  if(!over.length && !near.length) html='<div class="note">✅ ไม่มีงานเกินหรือใกล้เกิน SLA</div>';
+  el.innerHTML=html;
+}
 /* ================= สรุปผู้บริหาร ================= */
 function renderExec(){
   const el=$('#execSummary'); if(!el) return;
@@ -997,7 +1026,9 @@ function renderExec(){
     {n:'ยื่นคำขอ', c:active.length, col:'#2F7FD1'},
     {n:'ผ่านพิจารณา', c:rows.filter(r=>r.step>=2&&r.step!==0).length, col:'#17A2B8'},
     {n:'ทำสัญญา/ชำระเงิน', c:rows.filter(r=>r.step>=3&&r.step!==0).length, col:'#8E6BB5'},
-    {n:'อนุมัติเชื่อมต่อ', c:rows.filter(r=>r.step>=7&&r.step!==0).length, col:'#E8862E'},
+    {n:'อนุมัติเชื่อมต่อ', c:rows.filter(r=>r.step>=7&&r.step!==0).length, col:'#0E7C86'},
+    {n:'รอสับเปลี่ยนมิเตอร์', c:rows.filter(r=>r.step>=8&&r.step!==0).length, col:'#C2559D'},
+    {n:'สับเปลี่ยนมิเตอร์แล้ว', c:rows.filter(r=>r.step>=9).length, col:'#E8862E'},
     {n:'COD สำเร็จ', c:rows.filter(r=>r.step===10).length, col:'#1E7A3C'}
   ];
   const base=F[0].c||1;
@@ -1038,7 +1069,7 @@ function renderExec(){
       <div class="note" style="margin-top:10px">❌ ยกเลิก/ไม่ผ่าน <b style="color:var(--danger)">${fmtN(cancelled)} ราย (${cancelPct.toFixed(1)}%)</b> ของคำขอทั้งหมด</div>`,'#fffaf6')}
   </div>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:14px">
-    ${box('🔻 อัตราความสำเร็จ (Funnel)', funnelHtml + `<div class="note" style="margin-top:4px">% = สัดส่วนเทียบจำนวนคำขอที่ยังดำเนินการ</div>`)}
+    ${box('🔻 อัตราความสำเร็จในแต่ละขั้นตอน', funnelHtml + `<div class="note" style="margin-top:4px">% = สัดส่วนเทียบจำนวนคำขอที่ยังดำเนินการ · รวมขั้นสับเปลี่ยนมิเตอร์ถึง COD</div>`)}
     ${box('📍 อันดับพื้นที่ (% ผ่านพิจารณา)',
       `<div style="font-size:.8rem;font-weight:700;color:#1f9d57;margin-bottom:6px">🏆 เด่นสุด 5 อันดับ</div>${best.map(hubRow).join('')||'<div class="note">—</div>'}
        <div style="font-size:.8rem;font-weight:700;color:var(--danger);margin:10px 0 6px">🐢 ควรเร่ง 5 อันดับ</div>${worst.map(hubRow).join('')||'<div class="note">—</div>'}`)}
