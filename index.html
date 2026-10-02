@@ -531,7 +531,10 @@ const FIELDS = [
   {key:'dCod',    label:'วันที่ COD/เชื่อมต่อเข้าระบบ', kw:['วันที่เชื่อมต่อเข้าระบบ','วันที่ cod','cod','เริ่มต้นซื้อขาย']},
   {key:'dSwapReport', label:'วันที่รายงานสับเปลี่ยน', kw:['วันที่รายงานสับเปลี่ยน','รายงานสับเปลี่ยน']},
   {key:'swapStatus', label:'สถานะการสับเปลี่ยน (ระบบ)', kw:['สถานะการสับเปลี่ยน','สถานะสับเปลี่ยน','ผลการสับเปลี่ยน']},
-  {key:'caStatus', label:'สถานะการสร้างบัญชี CA', kw:['สถานะการสร้างบัญชี','สถานะสร้างบัญชี','สร้างบัญชีแสดงสัญญา','บัญชีแสดงสัญญา','สร้างบัญชี ca','สถานะบัญชี','สร้างบัญชี']}
+  {key:'ca82No',  label:'หมายเลข CA 82 (ชีต)', kw:['หมายเลข ca 82','หมายเลขca82','เลขที่ ca 82']},
+  {key:'ca82Sys', label:'สถานะสร้างบัญชี CA 82 (ระบบ)', kw:['สถานะสร้างบัญชี ca 82','สถานะสร้างบัญชีca82']},
+  {key:'ca82NoSys', label:'เลขที่ CA 82 (ระบบ)', kw:['เลขที่ ca 82 (ระบบ)','เลขที่ca82(ระบบ)']},
+  {key:'caStatus', label:'สถานะการสร้างบัญชี CA', kw:['สถานะการสร้างบัญชี','สถานะสร้างบัญชีแสดงสัญญา','สร้างบัญชีแสดงสัญญา','บัญชีแสดงสัญญา','สถานะบัญชี']}
 ];
 const SLA = {reviewDays:30, signDays:30};
 const LS_KEY = 'ppim_solar_dash_v1';
@@ -885,9 +888,13 @@ function buildRowsFrom(rawArr, map){
       dConnReq:parseDate(get('dConnReq')), dConnApprove:parseDate(get('dConnApprove')),
       dCod:parseDate(get('dCod')), dSwapReport:parseDate(get('dSwapReport')),
       swapStatus: clean(get('swapStatus')),
+      ca82No: clean(get('ca82No')), ca82Sys: clean(get('ca82Sys')), ca82NoSys: clean(get('ca82NoSys')),
       caStatus: clean(get('caStatus'))
     };
-    o.caCreated = !!o.caStatus && !/ยัง|รอ|ไม่|กำลัง/.test(o.caStatus);   // มีค่า+ไม่ใช่ "ยัง/รอ/ไม่" = สร้างบัญชีแล้ว
+    // สร้างบัญชี CA 82 แล้ว ถ้า: ผซฟ.บันทึกผ่านระบบ (ca82Sys) · หรือมีหมายเลข CA 82 จริงในชีต · หรือ caStatus บอกว่าสร้างแล้ว
+    o.caCreated = (!!o.ca82Sys && /สร้าง|แล้ว|เสร็จ/.test(o.ca82Sys))
+               || (!!o.ca82No && o.ca82No!=='-' && /\d/.test(o.ca82No))
+               || (!!o.caStatus && !/ยัง|รอ|ไม่|กำลัง/.test(o.caStatus));
     o.gridPass = o.gridChk.includes('ผ่าน') && !o.gridChk.includes('ไม่ผ่าน');
     o.step = classifyStatus(o.statusTxt);
     // ระบบรายงานสับเปลี่ยน (คอลัมน์แยก "สถานะการสับเปลี่ยน (ระบบ)") — ไม่ยุ่งกับ "สถานะคำขอ" ของ PPIM
@@ -1291,7 +1298,68 @@ function renderCA(){
     <div style="overflow-x:auto"><table><thead><tr><th>จุดร่วมงาน</th><th>สร้างแล้ว</th><th>ทั้งหมด</th><th>%</th></tr></thead><tbody>
       ${rowsHtml}
       <tr style="background:#F4F7FC;font-weight:700"><td>รวม</td><td>${fmtN(done)}</td><td>${fmtN(total)}</td><td>${pctTxt(pct)}</td></tr>
-    </tbody></table></div>`;
+    </tbody></table></div>
+    <div style="margin-top:16px;border-top:1px dashed var(--border);padding-top:12px">
+      <div class="note" style="background:#eef7ee;border-left:4px solid var(--green);padding:8px 10px;border-radius:6px;margin-bottom:8px">✅ <b>บันทึก / แก้ไข การสร้างบัญชี CA 82</b> — เลือกคำขอ → ดูข้อมูลลูกค้า + เอกสารแนบ → กรอกหมายเลข CA 82 → ยืนยัน (✅ = สร้างแล้ว · ⬜ = รอ)</div>
+      <label>เลือกคำขอ (PPIM)</label>
+      <select id="ca82Req"><option value="">— เลือกคำขอ —</option>${ pop.map(r=>`<option value="${r.reqNo}">${r.caCreated?'✅ ':'⬜ '}${r.reqNo} · ${r.areaCheck||r.area||''}</option>`).join('') }</select>
+      <div id="ca82Detail" style="margin-top:12px"></div>
+    </div>`;
+  const sel=$('#ca82Req');
+  if(sel) sel.onchange=()=>renderCaDetail(sel.value);
+}
+// แสดงข้อมูลลูกค้าเต็ม + เอกสารแนบ + ฟอร์มบันทึก/แก้ไข CA 82 (เมื่อ ผซฟ. เลือก PPIM)
+async function renderCaDetail(reqNo){
+  const el=$('#ca82Detail'); if(!el) return;
+  if(!reqNo){ el.innerHTML=''; return; }
+  const r=rows.find(x=>x.reqNo===reqNo); if(!r){ el.innerHTML='<div class="note">ไม่พบคำขอ</div>'; return; }
+  const created=r.caCreated;
+  const curNo=r.ca82NoSys||r.ca82No||'';
+  const F=[['เลขที่คำขอ',r.reqNo],['สถานะคำขอ',r.statusTxt],['กฟฟ.ที่ตรวจสอบ',r.areaCheck||r.area],['CA ลูกค้า',r.ca],['หมายเลข CA 82 (ชีต)',r.ca82No],['PEA No.',r.peaNo],['ชนิดมิเตอร์',r.meterPhase==='1P'?'1 เฟส (1P2W)':r.meterPhase==='3P'?'3 เฟส (3P4W)':(r.meterPhase||'-')],['กำลังผลิต (kW)',r.kw],['พิกัด',(r.lat&&r.lng)?(r.lat+', '+r.lng):'-']];
+  const info=F.map(([k,v])=>`<div><b>${k}:</b> ${v||'-'}</div>`).join('');
+  const mapBtn=(r.lat&&r.lng)?`<a href="https://www.google.com/maps?q=${encodeURIComponent(r.lat+','+r.lng)}" target="_blank" rel="noopener" style="color:#fff;background:var(--danger);padding:5px 10px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;margin-top:6px">📍 เปิดแผนที่</a>`:'';
+  el.innerHTML=`
+    <div style="background:#F4F7FC;border:1px solid var(--border);border-radius:10px;padding:12px;line-height:1.8;font-size:.9rem">
+      <div style="font-weight:800;color:var(--pea);margin-bottom:6px">📋 ข้อมูลคำขอ (PPIM)</div>${info}${mapBtn}
+    </div>
+    <div style="font-weight:700;margin:12px 0 6px">📎 เอกสารแนบ (บัตร ปชช./ภพ.20/รูป)</div>
+    <div id="ca82Files" class="note">กำลังโหลดเอกสาร...</div>
+    <div style="margin-top:12px;background:${created?'#fff9e6':'#eef7ee'};border-radius:10px;padding:12px">
+      <div style="font-weight:700;margin-bottom:6px">${created?('✏️ แก้ไขหมายเลข CA 82 (เดิม: '+(curNo||'-')+')'):'✅ บันทึกหมายเลข CA 82'}</div>
+      <label>หมายเลข CA 82</label><input id="ca82No" placeholder="เช่น 8200xxxxxx" value="${created?(curNo||''):''}">
+      ${created?'<label>เหตุผลในการแก้ไข (จำเป็น)</label><input id="ca82Reason" placeholder="ระบุเหตุผลที่ต้องแก้ไข">':''}
+      <div class="mmsg" id="ca82Msg"></div>
+      <div class="toolbar" style="margin-top:10px"><button class="btn btn-primary btn-sm" id="ca82Btn">${created?'✏️ ยืนยันการแก้ไข':'✅ ยืนยันการบันทึก CA 82'}</button></div>
+    </div>`;
+  loadCaFiles(reqNo);
+  const btn=$('#ca82Btn');
+  if(btn) btn.onclick=async ()=>{
+    const caNo=$('#ca82No').value.trim();
+    const reason=$('#ca82Reason')?$('#ca82Reason').value.trim():'';
+    if(!caNo){ $('#ca82Msg').innerHTML='<span style="color:var(--danger)">กรอกหมายเลข CA 82</span>'; return; }
+    if(created && !reason){ $('#ca82Msg').innerHTML='<span style="color:var(--danger)">ต้องระบุเหตุผลในการแก้ไข</span>'; return; }
+    $('#ca82Msg').textContent='กำลังบันทึก...';
+    try{
+      const res=await meterApi({action:'ca82', emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name, reqNo, caNo, reason});
+      if(res&&res.ok){ $('#ca82Msg').innerHTML='<span style="color:var(--green)">✅ บันทึกแล้ว — กำลังโหลดใหม่</span>'; await loadDashboardData(); renderCA(); }
+      else $('#ca82Msg').innerHTML='<span style="color:var(--danger)">ไม่สำเร็จ: '+((res&&res.error)||'')+'</span>';
+    }catch(e){ $('#ca82Msg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
+  };
+}
+// โหลดเอกสารแนบจาก Drive (base64) — บัตร ปชช./ภพ.20/รูป
+async function loadCaFiles(reqNo){
+  const el=$('#ca82Files'); if(!el) return;
+  try{
+    const r=await meterApi({action:'files', emp:mmSession.emp, pw:mmSession.pw, reqNo});
+    if(!r||!r.ok){ el.innerHTML='<span style="color:var(--danger)">โหลดเอกสารไม่ได้: '+((r&&r.error)||'')+'</span>'; return; }
+    const fs=r.files||[];
+    if(!fs.length){ el.innerHTML='<span style="color:var(--gray)">— ไม่พบเอกสารแนบของคำขอนี้ (ชื่อไฟล์ต้องมีเลขคำขอ) —</span>'; return; }
+    el.innerHTML=fs.map(f=>{
+      if(f.data && f.mime.indexOf('image/')===0) return `<div style="margin-bottom:8px"><div class="note">${f.name}</div><a href="${f.data}" target="_blank"><img src="${f.data}" style="max-width:100%;border:1px solid var(--border);border-radius:8px"></a></div>`;
+      if(f.data && f.mime==='application/pdf') return `<div style="margin-bottom:8px"><div class="note">${f.name} (PDF)</div><iframe src="${f.data}" style="width:100%;height:420px;border:1px solid var(--border);border-radius:8px"></iframe></div>`;
+      return `<div style="margin-bottom:6px">📄 ${f.name} — <a href="${f.url}" target="_blank" rel="noopener">เปิดใน Drive</a></div>`;
+    }).join('');
+  }catch(e){ el.innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
 }
 const METERS = [
   {key:'1P', name:'Meter TOU 1P2W 5(100)A', code:'1060070703', alloc:600},
@@ -1864,6 +1932,7 @@ function mmFillDetail(){
     <div style="background:#F4F7FC;border:1px solid var(--border);border-radius:10px;padding:12px;line-height:1.9;font-size:.9rem">
       <div><b>📍 กฟฟ.ที่รับผิดชอบ:</b> ${r.areaCheck||r.area||'-'}</div>
       <div><b>🔢 CA ลูกค้า (PPIM):</b> ${r.ca||'-'} &nbsp;·&nbsp; <b>PEA No.:</b> ${r.peaNo||'-'}</div>
+      <div><b>🧾 หมายเลข CA 82:</b> ${r.ca82NoSys||r.ca82No||'<span style="color:var(--gray)">— ยังไม่สร้างบัญชี —</span>'}</div>
       <div><b>⚡ ชนิดมิเตอร์:</b> ${phase}</div>
       ${r.swapWaitDays!=null?`<div><b>⏱ รอเปลี่ยนมิเตอร์:</b> ${fmtN(r.swapWaitDays)} วัน (นับจากวันอนุมัติเชื่อมต่อ)</div>`:''}
       <div style="margin-top:8px">${mapLink}</div>
@@ -2008,6 +2077,7 @@ if($('#mmDoRegister')) $('#mmDoRegister').onclick = async ()=>{
       $('#mmRPw').value=''; if($('#mmRAdminCode')) $('#mmRAdminCode').value=''; $('#mmEmp').value=emp; $('#mmPw').value=''; mmShowLogin();  // ไปหน้า login ให้ล็อกอินเอง
     }
     else if(r && r.error==='bad_admin_code') $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">รหัสอนุมัติ Admin ไม่ถูกต้อง — สมัคร Admin ไม่ได้</span>';
+    else if(r && r.error==='not_pszf') $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">สมัคร ผซฟ. ได้เฉพาะพนักงานสังกัด ผซฟ. — ช่อง “สังกัด” ต้องมีคำว่า “ผซฟ.”</span>';
     else if(r && r.error==='exists') $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">รหัสพนักงานนี้ลงทะเบียนแล้ว — กลับไปเข้าสู่ระบบ</span>';
     else $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">ลงทะเบียนไม่สำเร็จ: '+((r&&r.error)||'')+'</span>';
   }catch(e){ $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }

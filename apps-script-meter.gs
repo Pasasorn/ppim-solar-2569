@@ -33,6 +33,9 @@ var STATUS_AFTER_COD  = 'แจ้งผล COD เรียบร้อย';   
 var STATUS_REVERT     = 'รอทดสอบเชื่อมต่อ/COD';                 // ย้อนกลับเป็น "รอสับเปลี่ยนมิเตอร์" (ขั้น 8)
 var COL_SWAP_DATE = 'วันที่รายงานสับเปลี่ยน';   // คอลัมน์เก็บวันที่ ผมต. รายงานผล (ใช้จับเวลา)
 var COL_SWAP_STATUS = 'สถานะการสับเปลี่ยน (ระบบ)';   // คอลัมน์ใหม่ เก็บสถานะรายงานสับเปลี่ยน แยกจาก "สถานะคำขอ" ของ PPIM (ไม่เขียนทับระบบ)
+var COL_CA82_STATUS = 'สถานะสร้างบัญชี CA 82 (ระบบ)';   // ผซฟ. บันทึกว่าสร้างบัญชี CA 82 แล้ว (คอลัมน์ระบบ ไม่ทับ PPIM)
+var COL_CA82_NO     = 'เลขที่ CA 82 (ระบบ)';            // หมายเลข CA 82 ที่ ผซฟ. กรอก
+var COL_CA82_DATE   = 'วันที่สร้างบัญชี CA 82';          // วันที่บันทึกการสร้างบัญชี
 var COL_COD_DATE  = 'วันที่เชื่อมต่อเข้าระบบ';   // คอลัมน์วัน COD (ถ้ามี จะเขียนตอน ผบส. ยืนยัน)
 var ADMIN_SECRET  = 'PEA-N1-ADMIN-2569';   // 🔑 รหัสอนุมัติ Admin — ต้องกรอกให้ตรงตอนสมัครตำแหน่ง Admin (เปลี่ยนเป็นรหัสลับของคุณเอง)
 
@@ -44,6 +47,8 @@ function doPost(e) {
     if (body.action === 'register') return json(doRegister(body));
     if (body.action === 'report')   return json(doReport(body));
     if (body.action === 'revert')   return json(doRevert(body));
+    if (body.action === 'ca82')     return json(doCreateCA82(body));
+    if (body.action === 'files')    return json(doGetFiles(body));
     if (body.action === 'cod')      return json(doCod(body));
     if (body.action === 'log')      return json(doGetLog(body));
     if (body.action === 'ticker')   return json(doGetTicker());
@@ -115,6 +120,10 @@ function doRegister(b) {
   // สมัครตำแหน่ง Admin ต้องกรอกรหัสอนุมัติ Admin ให้ตรง (กันไม่ให้ใครตั้งตัวเองเป็น Admin)
   if (role.toLowerCase().indexOf('admin') >= 0 && String(b.adminCode||'') !== ADMIN_SECRET) {
     return { ok:false, error:'bad_admin_code' };
+  }
+  // สมัครตำแหน่ง ผซฟ. ต้องสังกัด ผซฟ. จริง (กันแผนกอื่นมาลงเพื่อดูข้อมูลลูกค้า)
+  if (role.indexOf('ผซฟ') >= 0 && dept.indexOf('ผซฟ') < 0) {
+    return { ok:false, error:'not_pszf' };
   }
   var sh = sheet(EMP_TAB);
   if (!sh) {  // สร้างแท็บพนักงานให้อัตโนมัติถ้ายังไม่มี
@@ -288,6 +297,74 @@ function doReport(b) {
   logUser(b.emp, b.name, 'ผมต.', '', 'รายงานสับเปลี่ยนมิเตอร์ ' + reqNo);
 
   return { ok:true, photos:photoLinks.length };
+}
+
+// ตรวจว่าเป็น ผซฟ. หรือ Admin (สำหรับบันทึก CA 82)
+function isCaOrAdmin(emp, pw) {
+  var sh = sheet(EMP_TAB); if (!sh) return false;
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iE = colIndex(h,'รหัสพนักงาน'), iP = colIndex(h,'password'), iR = colIndex(h,'ตำแหน่ง');
+  for (var r=1;r<data.length;r++){
+    if (String(data[r][iE]).trim() === String(emp||'').trim() && String(data[r][iP]) === String(pw||'')) {
+      var role = String(data[r][iR]||'').toLowerCase();
+      return role.indexOf('admin') >= 0 || String(data[r][iR]||'').indexOf('ผซฟ') >= 0;
+    }
+  }
+  return false;
+}
+
+// ผซฟ. บันทึกว่าสร้างบัญชี CA 82 แล้ว / แก้ไข — เขียนลงคอลัมน์ระบบ (ไม่ทับ PPIM)
+function doCreateCA82(b) {
+  if (!isCaOrAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  var reqNo = String(b.reqNo||'').trim();
+  if (!reqNo) return { ok:false, error:'missing reqNo' };
+  var caNo = String(b.caNo||'').trim();
+  var reason = String(b.reason||'').trim();   // เหตุผล (กรณีแก้ไข)
+  var sh = sheet(MAIN_TAB);
+  if (!sh) return { ok:false, error:'ไม่พบแท็บ '+MAIN_TAB };
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iReq = colIndex(h,'เลขที่คำขอ');
+  if (iReq < 0) return { ok:false, error:'ไม่พบคอลัมน์ เลขที่คำขอ' };
+  var foundRow = -1;
+  for (var r=1;r<data.length;r++){ if (String(data[r][iReq]).trim() === reqNo) { foundRow = r; break; } }
+  if (foundRow < 0) return { ok:false, error:'ไม่พบคำขอ '+reqNo };
+  function ensureCol(nm){ var i=colIndex(h,nm); if(i<0){ i=h.length; sh.getRange(1,i+1).setValue(nm); h.push(nm);} return i; }
+  var iSt = ensureCol(COL_CA82_STATUS), iNo = ensureCol(COL_CA82_NO), iDt = ensureCol(COL_CA82_DATE);
+  var prevNo = String(data[foundRow][iNo]||'').trim();
+  var isEdit = !!prevNo;   // มีค่าเดิม = เป็นการแก้ไข
+  if (isEdit && !reason) return { ok:false, error:'ต้องระบุเหตุผลในการแก้ไข' };
+  sh.getRange(foundRow+1, iSt+1).setValue('สร้างบัญชี CA 82 แล้ว');
+  sh.getRange(foundRow+1, iNo+1).setValue(caNo);
+  sh.getRange(foundRow+1, iDt+1).setValue(new Date());
+  var act = isEdit
+    ? ('แก้ไข CA 82 ' + reqNo + ' จาก ' + prevNo + ' → ' + caNo + ' | เหตุผล: ' + reason)
+    : ('สร้างบัญชี CA 82 ' + reqNo + (caNo?(' ('+caNo+')'):''));
+  logUser(b.emp, b.name, 'ผซฟ.', '', act);
+  return { ok:true, isEdit:isEdit };
+}
+
+// ดึงไฟล์แนบของคำขอจาก Drive (บัตร ปชช./ภพ.20/รูป) ส่งเป็น base64 — ไฟล์ไม่ต้องแชร์สาธารณะ (Apps Script อ่านในฐานะเจ้าของ)
+function doGetFiles(b) {
+  if (!isCaOrAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  var reqNo = String(b.reqNo||'').trim();
+  if (!reqNo) return { ok:false, error:'missing reqNo' };
+  var out = [];
+  try {
+    var folder = DriveApp.getFolderById(PHOTO_FOLDER_ID);
+    var it = folder.searchFiles('title contains "' + reqNo.replace(/"/g,'') + '"');
+    var MAXB = 8*1024*1024;   // ข้ามไฟล์ใหญ่กว่า 8MB (กัน payload บวม)
+    while (it.hasNext()) {
+      var f = it.next();
+      var size = f.getSize();
+      var mime = f.getMimeType();
+      var item = { name:f.getName(), mime:mime, id:f.getId(), url:f.getUrl(), size:size };
+      if (size <= MAXB && (mime.indexOf('image/')===0 || mime==='application/pdf')) {
+        item.data = 'data:' + mime + ';base64,' + Utilities.base64Encode(f.getBlob().getBytes());
+      }
+      out.push(item);
+    }
+  } catch(e) { return { ok:false, error:String(e) }; }
+  return { ok:true, files:out };
 }
 
 // ย้อนสถานะสับเปลี่ยน (เฉพาะ Admin): รอ ผบส. (ขั้น 9) → รอสับเปลี่ยน (ขั้น 8) + ล้างวันที่รายงาน
