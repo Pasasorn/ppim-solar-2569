@@ -349,15 +349,18 @@ function doGetFiles(b) {
   var reqNo = String(b.reqNo||'').trim();
   if (!reqNo) return { ok:false, error:'missing reqNo' };
   var out = [];
+  var key = reqNo.toUpperCase();
   try {
     var folder = DriveApp.getFolderById(PHOTO_FOLDER_ID);
-    var it = folder.searchFiles('title contains "' + reqNo.replace(/"/g,'') + '"');
     var MAXB = 8*1024*1024;   // ข้ามไฟล์ใหญ่กว่า 8MB (กัน payload บวม)
+    var it = folder.getFiles();   // ไล่อ่านทุกไฟล์ในโฟลเดอร์ แล้วเทียบชื่อเอง (ทนทานกว่า search query)
     while (it.hasNext()) {
       var f = it.next();
+      var nm = f.getName();
+      if (nm.toUpperCase().indexOf(key) < 0) continue;   // ชื่อไฟล์ต้องมีเลขคำขอ
       var size = f.getSize();
       var mime = f.getMimeType();
-      var item = { name:f.getName(), mime:mime, id:f.getId(), url:f.getUrl(), size:size };
+      var item = { name:nm, mime:mime, id:f.getId(), url:f.getUrl(), size:size };
       if (size <= MAXB && (mime.indexOf('image/')===0 || mime==='application/pdf')) {
         item.data = 'data:' + mime + ';base64,' + Utilities.base64Encode(f.getBlob().getBytes());
       }
@@ -412,6 +415,14 @@ function savePhotos(photos, reqNo) {
  * ถ้า Run แล้วขึ้นชื่อโฟลเดอร์ใน Execution log = สิทธิ์ครบ + เข้าถึงโฟลเดอร์ได้
  * ถ้าขึ้น "not found / no permission" หลัง Allow = โฟลเดอร์ไม่ได้แชร์ให้บัญชีนี้
  */
+// ทดสอบค้นไฟล์ของคำขอ — เปลี่ยน REQ เป็นเลขคำขอจริง แล้วกด Run ดู Execution log
+function testFindFiles() {
+  var REQ = 'PPIM1A600025';   // ← เปลี่ยนเป็นเลขคำขอที่อยากทดสอบ
+  var folder = DriveApp.getFolderById(PHOTO_FOLDER_ID);
+  var it = folder.getFiles(); var n=0;
+  while (it.hasNext()) { var f=it.next(); if(f.getName().toUpperCase().indexOf(REQ.toUpperCase())>=0){ n++; Logger.log('เจอ: '+f.getName()+' ('+f.getMimeType()+')'); } }
+  Logger.log('รวมไฟล์ที่ชื่อมี '+REQ+' = '+n+' ไฟล์ · โฟลเดอร์: '+folder.getName());
+}
 function testDrive() {
   var folder = DriveApp.getFolderById(PHOTO_FOLDER_ID);
   Logger.log('✅ เข้าถึงโฟลเดอร์ได้: ' + folder.getName());
