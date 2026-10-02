@@ -1284,8 +1284,13 @@ function renderCA(){
   const pop = rows.filter(r=>r.step===8);   // ดึงจากสถานะ ทดสอบเชื่อมต่อ/COD
   const total = pop.length, done = pop.filter(r=>r.caCreated).length, pct = total?done/total*100:0;
   const c = pct>=80?'var(--green)':pct>=50?'var(--warn)':'var(--danger)';
-  const byHub={}; pop.forEach(r=>{ const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; const o=byHub[h]=byHub[h]||{t:0,d:0}; o.t++; if(r.caCreated)o.d++; });
-  const rowsHtml = Object.entries(byHub).sort((a,b)=>b[1].t-a[1].t).map(([h,o])=>`<tr><td><b>${h}</b></td><td class="cell-green">${o.d||'-'}</td><td><b>${o.t}</b></td><td>${pctTxt(o.t?o.d/o.t*100:0)}</td></tr>`).join('');
+  const byHub={}; pop.forEach(r=>{ const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; const o=byHub[h]=byHub[h]||{t:0,d:0,items:[]}; o.t++; if(r.caCreated)o.d++; o.items.push(r); });
+  const rowsHtml = Object.entries(byHub).sort((a,b)=>b[1].t-a[1].t).map(([h,o],idx)=>{
+    const did='caHub_'+idx;
+    const items=o.items.map(r=>`<div style="padding:3px 0">${r.caCreated?'✅':'⬜'} <a href="#" onclick="caPick('${r.reqNo}');return false;" style="color:var(--pea);font-weight:700">${r.reqNo}</a> · ${r.areaCheck||r.area||''}${r.caCreated?(' · <span style="color:var(--green)">CA 82: '+(r.ca82NoSys||r.ca82No||'-')+'</span>'):''}</div>`).join('');
+    return `<tr style="cursor:pointer" onclick="mtrToggle('${did}')" title="คลิกดูเลข PPIM"><td><b>▸ ${h}</b></td><td class="cell-green">${o.d||'-'}</td><td><b>${o.t}</b></td><td>${pctTxt(o.t?o.d/o.t*100:0)}</td></tr>
+    <tr id="${did}" style="display:none"><td colspan="4" style="background:#faf7fd;font-size:.85rem;padding:8px 14px;line-height:1.5">${items||'—'}</td></tr>`;
+  }).join('');
   el.innerHTML = `
     <div class="note" style="margin-bottom:10px">ผู้ใช้งาน: <b>${mmSession.name}</b> (ผซฟ. · ${mmSession.dept||''}) · นับจากคำขอสถานะ “ทดสอบเชื่อมต่อ/COD” (ขั้น 8)</div>
     <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
@@ -1308,6 +1313,8 @@ function renderCA(){
   const sel=$('#ca82Req');
   if(sel) sel.onchange=()=>renderCaDetail(sel.value);
 }
+// กดเลือก PPIM จากตารางจุดร่วมงาน → ตั้ง dropdown + โชว์รายละเอียด + เลื่อนไปหา
+function caPick(reqNo){ const sel=$('#ca82Req'); if(sel) sel.value=reqNo; renderCaDetail(reqNo); const d=$('#ca82Detail'); if(d) setTimeout(()=>d.scrollIntoView({behavior:'smooth',block:'start'}),50); }
 // แสดงข้อมูลลูกค้าเต็ม + เอกสารแนบ + ฟอร์มบันทึก/แก้ไข CA 82 (เมื่อ ผซฟ. เลือก PPIM)
 async function renderCaDetail(reqNo){
   const el=$('#ca82Detail'); if(!el) return;
