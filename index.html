@@ -534,6 +534,8 @@ const FIELDS = [
   {key:'ca82No',  label:'หมายเลข CA 82 (ชีต)', kw:['หมายเลข ca 82','หมายเลขca82','เลขที่ ca 82']},
   {key:'ca82Sys', label:'สถานะสร้างบัญชี CA 82 (ระบบ)', kw:['สถานะสร้างบัญชี ca 82','สถานะสร้างบัญชีca82']},
   {key:'ca82NoSys', label:'เลขที่ CA 82 (ระบบ)', kw:['เลขที่ ca 82 (ระบบ)','เลขที่ca82(ระบบ)']},
+  {key:'projLoc', label:'ที่ตั้งโครงการ', kw:['ที่ตั้งโครงการ']},
+  {key:'prodKw', label:'กำลังการผลิต (kW)', kw:['กำลังการผลิต']},
   {key:'caStatus', label:'สถานะการสร้างบัญชี CA', kw:['สถานะการสร้างบัญชี','สถานะสร้างบัญชีแสดงสัญญา','สร้างบัญชีแสดงสัญญา','บัญชีแสดงสัญญา','สถานะบัญชี']}
 ];
 const SLA = {reviewDays:30, signDays:30};
@@ -888,7 +890,7 @@ function buildRowsFrom(rawArr, map){
       dConnReq:parseDate(get('dConnReq')), dConnApprove:parseDate(get('dConnApprove')),
       dCod:parseDate(get('dCod')), dSwapReport:parseDate(get('dSwapReport')),
       swapStatus: clean(get('swapStatus')),
-      ca82No: clean(get('ca82No')), ca82Sys: clean(get('ca82Sys')), ca82NoSys: clean(get('ca82NoSys')),
+      ca82No: clean(get('ca82No')), ca82Sys: clean(get('ca82Sys')), ca82NoSys: clean(get('ca82NoSys')), projLoc: clean(get('projLoc')), prodKw: clean(get('prodKw')),
       caStatus: clean(get('caStatus'))
     };
     // สร้างบัญชี CA 82 แล้ว ถ้า: ผซฟ.บันทึกผ่านระบบ (ca82Sys) · หรือมีหมายเลข CA 82 จริงในชีต · หรือ caStatus บอกว่าสร้างแล้ว
@@ -1306,8 +1308,8 @@ function renderCA(){
     </tbody></table></div>
     <div style="margin-top:16px;border-top:1px dashed var(--border);padding-top:12px">
       <div class="note" style="background:#eef7ee;border-left:4px solid var(--green);padding:8px 10px;border-radius:6px;margin-bottom:8px">✅ <b>บันทึก / แก้ไข การสร้างบัญชี CA 82</b> — เลือกคำขอ → ดูข้อมูลลูกค้า + เอกสารแนบ → กรอกหมายเลข CA 82 → ยืนยัน (✅ = สร้างแล้ว · ⬜ = รอ)</div>
-      <label>เลือกคำขอ (PPIM)</label>
-      <select id="ca82Req"><option value="">— เลือกคำขอ —</option>${ pop.map(r=>`<option value="${r.reqNo}">${r.caCreated?'✅ ':'⬜ '}${r.reqNo} · ${r.areaCheck||r.area||''}</option>`).join('') }</select>
+      <label>เลือกคำขอที่ยังไม่สร้างบัญชี (PPIM) — ที่สร้างแล้วกดจากตารางด้านบนเพื่อแก้ไข</label>
+      <select id="ca82Req"><option value="">— เลือกคำขอ —</option>${ pop.filter(r=>!r.caCreated).map(r=>`<option value="${r.reqNo}">⬜ ${r.reqNo} · ${r.areaCheck||r.area||''}</option>`).join('') }</select>
       <div id="ca82Detail" style="margin-top:12px"></div>
     </div>`;
   const sel=$('#ca82Req');
@@ -1322,8 +1324,9 @@ async function renderCaDetail(reqNo){
   const r=rows.find(x=>x.reqNo===reqNo); if(!r){ el.innerHTML='<div class="note">ไม่พบคำขอ</div>'; return; }
   const created=r.caCreated;
   const curNo=r.ca82NoSys||r.ca82No||'';
-  const F=[['เลขที่คำขอ',r.reqNo],['สถานะคำขอ',r.statusTxt],['กฟฟ.ที่ตรวจสอบ',r.areaCheck||r.area],['CA ลูกค้า',r.ca],['หมายเลข CA 82 (ชีต)',r.ca82No],['PEA No.',r.peaNo],['ชนิดมิเตอร์',r.meterPhase==='1P'?'1 เฟส (1P2W)':r.meterPhase==='3P'?'3 เฟส (3P4W)':(r.meterPhase||'-')],['กำลังผลิต (kW)',r.kw],['พิกัด',(r.lat&&r.lng)?(r.lat+', '+r.lng):'-']];
-  const info=F.map(([k,v])=>`<div><b>${k}:</b> ${v||'-'}</div>`).join('');
+  const F=[['เลขที่คำขอ',r.reqNo],['สถานะคำขอ',r.statusTxt],['กฟฟ.ที่ตรวจสอบ',r.areaCheck||r.area],['CA ลูกค้า',r.ca],['หมายเลข CA 82 (ชีต)',r.ca82No],['PEA No.',r.peaNo],['ชนิดมิเตอร์',r.meterPhase==='1P'?'1 เฟส (1P2W)':r.meterPhase==='3P'?'3 เฟส (3P4W)':(r.meterPhase||'-')],['กำลังการผลิต (kW)',r.prodKw],['ที่ตั้งโครงการ',r.projLoc],['พิกัด',(r.lat&&r.lng)?(r.lat+', '+r.lng):'-']];
+  const info=F.map(([k,v])=>`<div><b>${k}:</b> ${v||'-'}</div>`).join('')
+    + `<div style="margin-top:6px;display:inline-block;background:#fff3b0;border:1px solid #e3c000;border-radius:8px;padding:5px 12px;font-weight:800;color:#6b5500">⚡ ปริมาณเสนอขาย: ${r.kw||'-'} kW</div>`;
   const mapBtn=(r.lat&&r.lng)?`<a href="https://www.google.com/maps?q=${encodeURIComponent(r.lat+','+r.lng)}" target="_blank" rel="noopener" style="color:#fff;background:var(--danger);padding:5px 10px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;margin-top:6px">📍 เปิดแผนที่</a>`:'';
   el.innerHTML=`
     <div style="background:#F4F7FC;border:1px solid var(--border);border-radius:10px;padding:12px;line-height:1.8;font-size:.9rem">
