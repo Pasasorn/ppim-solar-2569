@@ -48,9 +48,13 @@ html{scroll-behavior:smooth}
 #sidenav a{display:flex;align-items:center;gap:11px;padding:8px 12px;border-radius:10px;
   text-decoration:none;color:#EFE6F7;font-size:.9rem;font-weight:600;transition:.15s}
 #sidenav a:hover{background:rgba(255,255,255,.14)}
-#sidenav a.nav-active{background:#fff;color:#5E2483;font-weight:800;box-shadow:0 5px 14px rgba(0,0,0,.20)}
+#sidenav a.nav-active{background:var(--pea-bg);color:#5E2483;font-weight:800;margin-right:-12px;border-radius:16px 0 0 16px;position:relative;z-index:1}
 #sidenav a.nav-active .i{color:#7A34A6}
 #sidenav a.nav-active .b{background:#efe3fa;color:#5E2483}
+/* มุมเว้าเชื่อมเข้าเนื้อหา (ขอบบน-ล่างขวา) */
+#sidenav a.nav-active::before,#sidenav a.nav-active::after{content:'';position:absolute;right:0;width:16px;height:16px;background:var(--pea-bg)}
+#sidenav a.nav-active::before{top:-16px;border-bottom-right-radius:16px;box-shadow:0 8px 0 0 var(--pea-bg)}
+#sidenav a.nav-active::after{bottom:-16px;border-top-right-radius:16px;box-shadow:0 -8px 0 0 var(--pea-bg)}
 #sidenav a.hidden{display:none}   /* กันเมนู (เช่น log Admin) ที่ต้องซ่อน ให้ .hidden ชนะ specificity */
 #sidenav a .i{font-size:1.15rem;width:22px;text-align:center}
 #sidenav a .t{flex:1}
@@ -327,6 +331,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <h2>ภาพรวมของโครงการโซลาร์ภาคประชาชน ปี 2569</h2>
       <div class="kpis" id="kpis" style="margin-bottom:0"></div>
     </div>
+    <div class="card" data-view="overview"><h2>📈 แนวโน้มคำขอสะสมรายสัปดาห์</h2><div class="chart-box" style="height:300px"><canvas id="chOvTrend"></canvas></div></div>
 
     <!-- METER SUMMARY -->
     <div class="card" id="sec-meter" data-view="meter">
@@ -1631,6 +1636,18 @@ function renderCharts(){
           label:it=>['สะสม '+fmtN(cums[it.dataIndex])+' ราย','เพิ่มงวดนี้ +'+fmtN(incs[it.dataIndex])+' ราย']}}},
       scales:{y:{beginAtZero:true,grace:'18%'},x:{ticks:{font:{size:10},maxRotation:60,minRotation:0}}}},
     plugins:[cumLabels]});
+  // กราฟเดียวกันในหน้าภาพรวม
+  if($('#chOvTrend')){
+    charts.ovtm = new Chart($('#chOvTrend'),{type:'bar',
+      data:{labels:tLabels,datasets:[{label:'ยอดสะสม',data:cums,backgroundColor:barColors,borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},
+          tooltip:{callbacks:{
+            title:it=>(isDaily[it[0].dataIndex]?'วันที่ ':'สัปดาห์เริ่ม ')+it[0].label,
+            label:it=>['สะสม '+fmtN(cums[it.dataIndex])+' ราย','เพิ่มงวดนี้ +'+fmtN(incs[it.dataIndex])+' ราย']}}},
+        scales:{y:{beginAtZero:true,grace:'18%'},x:{ticks:{font:{size:10},maxRotation:60,minRotation:0}}}},
+      plugins:[cumLabels]});
+  }
 
   // ===== Bar chart: คอขวดงานรอ COD แยกตามขั้น (แนวนอน) =====
   const codPend = rows.filter(r=>r.codBand!=null);
