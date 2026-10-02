@@ -53,8 +53,8 @@ html{scroll-behavior:smooth}
 #sidenav a.nav-active .b{background:#efe3fa;color:#5E2483}
 /* มุมเว้าเชื่อมเข้าเนื้อหา (ขอบบน-ล่างขวา) */
 #sidenav a.nav-active::before,#sidenav a.nav-active::after{content:'';position:absolute;right:0;width:16px;height:16px;background:var(--pea-bg)}
-#sidenav a.nav-active::before{top:-16px;border-bottom-right-radius:16px;box-shadow:0 8px 0 0 var(--pea-bg)}
-#sidenav a.nav-active::after{bottom:-16px;border-top-right-radius:16px;box-shadow:0 -8px 0 0 var(--pea-bg)}
+#sidenav a.nav-active::before{top:-16px;-webkit-mask:radial-gradient(circle 16px at 0 0,#0000 98%,#000);mask:radial-gradient(circle 16px at 0 0,#0000 98%,#000)}
+#sidenav a.nav-active::after{bottom:-16px;-webkit-mask:radial-gradient(circle 16px at 0 100%,#0000 98%,#000);mask:radial-gradient(circle 16px at 0 100%,#0000 98%,#000)}
 #sidenav a.hidden{display:none}   /* กันเมนู (เช่น log Admin) ที่ต้องซ่อน ให้ .hidden ชนะ specificity */
 #sidenav a .i{font-size:1.15rem;width:22px;text-align:center}
 #sidenav a .t{flex:1}
@@ -99,15 +99,17 @@ body{padding-left:236px}
 .note{font-size:.82rem;color:var(--gray)}
 /* KPI */
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(172px,1fr));gap:16px;margin-bottom:16px}
-.kpi{background:var(--card);border-radius:18px;padding:16px 16px 15px;box-shadow:0 4px 14px rgba(107,44,145,.07);border:1px solid #efe9f3;text-align:left;transition:.18s}
+.kpi{background:#f7f2fb;border-radius:18px;padding:15px 15px 14px;box-shadow:0 4px 14px rgba(107,44,145,.07);border:1px solid #0000000d;text-align:left;transition:.18s}
 .kpi:hover{box-shadow:0 10px 24px rgba(107,44,145,.15);transform:translateY(-3px)}
-.kpi .ic{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:14px;font-size:1.45rem;line-height:1;background:#f1ebf8;color:var(--pea);margin-bottom:11px}
-.kpi .v{font-size:1.75rem;font-weight:800;color:var(--pea);line-height:1.1}
-.kpi .l{font-size:.78rem;color:var(--gray);margin-top:6px;font-weight:600;line-height:1.35}
-.kpi.ok .ic{background:#e4f6ec;color:#1f9d57}   .kpi.ok .v{color:#1f9d57}
-.kpi.warn .ic{background:#fdf2df;color:#B07C00} .kpi.warn .v{color:#B07C00}
-.kpi.danger .ic{background:#fde8e8;color:var(--danger)} .kpi.danger .v{color:var(--danger)}
-.kpi.info .ic{background:#e5f0fb;color:var(--info)} .kpi.info .v{color:var(--info)}
+.kpi .ic{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:13px;font-size:1.4rem;line-height:1;background:#fff;color:var(--pea);margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.kpi .v{font-size:1.7rem;font-weight:800;color:var(--pea);line-height:1.1}
+.kpi .v .pc{font-size:.82rem;font-weight:700;opacity:.75}
+.kpi .l{font-size:.82rem;color:#4a4f58;margin-top:4px;font-weight:700;line-height:1.3}
+.kpi .d{font-size:.68rem;color:#8b919c;margin-top:2px;font-weight:500;line-height:1.3}
+.kpi.ok{background:#eef9f1}      .kpi.ok .ic{color:#1f9d57}   .kpi.ok .v{color:#1f9d57}
+.kpi.warn{background:#fdf7ec}    .kpi.warn .ic{color:#B07C00} .kpi.warn .v{color:#B07C00}
+.kpi.danger{background:#fdf0f0}  .kpi.danger .ic{color:var(--danger)} .kpi.danger .v{color:var(--danger)}
+.kpi.info{background:#eef4fc}    .kpi.info .ic{color:var(--info)} .kpi.info .v{color:var(--info)}
 /* pipeline */
 .pipeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}
 .step{background:#fff;border:1.5px solid #B9C6E0;border-radius:8px;padding:10px 8px;text-align:center;cursor:pointer;transition:.15s;position:relative}
@@ -1474,21 +1476,22 @@ function renderKpis(){
   // งานสร้างบัญชี CA 82 — นับจากคำขอขั้น 8
   const ca82Pop = rows.filter(r=>r.step===8);
   const ca82Done = ca82Pop.filter(r=>r.caCreated).length, ca82Wait = ca82Pop.length - ca82Done;
-  const pc = n => tot ? ' <span style="font-size:.85rem">('+pctTxt(n/tot*100)+')</span>' : '';
-  $('#kpis').innerHTML = `
-    <div class="kpi"><div class="ic">📋</div><div class="v">${fmtN(tot)}</div><div class="l">คำขอทั้งหมด (ราย)</div></div>
-    <div class="kpi info"><div class="ic">⚡</div><div class="v">${fmtN(kwSum)}</div><div class="l">kW รวม (${fmtN(kwSum/1000)} MW)</div></div>
-    <div class="kpi ok"><div class="ic">✅</div><div class="v">${fmtN(gridPassN)}${pc(gridPassN)}</div><div class="l">ผ่านตรวจ Grid Capacity</div></div>
-    <div class="kpi info"><div class="ic">🔎</div><div class="v">${fmtN(gridWait)}${pc(gridWait)}</div><div class="l">รอพิจารณา Grid Capacity</div></div>
-    <div class="kpi ok"><div class="ic">👍</div><div class="v">${fmtN(passed)}${pc(passed)}</div><div class="l">ผ่านการพิจารณาแล้ว</div></div>
-    <div class="kpi warn"><div class="ic">🔧</div><div class="v">${fmtN(meterWait)}${pc(meterWait)}</div><div class="l">รอสับเปลี่ยนมิเตอร์ (ขั้น 8) · 1P ${fmtN(mtr.w1)} / 3P ${fmtN(mtr.w3)}</div></div>
-    <div class="kpi info"><div class="ic">⏳</div><div class="v">${fmtN(meterPbs)}${pc(meterPbs)}</div><div class="l">รอ ผบส.กด COD ในระบบ PPIM ⚠ อย่าลืม! (ขั้น 9) · 1P ${fmtN(mtr.p1)} / 3P ${fmtN(mtr.p3)}${meterPbs?` · ⏱ เฉลี่ย ${pbsAvg} วัน นานสุด ${pbsMax} วัน`:''}</div></div>
-    <div class="kpi ok"><div class="ic">✅</div><div class="v">${fmtN(meterDone)}${pc(meterDone)}</div><div class="l">สับเปลี่ยนมิเตอร์แล้ว (ขั้น 9+10) · 1P ${fmtN(mtr.d1)} / 3P ${fmtN(mtr.d3)}</div></div>
-    <div class="kpi info"><div class="ic">🧾</div><div class="v">${fmtN(ca82Done)} / ${fmtN(ca82Pop.length)}${ca82Pop.length?' <span style="font-size:.85rem">('+pctTxt(ca82Done/ca82Pop.length*100)+')</span>':''}</div><div class="l">สร้างบัญชี CA 82 แล้ว · รอสร้างอีก ${fmtN(ca82Wait)}</div></div>
-    <div class="kpi ok"><div class="ic">🔌</div><div class="v">${fmtN(cod)}${pc(cod)}</div><div class="l">เชื่อมต่อแล้ว / COD</div></div>
-    <div class="kpi danger"><div class="ic">❌</div><div class="v">${fmtN(rej)}${pc(rej)}</div><div class="l">ไม่ผ่าน/ยกเลิก</div></div>
-    <div class="kpi warn"><div class="ic">⏱️</div><div class="v" style="font-size:1.15rem">🟢${fmtN(g)} 🟡${fmtN(y)} 🔴${fmtN(rd)}</div><div class="l">สถานะ SLA (ตรวจสอบ+ทำสัญญา)</div></div>
-    <div class="kpi danger"><div class="ic">⛔</div><div class="v">${fmtN(ov)}${pc(ov)}</div><div class="l">งานค้างเกิน SLA (30 วัน)</div></div>`;
+  const pc = n => tot ? ' <span class="pc">('+pctTxt(n/tot*100)+')</span>' : '';
+  const K = (cls,ic,v,l,d)=>`<div class="kpi ${cls}"><div class="ic">${ic}</div><div class="v">${v}</div><div class="l">${l}</div><div class="d">${d}</div></div>`;
+  $('#kpis').innerHTML =
+    K('',       '📋', fmtN(tot),                                      'คำขอทั้งหมด',        'ทุกคำขอในระบบ') +
+    K('info',   '⚡', fmtN(kwSum),                                    'กำลังไฟรวม (kW)',    '= '+fmtN(kwSum/1000)+' MW') +
+    K('ok',     '✅', fmtN(gridPassN)+pc(gridPassN),                  'ผ่านตรวจ Grid',      'ตรวจ Grid Capacity ผ่าน') +
+    K('info',   '🔎', fmtN(gridWait)+pc(gridWait),                    'รอตรวจ Grid',        'ยังไม่พิจารณา Grid') +
+    K('ok',     '👍', fmtN(passed)+pc(passed),                        'ผ่านการพิจารณา',     'ทำสัญญาขึ้นไป (ขั้น 3+)') +
+    K('warn',   '🔧', fmtN(meterWait)+pc(meterWait),                  'รอสับเปลี่ยนมิเตอร์', '1P '+fmtN(mtr.w1)+' / 3P '+fmtN(mtr.w3)+' · ขั้น 8') +
+    K('info',   '⏳', fmtN(meterPbs)+pc(meterPbs),                    'รอ ผบส.กด COD',      '⚠ อย่าลืมกดใน PPIM · ขั้น 9') +
+    K('ok',     '🔌', fmtN(meterDone)+pc(meterDone),                  'สับเปลี่ยนแล้ว',      '1P '+fmtN(mtr.d1)+' / 3P '+fmtN(mtr.d3)+' · ขั้น 9+10') +
+    K('info',   '🧾', fmtN(ca82Done)+' / '+fmtN(ca82Pop.length)+(ca82Pop.length?' <span class="pc">('+pctTxt(ca82Done/ca82Pop.length*100)+')</span>':''), 'สร้างบัญชี CA 82', 'รอสร้างอีก '+fmtN(ca82Wait)+' ราย') +
+    K('ok',     '🏁', fmtN(cod)+pc(cod),                              'COD แล้ว',           'เชื่อมต่อเข้าระบบ') +
+    K('danger', '❌', fmtN(rej)+pc(rej),                              'ยกเลิก/ไม่ผ่าน',     'คำขอที่สิ้นสุด') +
+    K('warn',   '⏱️', '<span style="font-size:1.15rem">🟢'+fmtN(g)+' 🟡'+fmtN(y)+' 🔴'+fmtN(rd)+'</span>', 'สถานะ SLA', 'ช่วงตรวจสอบ+ทำสัญญา') +
+    K('danger', '⛔', fmtN(ov)+pc(ov),                                'เกิน SLA',           'ค้างเกิน 30 วัน');
 }
 
 function renderPipeline(){
