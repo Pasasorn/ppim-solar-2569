@@ -360,7 +360,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       </tr></thead><tbody id="weeklyBody"></tbody></table></div>
     </div>
 
-    <div class="card purple" data-view="weekly"><h2>คำขอสะสม ตั้งแต่ 1 ก.ค. 2569 – ปัจจุบัน (รายสัปดาห์ · 3 สัปดาห์ล่าสุดกางเป็นรายวัน)</h2><div class="chart-box" style="height:360px"><canvas id="chTime"></canvas></div></div>
+    <div class="card purple" data-view="weekly"><h2>คำขอสะสม ตั้งแต่ 1 ก.ค. 2569 – ปัจจุบัน</h2><div class="chart-box" style="height:360px"><canvas id="chTime"></canvas></div></div>
 
     <!-- PIPELINE -->
     <div class="card" id="sec-pipeline" data-view="pipeline">
@@ -1463,6 +1463,9 @@ function renderKpis(){
   const rd = rows.filter(r=>r.sla.band==='red').length;
   const ov = rows.filter(r=>r.sla.band==='over').length;
   const gridPassN = rows.filter(r=>r.gridPass).length;
+  // งานสร้างบัญชี CA 82 — นับจากคำขอขั้น 8
+  const ca82Pop = rows.filter(r=>r.step===8);
+  const ca82Done = ca82Pop.filter(r=>r.caCreated).length, ca82Wait = ca82Pop.length - ca82Done;
   const pc = n => tot ? ' <span style="font-size:.85rem">('+pctTxt(n/tot*100)+')</span>' : '';
   $('#kpis').innerHTML = `
     <div class="kpi"><div class="ic">📋</div><div class="v">${fmtN(tot)}</div><div class="l">คำขอทั้งหมด (ราย)</div></div>
@@ -1473,6 +1476,7 @@ function renderKpis(){
     <div class="kpi warn"><div class="ic">🔧</div><div class="v">${fmtN(meterWait)}</div><div class="l">รอสับเปลี่ยนมิเตอร์ (ขั้น 8) · 1P ${fmtN(mtr.w1)} / 3P ${fmtN(mtr.w3)}</div></div>
     <div class="kpi info"><div class="ic">⏳</div><div class="v">${fmtN(meterPbs)}</div><div class="l">รอ ผบส.กด COD ในระบบ PPIM ⚠ อย่าลืม! (ขั้น 9) · 1P ${fmtN(mtr.p1)} / 3P ${fmtN(mtr.p3)}${meterPbs?` · ⏱ เฉลี่ย ${pbsAvg} วัน นานสุด ${pbsMax} วัน`:''}</div></div>
     <div class="kpi ok"><div class="ic">✅</div><div class="v">${fmtN(meterDone)}</div><div class="l">สับเปลี่ยนมิเตอร์แล้ว (ขั้น 9+10) · 1P ${fmtN(mtr.d1)} / 3P ${fmtN(mtr.d3)}</div></div>
+    <div class="kpi info"><div class="ic">🧾</div><div class="v">${fmtN(ca82Done)} / ${fmtN(ca82Pop.length)}${ca82Pop.length?' <span style="font-size:.85rem">('+pctTxt(ca82Done/ca82Pop.length*100)+')</span>':''}</div><div class="l">สร้างบัญชี CA 82 แล้ว · รอสร้างอีก ${fmtN(ca82Wait)}</div></div>
     <div class="kpi ok"><div class="ic">🔌</div><div class="v">${fmtN(cod)}${pc(cod)}</div><div class="l">เชื่อมต่อแล้ว / COD</div></div>
     <div class="kpi danger"><div class="ic">❌</div><div class="v">${fmtN(rej)}${pc(rej)}</div><div class="l">ไม่ผ่าน/ยกเลิก</div></div>
     <div class="kpi warn"><div class="ic">⏱️</div><div class="v" style="font-size:1.15rem">🟢${fmtN(g)} 🟡${fmtN(y)} 🔴${fmtN(rd)}</div><div class="l">สถานะ SLA (ตรวจสอบ+ทำสัญญา)</div></div>
