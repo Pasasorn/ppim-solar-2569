@@ -230,8 +230,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     <div class="brand-txt"><b>โครงการโซลาร์ภาคประชาชน ปี 2569</b><span>รายงานสถานะคำขอ · ระบบ PPIM</span></div>
   </div>
   <a href="#sec-overview" data-view="overview"><span class="i">📊</span><span class="t">ภาพรวม</span></a>
-  <a href="#sec-summary" data-view="summary"><span class="i">📋</span><span class="t">สรุปผลดำเนินงาน</span></a>
-  <a href="#sec-target" data-view="target"><span class="i">🎯</span><span class="t">เป้าหมาย/แนวโน้ม</span></a>
+  <a href="#sec-exec" data-view="exec"><span class="i">📊</span><span class="t">สรุปผู้บริหาร</span></a>
   <a href="#sec-weekly" data-view="weekly"><span class="i">📅</span><span class="t">รายงานรายสัปดาห์</span></a>
   <a href="#sec-pipeline" data-view="pipeline"><span class="i">🔄</span><span class="t">สถานะขั้นตอน</span><span class="b" id="nvTot">0</span></a>
   <a href="#sec-sla" data-view="sla"><span class="i">⏰</span><span class="t">การควบคุม SLA</span><span class="b warn" id="nvSla">0</span></a>
@@ -352,15 +351,9 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     </div>
 
     <!-- SUMMARY -->
-    <div class="card green" id="sec-summary" data-view="summary">
-      <h2>📋 สรุปผลการดำเนินงาน</h2>
-      <div id="summary" style="line-height:1.9;font-size:.92rem"></div>
-    </div>
-
-    <!-- TARGET -->
-    <div class="card green" id="sec-target" data-view="target">
-      <h2>🎯 เป้าหมายการรับซื้อ · แนวโน้มของ กฟน.1</h2>
-      <div id="target"></div>
+    <div class="card" id="sec-exec" data-view="exec">
+      <h2>📊 สรุปผู้บริหาร — โครงการโซลาร์ภาคประชาชน ปี 2569</h2>
+      <div id="execSummary"></div>
     </div>
 
     <!-- WEEKLY REPORT -->
@@ -976,7 +969,7 @@ function process(){
 }
 
 /* ================= RENDER ================= */
-function renderAll(){ renderKpis(); renderMeters(); renderCA(); renderSummary(); renderTarget(); renderWeekly(); renderPipeline(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); renderSidenav(); }
+function renderAll(){ renderKpis(); renderMeters(); renderCA(); renderExec(); renderWeekly(); renderPipeline(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); renderSidenav(); }
 
 /* ================= ตัวเลขบนแถบเมนู ================= */
 function renderSidenav(){
