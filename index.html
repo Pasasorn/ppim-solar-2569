@@ -162,7 +162,7 @@ th .arrow{font-size:.7rem;opacity:.8}
 td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:top}
 tr:hover td{background:#F4F7FC}
 .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.72rem;white-space:nowrap}
-.b1{background:#e8eef7;color:#2f5fa8}.b2{background:#e5f0fb;color:#2F7FD1}.b3{background:#fdf2df;color:#b07c00}
+.b1{background:#e8eef7;color:#2f5fa8}.b2{background:#ffe9d1;color:#c2690a}.b3{background:#fdf2df;color:#b07c00}
 .b4{background:#efe7f8;color:#5A2D82}.b5{background:#e7f3ec;color:#22794a}.b6{background:#e2ecf9;color:#2c66ad}
 .b7{background:#dff3f5;color:#127c8a}.b8{background:#fdeee0;color:#b25e12}.b9{background:#dff5e7;color:#1d8047}
 .b0{background:#fdecec;color:#D64545}.bx{background:#eef0f2;color:#6b7280}
@@ -534,6 +534,7 @@ const FIELDS = [
   {key:'ca82No',  label:'หมายเลข CA 82 (ชีต)', kw:['หมายเลข ca 82','หมายเลขca82','เลขที่ ca 82']},
   {key:'ca82Sys', label:'สถานะสร้างบัญชี CA 82 (ระบบ)', kw:['สถานะสร้างบัญชี ca 82','สถานะสร้างบัญชีca82']},
   {key:'ca82NoSys', label:'เลขที่ CA 82 (ระบบ)', kw:['เลขที่ ca 82 (ระบบ)','เลขที่ca82(ระบบ)']},
+  {key:'custName', label:'ชื่อผู้ใช้ไฟฟ้า', kw:['ชื่อผู้ใช้ไฟฟ้า']},
   {key:'projLoc', label:'ที่ตั้งโครงการ', kw:['ที่ตั้งโครงการ']},
   {key:'prodKw', label:'กำลังการผลิต (kW)', kw:['กำลังการผลิต']},
   {key:'caStatus', label:'สถานะการสร้างบัญชี CA', kw:['สถานะการสร้างบัญชี','สถานะสร้างบัญชีแสดงสัญญา','สร้างบัญชีแสดงสัญญา','บัญชีแสดงสัญญา','สถานะบัญชี']}
@@ -876,7 +877,7 @@ function buildRowsFrom(rawArr, map){
     const clean = v => { v=String(v||'').trim(); return v==='-'?'':v; };
     const hubV = clean(get('hub'));
     const o = {
-      i, reqNo:clean(get('reqNo')), area:clean(get('area'))||'ไม่ระบุ',
+      i, reqNo:clean(get('reqNo')), area:clean(get('area'))||clean(get('areaCheck'))||'ไม่ระบุ',
       areaCheck: clean(get('areaCheck')),
       hub: (hubV==='#N/A'||hubV.toLowerCase()==='x') ? '' : hubV,
       gridChk: clean(get('gridChk')),
@@ -890,7 +891,7 @@ function buildRowsFrom(rawArr, map){
       dConnReq:parseDate(get('dConnReq')), dConnApprove:parseDate(get('dConnApprove')),
       dCod:parseDate(get('dCod')), dSwapReport:parseDate(get('dSwapReport')),
       swapStatus: clean(get('swapStatus')),
-      ca82No: clean(get('ca82No')), ca82Sys: clean(get('ca82Sys')), ca82NoSys: clean(get('ca82NoSys')), projLoc: clean(get('projLoc')), prodKw: clean(get('prodKw')),
+      ca82No: clean(get('ca82No')), ca82Sys: clean(get('ca82Sys')), ca82NoSys: clean(get('ca82NoSys')), custName: clean(get('custName')), projLoc: clean(get('projLoc')), prodKw: clean(get('prodKw')),
       caStatus: clean(get('caStatus'))
     };
     // สร้างบัญชี CA 82 แล้ว ถ้า: ผซฟ.บันทึกผ่านระบบ (ca82Sys) · หรือมีหมายเลข CA 82 จริงในชีต · หรือ caStatus บอกว่าสร้างแล้ว
@@ -1324,7 +1325,7 @@ async function renderCaDetail(reqNo){
   const r=rows.find(x=>x.reqNo===reqNo); if(!r){ el.innerHTML='<div class="note">ไม่พบคำขอ</div>'; return; }
   const created=r.caCreated;
   const curNo=r.ca82NoSys||r.ca82No||'';
-  const F=[['เลขที่คำขอ',r.reqNo],['สถานะคำขอ',r.statusTxt],['กฟฟ.ที่ตรวจสอบ',r.areaCheck||r.area],['CA ลูกค้า',r.ca],['หมายเลข CA 82 (ชีต)',r.ca82No],['PEA No.',r.peaNo],['ชนิดมิเตอร์',r.meterPhase==='1P'?'1 เฟส (1P2W)':r.meterPhase==='3P'?'3 เฟส (3P4W)':(r.meterPhase||'-')],['กำลังการผลิต (kW)',r.prodKw],['ที่ตั้งโครงการ',r.projLoc],['พิกัด',(r.lat&&r.lng)?(r.lat+', '+r.lng):'-']];
+  const F=[['เลขที่คำขอ',r.reqNo],['ชื่อผู้ใช้ไฟฟ้า',r.custName],['สถานะคำขอ',r.statusTxt],['กฟฟ.ที่ตรวจสอบ',r.areaCheck||r.area],['CA ลูกค้า',r.ca],['หมายเลข CA 82 (ชีต)',r.ca82No],['PEA No.',r.peaNo],['ชนิดมิเตอร์',r.meterPhase==='1P'?'1 เฟส (1P2W)':r.meterPhase==='3P'?'3 เฟส (3P4W)':(r.meterPhase||'-')],['กำลังการผลิต (kW)',r.prodKw],['ที่ตั้งโครงการ',r.projLoc],['พิกัด',(r.lat&&r.lng)?(r.lat+', '+r.lng):'-']];
   const info=F.map(([k,v])=>`<div><b>${k}:</b> ${v||'-'}</div>`).join('')
     + `<div style="margin-top:6px;display:inline-block;background:#fff3b0;border:1px solid #e3c000;border-radius:8px;padding:5px 12px;font-weight:800;color:#6b5500">⚡ ปริมาณเสนอขาย: ${r.kw||'-'} kW</div>`;
   const mapBtn=(r.lat&&r.lng)?`<a href="https://www.google.com/maps?q=${encodeURIComponent(r.lat+','+r.lng)}" target="_blank" rel="noopener" style="color:#fff;background:var(--danger);padding:5px 10px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;margin-top:6px">📍 เปิดแผนที่</a>`:'';
