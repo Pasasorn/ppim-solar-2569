@@ -1003,16 +1003,21 @@ function renderOvSla(){
       <div style="text-align:right;font-weight:800;white-space:nowrap;color:${isOver?'var(--danger)':'#b07c00'}">${fmtN(d)} วัน<div style="font-size:.68rem;font-weight:600;color:var(--gray)">${ex}</div></div>
     </div>`;
   };
-  const sideSec=(list,isOver,cap)=>{
+  const col=(arr,isOver,ic,t,hcol,cap)=>{
+    const head=`<div style="font-size:.84rem;font-weight:800;color:${hcol};margin-bottom:6px;padding-bottom:5px;border-bottom:2px solid ${hcol}33">${ic} ${t} — ${fmtN(arr.length)} ราย</div>`;
+    const body=arr.length ? (cap?arr.slice(0,cap):arr).map(r=>row(r,isOver)).join('') + (cap&&arr.length>cap?`<div class="note">…และอีก ${fmtN(arr.length-cap)} ราย</div>`:'') : '<div class="note">— ไม่มี —</div>';
+    return head+body;
+  };
+  const grid=(list,isOver,cap)=>{
     const staff=list.filter(isStaff).sort(byE), cust=list.filter(r=>!isStaff(r)).sort(byE);
-    const sub=(ic,t,arr,col)=>`<div style="font-size:.82rem;font-weight:700;color:${col};margin:8px 0 5px">${ic} ${t} — ${fmtN(arr.length)} ราย</div>`
-      + (arr.length ? (cap?arr.slice(0,cap):arr).map(r=>row(r,isOver)).join('') + (cap&&arr.length>cap?`<div class="note">…และอีก ${fmtN(arr.length-cap)} ราย</div>`:'') : '<div class="note" style="margin-bottom:4px">— ไม่มี —</div>');
-    return sub('👷','ฝั่งเจ้าหน้าที่ (ตรวจสอบ/พิจารณา)',staff,'#8E6BB5') + sub('🧑‍💼','ฝั่งลูกค้า (รอชำระเงิน/ทำสัญญา)',cust,'#2F7FD1');
+    return `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px">
+      <div>${col(staff,isOver,'👷','ฝั่งเจ้าหน้าที่',' #8E6BB5',cap)}</div>
+      <div>${col(cust,isOver,'🧑‍💼','ฝั่งลูกค้า','#2F7FD1',cap)}</div>
+    </div>`;
   };
   let html='';
-  if(over.length) html+='<div style="font-weight:800;color:var(--danger);margin-bottom:2px">⛔ เกิน SLA (30 วัน) — '+fmtN(over.length)+' ราย</div>'+sideSec(over,true,null);
-  if(near.length) html+='<div style="font-weight:800;color:#b07c00;margin:14px 0 2px">🟡 ใกล้เกิน (11-30 วัน) — '+fmtN(near.length)+' ราย</div>'+sideSec(near,false,8);
-  if(!over.length && !near.length) html='<div class="note">✅ ไม่มีงานเกินหรือใกล้เกิน SLA</div>';
+  html+='<div style="font-weight:800;color:var(--danger);margin-bottom:7px;font-size:.95rem">⛔ งานที่เกินกรอบเวลา SLA (เกิน 30 วัน) — '+fmtN(over.length)+' ราย</div>'+grid(over,true,null);
+  html+='<div style="font-weight:800;color:#b07c00;margin:18px 0 7px;font-size:.95rem">🟡 งานที่ใกล้เกินกรอบเวลา SLA (11–30 วัน) — '+fmtN(near.length)+' ราย</div>'+grid(near,false,8);
   el.innerHTML=html;
 }
 /* ================= สรุปผู้บริหาร ================= */
