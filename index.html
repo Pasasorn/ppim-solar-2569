@@ -791,10 +791,9 @@ function tryJsonp(){
 }
 // โหลดข้อมูลผ่าน Apps Script (ต้อง login) — ชีตเป็น private ได้ ไม่ต้องเปิด gviz สาธารณะ
 async function loadDashboardData(){
-  if(!mmSession){ $('#lastUpdate').textContent='กรุณาเข้าสู่ระบบก่อนดูข้อมูล'; return false; }
   $('#lastUpdate').textContent='กำลังโหลดข้อมูล...';
   try{
-    const r = await meterApi({action:'data', emp:mmSession.emp, pw:mmSession.pw});
+    const r = await meterApi({action:'data'});   // ภาพรวมดูได้เลย ไม่ต้อง login
     if(!r || !r.ok) throw new Error((r&&r.error)||'โหลดไม่ได้');
     // main → raw/headers (แปลง array เป็น object ตามหัวคอลัมน์)
     headers = r.main.headers||[];
@@ -828,8 +827,8 @@ async function loadFromSheet(silent){
     return false;
   }
 }
-$('#btnSheet').onclick = ()=>{ mmSession ? loadDashboardData() : openMeterModal('view'); };
-{ const rb=$('#btnReload'); if(rb) rb.onclick = ()=>{ mmSession ? loadDashboardData() : openMeterModal('view'); }; }
+$('#btnSheet').onclick = ()=>{ loadDashboardData(); };
+{ const rb=$('#btnReload'); if(rb) rb.onclick = ()=>{ loadDashboardData(); }; }
 
 function computeMapping(hdrs){
   const map = {};
@@ -1948,13 +1947,11 @@ loadTicker();
 if($('#mmClose')) $('#mmClose').onclick = ()=>$('#meterModal').classList.remove('show');
 if($('#mmLogout')) $('#mmLogout').onclick = ()=>{
   mmSession=null; caAuthed=false;
-  rows=[]; raw=[]; slaRows=null;   // ล้างข้อมูลในหน่วยความจำเมื่อออกจากระบบ
-  try{ localStorage.removeItem(LS_KEY); }catch(e){}
   if($('#navLog')) $('#navLog').classList.add('hidden');   // ซ่อนเมนู log Admin เมื่อออกจากระบบ
   const uc=$('#uploadCard'); if(uc) uc.classList.add('hidden');
-  $('#dash').classList.add('hidden');
-  $('#lastUpdate').textContent='กรุณาเข้าสู่ระบบเพื่อดูข้อมูล';
-  mmGate='view'; $('#meterModal').classList.add('show'); mmShowLogin();
+  if(typeof renderCA==='function') renderCA();
+  $('#meterModal').classList.remove('show');   // ปิด modal — ภาพรวมยังดูได้ต่อ ไม่ต้อง login
+  showView('overview');
 };
 if($('#mmDoLogin')) $('#mmDoLogin').onclick = async ()=>{
   const emp=$('#mmEmp').value.trim(), pw=$('#mmPw').value;
@@ -2062,9 +2059,8 @@ document.querySelectorAll('#sidenav a[data-view]').forEach(a=>{
 });
 showView('overview');   // หน้าเริ่มต้น
 
-// ต้องเข้าสู่ระบบก่อนถึงจะโหลดข้อมูล (ชีตเป็น private — อ่านผ่าน Apps Script เท่านั้น)
-$('#lastUpdate').textContent='กรุณาเข้าสู่ระบบเพื่อดูข้อมูล';
-openMeterModal('view');
+// โหลดภาพรวมได้เลยไม่ต้อง login (อ่านผ่าน Apps Script — ชีตยัง private ได้) · login เฉพาะมิเตอร์+CA82
+loadDashboardData();
 </script>
 </body>
 </html>

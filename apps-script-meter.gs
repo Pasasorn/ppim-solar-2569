@@ -187,7 +187,7 @@ function readSheetValues(ss, tabName) {
 
 // ส่งข้อมูลทั้ง 2 ชีตให้ dashboard (ต้อง login ก่อน) — แทนการอ่าน gviz ตรงๆ เพื่อให้ชีตเป็น private ได้
 function doGetData(b) {
-  if (!isRegistered(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  // อ่านข้อมูลภาพรวมได้โดยไม่ต้อง login (ภาพรวม/SLA/กราฟ ดูได้เลย) — ชีตยังเป็น private ได้เพราะอ่านผ่าน Apps Script
   var main = readSheetValues(SpreadsheetApp.openById(SHEET_ID), MAIN_TAB);
   var sla;
   try { sla = readSheetValues(SpreadsheetApp.openById(SLA_SHEET_ID), null); }
