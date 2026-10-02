@@ -979,7 +979,7 @@ function renderAll(){ renderKpis(); renderOvSla(); renderMeters(); renderCA(); r
 /* ================= ตัวเลขบนแถบเมนู ================= */
 function renderSidenav(){
   const tot = rows.length;
-  const sd = slaData();
+  const sd = rows;   // นับ SLA จากชีต PPIM Solar (15Min) ให้ตรงกับหน้า SLA
   const over = sd.filter(r=>r.sla.band==='over').length;
   const nearY = sd.filter(r=>r.sla.band==='yellow'||r.sla.band==='red').length;
   const cod = rows.filter(r=>r.step===10).length;
@@ -1631,7 +1631,7 @@ function clickStep(id){
 
 const BAND_ICON = {green:'🟢',yellow:'🟡',red:'🔴',over:'⛔'};
 function renderSla(){
-  const src = slaData();   // ใช้ข้อมูลจากชีต SLA แยก (ถ้ามี)
+  const src = rows;   // ใช้ชีต PPIM Solar (15Min) เป็นหลัก — อัปเดตล่าสุด (เดิมใช้ชีต SLA ที่อาจช้ากว่า)
   const groups = [
     {el:'#slaList1', phase:'review',   cls:'g1', title:'① ขั้นตอนที่ 1 → 2 : ตรวจสอบเอกสารและทางเทคนิค (ไม่เกิน 30 วัน นับจากวันยื่นคำขอ)', note:null},
     {el:'#slaList2', phase:'contract', cls:'g2', title:'② ขั้นตอนที่ 2 → 5 : การทำสัญญา (ห้ามเกิน 30 วัน นับจากวันประกาศผล/วันอนุมัติเชื่อมต่อ)', note:'⏳ ช่วงนี้คือการรอลูกค้าชำระเงินและทำสัญญา · 📌 วันชำระเงิน = วันที่ลงนามสัญญา (ตราปั้มวันที่)'}
