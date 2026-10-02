@@ -98,7 +98,9 @@ body{padding-left:236px}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
 .note{font-size:.82rem;color:var(--gray)}
 /* KPI */
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(172px,1fr));gap:16px;margin-bottom:16px}
+.kpis{display:grid;grid-template-columns:repeat(7,1fr);gap:13px;margin-bottom:16px}
+@media(max-width:1100px){.kpis{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:620px){.kpis{grid-template-columns:repeat(2,1fr)}}
 .kpi{background:#f7f2fb;border-radius:18px;padding:15px 15px 14px;box-shadow:0 4px 14px rgba(107,44,145,.07);border:1px solid #0000000d;text-align:left;transition:.18s}
 .kpi:hover{box-shadow:0 10px 24px rgba(107,44,145,.15);transform:translateY(-3px)}
 .kpi .ic{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:13px;font-size:1.4rem;line-height:1;background:#fff;color:var(--pea);margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
@@ -333,7 +335,6 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <h2>ภาพรวมของโครงการโซลาร์ภาคประชาชน ปี 2569</h2>
       <div class="kpis" id="kpis" style="margin-bottom:0"></div>
     </div>
-    <div class="card" data-view="overview"><h2>📈 แนวโน้มคำขอสะสมรายสัปดาห์</h2><div class="chart-box" style="height:300px"><canvas id="chOvTrend"></canvas></div></div>
 
     <!-- METER SUMMARY -->
     <div class="card" id="sec-meter" data-view="meter">
@@ -1484,14 +1485,14 @@ function renderKpis(){
     K('ok',     '✅', fmtN(gridPassN)+pc(gridPassN),                  'ผ่านตรวจ Grid',      'ตรวจ Grid Capacity ผ่าน') +
     K('info',   '🔎', fmtN(gridWait)+pc(gridWait),                    'รอตรวจ Grid',        'ยังไม่พิจารณา Grid') +
     K('ok',     '👍', fmtN(passed)+pc(passed),                        'ผ่านการพิจารณา',     'ทำสัญญาขึ้นไป (ขั้น 3+)') +
+    K('warn',   '⏱️', '<span style="font-size:1.15rem">🟢'+fmtN(g)+' 🟡'+fmtN(y)+' 🔴'+fmtN(rd)+'</span>', 'สถานะ SLA', 'ช่วงตรวจสอบ+ทำสัญญา') +
+    K('danger', '⛔', fmtN(ov)+pc(ov),                                'เกิน SLA',           'ค้างเกิน 30 วัน') +
     K('warn',   '🔧', fmtN(meterWait)+pc(meterWait),                  'รอสับเปลี่ยนมิเตอร์', '1P '+fmtN(mtr.w1)+' / 3P '+fmtN(mtr.w3)+' · ขั้น 8') +
     K('info',   '⏳', fmtN(meterPbs)+pc(meterPbs),                    'รอ ผบส.กด COD',      '⚠ อย่าลืมกดใน PPIM · ขั้น 9') +
     K('ok',     '🔌', fmtN(meterDone)+pc(meterDone),                  'สับเปลี่ยนแล้ว',      '1P '+fmtN(mtr.d1)+' / 3P '+fmtN(mtr.d3)+' · ขั้น 9+10') +
     K('info',   '🧾', fmtN(ca82Done)+' / '+fmtN(ca82Pop.length)+(ca82Pop.length?' <span class="pc">('+pctTxt(ca82Done/ca82Pop.length*100)+')</span>':''), 'สร้างบัญชี CA 82', 'รอสร้างอีก '+fmtN(ca82Wait)+' ราย') +
     K('ok',     '🏁', fmtN(cod)+pc(cod),                              'COD แล้ว',           'เชื่อมต่อเข้าระบบ') +
-    K('danger', '❌', fmtN(rej)+pc(rej),                              'ยกเลิก/ไม่ผ่าน',     'คำขอที่สิ้นสุด') +
-    K('warn',   '⏱️', '<span style="font-size:1.15rem">🟢'+fmtN(g)+' 🟡'+fmtN(y)+' 🔴'+fmtN(rd)+'</span>', 'สถานะ SLA', 'ช่วงตรวจสอบ+ทำสัญญา') +
-    K('danger', '⛔', fmtN(ov)+pc(ov),                                'เกิน SLA',           'ค้างเกิน 30 วัน');
+    K('danger', '❌', fmtN(rej)+pc(rej),                              'ยกเลิก/ไม่ผ่าน',     'คำขอที่สิ้นสุด');
 }
 
 function renderPipeline(){
@@ -1639,19 +1640,6 @@ function renderCharts(){
           label:it=>['สะสม '+fmtN(cums[it.dataIndex])+' ราย','เพิ่มงวดนี้ +'+fmtN(incs[it.dataIndex])+' ราย']}}},
       scales:{y:{beginAtZero:true,grace:'18%'},x:{ticks:{font:{size:10},maxRotation:60,minRotation:0}}}},
     plugins:[cumLabels]});
-  // กราฟเดียวกันในหน้าภาพรวม
-  if($('#chOvTrend')){
-    charts.ovtm = new Chart($('#chOvTrend'),{type:'bar',
-      data:{labels:tLabels,datasets:[{label:'ยอดสะสม',data:cums,backgroundColor:barColors,borderRadius:4}]},
-      options:{responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},
-          tooltip:{callbacks:{
-            title:it=>(isDaily[it[0].dataIndex]?'วันที่ ':'สัปดาห์เริ่ม ')+it[0].label,
-            label:it=>['สะสม '+fmtN(cums[it.dataIndex])+' ราย','เพิ่มงวดนี้ +'+fmtN(incs[it.dataIndex])+' ราย']}}},
-        scales:{y:{beginAtZero:true,grace:'18%'},x:{ticks:{font:{size:10},maxRotation:60,minRotation:0}}}},
-      plugins:[cumLabels]});
-  }
-
   // ===== Bar chart: คอขวดงานรอ COD แยกตามขั้น (แนวนอน) =====
   const codPend = rows.filter(r=>r.codBand!=null);
   const codSteps = [4,5,6,7,8,9].map(s=>{ const gp=codPend.filter(r=>r.step===s);
