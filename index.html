@@ -1033,7 +1033,7 @@ function renderExec(){
   ];
   const base=F[0].c||1;
   const funnelHtml=F.map((s,i)=>{
-    const wp=Math.max(3,s.c/base*100), conv=i===0?100:(F[0].c?s.c/F[0].c*100:0);
+    const wp=s.c? Math.max(3,s.c/base*100) : 0, conv=i===0?100:(F[0].c?s.c/F[0].c*100:0);
     return `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px"><b>${i+1}. ${s.n}</b><span><b>${fmtN(s.c)}</b> ราย <span style="color:var(--gray)">(${conv.toFixed(0)}%)</span></span></div><div style="background:#eef0f3;border-radius:7px;height:16px;overflow:hidden"><div style="width:${wp}%;height:100%;background:${s.col};border-radius:7px;transition:width .5s"></div></div></div>`;
   }).join('');
   const cancelPct=tot?cancelled/tot*100:0;
