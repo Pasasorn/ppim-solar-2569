@@ -982,6 +982,68 @@ function renderSidenav(){
   setB('nvTot', tot); setB('nvSla', over||nearY); setB('nvCod', cod);
 }
 
+/* ================= สรุปผู้บริหาร ================= */
+function renderExec(){
+  const el=$('#execSummary'); if(!el) return;
+  const tot=rows.length;
+  const active=rows.filter(r=>r.step!==0);
+  const cancelled=rows.filter(r=>r.step===0).length;
+  const kwSum=active.reduce((s,r)=>s+(r.kw||0),0);     // ปริมาณเสนอขายรวม (kW)
+  const mw=kwSum/1000, TARGET_MW=250, pctT=Math.min(100,mw/TARGET_MW*100);
+  const valYr=kwSum*1314*2.20;                          // ประมาณการมูลค่ารับซื้อ/ปี (CF~15% → 1,314 kWh/kW/ปี × 2.20 บ.)
+  const baht=n=> n>=1e6 ? (n/1e6).toFixed(2)+' ล้านบาท' : fmtN(Math.round(n))+' บาท';
+  // ----- Funnel -----
+  const F=[
+    {n:'ยื่นคำขอ', c:active.length, col:'#2F7FD1'},
+    {n:'ผ่านพิจารณา', c:rows.filter(r=>r.step>=2&&r.step!==0).length, col:'#17A2B8'},
+    {n:'ทำสัญญา/ชำระเงิน', c:rows.filter(r=>r.step>=3&&r.step!==0).length, col:'#8E6BB5'},
+    {n:'อนุมัติเชื่อมต่อ', c:rows.filter(r=>r.step>=7&&r.step!==0).length, col:'#E8862E'},
+    {n:'COD สำเร็จ', c:rows.filter(r=>r.step===10).length, col:'#1E7A3C'}
+  ];
+  const base=F[0].c||1;
+  const funnelHtml=F.map((s,i)=>{
+    const wp=Math.max(3,s.c/base*100), conv=i===0?100:(F[0].c?s.c/F[0].c*100:0);
+    return `<div style="margin-bottom:9px"><div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px"><b>${i+1}. ${s.n}</b><span><b>${fmtN(s.c)}</b> ราย <span style="color:var(--gray)">(${conv.toFixed(0)}%)</span></span></div><div style="background:#eef0f3;border-radius:7px;height:16px;overflow:hidden"><div style="width:${wp}%;height:100%;background:${s.col};border-radius:7px;transition:width .5s"></div></div></div>`;
+  }).join('');
+  const cancelPct=tot?cancelled/tot*100:0;
+  // ----- คอขวด -----
+  const stc={}; for(let s=1;s<=9;s++) stc[s]=rows.filter(r=>r.step===s).length;
+  let topS=1; for(let s=1;s<=9;s++) if(stc[s]>stc[topS]) topS=s;
+  const ov=rows.filter(r=>r.sla.band==='over').length;
+  const near=rows.filter(r=>r.sla.band==='yellow'||r.sla.band==='red').length;
+  // ----- อันดับพื้นที่ -----
+  const bh={};
+  rows.forEach(r=>{ if(r.step===0)return; const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; const o=bh[h]=bh[h]||{t:0,pass:0,cod:0}; o.t++; if(r.step>=3)o.pass++; if(r.step===10)o.cod++; });
+  const hubs=Object.entries(bh).map(([h,o])=>({h,t:o.t,pass:o.pass,cod:o.cod,pct:o.t?o.pass/o.t*100:0})).filter(x=>x.t>=3);
+  const best=[...hubs].sort((a,b)=>b.pct-a.pct||b.t-a.t).slice(0,5);
+  const worst=[...hubs].sort((a,b)=>a.pct-b.pct||b.t-a.t).slice(0,5);
+  const hubRow=x=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px"><div style="flex:1;font-size:.82rem"><b>${x.h}</b> <span style="color:var(--gray)">(${fmtN(x.t)} ราย)</span></div><div style="width:90px;background:#eef0f3;border-radius:6px;height:14px;overflow:hidden"><div style="width:${Math.min(100,x.pct)}%;height:100%;background:${x.pct>=60?'#22A45D':x.pct>=35?'#E8862E':'#D64545'}"></div></div><div style="width:42px;text-align:right;font-weight:700;font-size:.82rem;color:${x.pct>=60?'#1f9d57':x.pct>=35?'#b07c00':'var(--danger)'}">${pctTxt(x.pct)}</div></div>`;
+  const box=(title,inner,bg)=>`<div style="background:${bg||'#fff'};border:1px solid var(--border);border-radius:14px;padding:14px 16px;box-shadow:0 2px 8px rgba(107,44,145,.05)"><div style="font-weight:800;color:var(--pea);margin-bottom:10px;font-size:.95rem">${title}</div>${inner}</div>`;
+  el.innerHTML=`
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px">
+    ${box('🎯 ความคืบหน้าต่อเป้าหมายรับซื้อ',
+      `<div style="display:flex;gap:22px;flex-wrap:wrap;align-items:baseline;margin-bottom:10px">
+        <div><div class="note">รับซื้อแล้ว (เสนอขายรวม)</div><div style="font-size:1.9rem;font-weight:800;color:var(--pea)">${mw.toFixed(2)}<span style="font-size:.9rem"> MW</span></div></div>
+        <div><div class="note">เทียบเป้า ${TARGET_MW} MW</div><div style="font-size:1.9rem;font-weight:800;color:#E8862E">${pctT.toFixed(1)}%</div></div>
+      </div>
+      <div style="background:#eef0f3;border-radius:9px;height:20px;overflow:hidden;margin-bottom:8px"><div style="width:${pctT}%;height:100%;background:linear-gradient(90deg,#8A4DB0,#E8862E)"></div></div>
+      <div class="note">💰 ประมาณการมูลค่ารับซื้อ/ปี <b style="color:var(--green)">${baht(valYr)}</b> <span style="font-size:.7rem">(สมมติ CF 15% · 2.20 บ./หน่วย)</span></div>
+      <div class="note" style="margin-top:4px">เป้า 250 MW = เป้าทั้งประเทศ (12 เขต) · ตัวเลขนี้คือเขต กฟน.1</div>`,'#faf7fd')}
+    ${box('⚠️ คอขวด & งานเสี่ยงเกินเวลา',
+      `<div style="display:flex;gap:22px;flex-wrap:wrap">
+        <div><div class="note">ขั้นที่ค้างมากสุด</div><div style="font-size:1.1rem;font-weight:800;color:var(--pea)">${topS}. ${stepName(topS)}</div><div style="font-size:1.5rem;font-weight:800;color:#E8862E">${fmtN(stc[topS])} ราย</div></div>
+        <div><div class="note">เกิน SLA (30 วัน)</div><div style="font-size:1.9rem;font-weight:800;color:var(--danger)">${fmtN(ov)}</div></div>
+        <div><div class="note">ใกล้เกิน (11-30 วัน)</div><div style="font-size:1.9rem;font-weight:800;color:#b07c00">${fmtN(near)}</div></div>
+      </div>
+      <div class="note" style="margin-top:10px">❌ ยกเลิก/ไม่ผ่าน <b style="color:var(--danger)">${fmtN(cancelled)} ราย (${cancelPct.toFixed(1)}%)</b> ของคำขอทั้งหมด</div>`,'#fffaf6')}
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:14px">
+    ${box('🔻 อัตราความสำเร็จ (Funnel)', funnelHtml + `<div class="note" style="margin-top:4px">% = สัดส่วนเทียบจำนวนคำขอที่ยังดำเนินการ</div>`)}
+    ${box('📍 อันดับพื้นที่ (% ผ่านพิจารณา)',
+      `<div style="font-size:.8rem;font-weight:700;color:#1f9d57;margin-bottom:6px">🏆 เด่นสุด 5 อันดับ</div>${best.map(hubRow).join('')||'<div class="note">—</div>'}
+       <div style="font-size:.8rem;font-weight:700;color:var(--danger);margin:10px 0 6px">🐢 ควรเร่ง 5 อันดับ</div>${worst.map(hubRow).join('')||'<div class="note">—</div>'}`)}
+  </div>`;
+}
 /* ================= สรุปผลการดำเนินงาน (สไตล์ LightScout) ================= */
 function renderSummary(){
   const el = $('#summary'); if(!el) return;
