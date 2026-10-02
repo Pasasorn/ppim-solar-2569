@@ -1015,9 +1015,10 @@ function renderOvSla(){
       <div>${col(cust,isOver,'🧑‍💼','ฝั่งลูกค้า','#2F7FD1',cap)}</div>
     </div>`;
   };
+  const gHead=(txt,bg,bar,txtc)=>`<div style="background:${bg};border-left:5px solid ${bar};color:${txtc};font-weight:800;font-size:.95rem;padding:9px 14px;border-radius:9px;margin-bottom:10px">${txt}</div>`;
   let html='';
-  html+='<div style="font-weight:800;color:var(--danger);margin-bottom:7px;font-size:.95rem">⛔ งานที่เกินกรอบเวลา SLA (เกิน 30 วัน) — '+fmtN(over.length)+' ราย</div>'+grid(over,true,null);
-  html+='<div style="font-weight:800;color:#b07c00;margin:18px 0 7px;font-size:.95rem">🟡 งานที่ใกล้เกินกรอบเวลา SLA (11–30 วัน) — '+fmtN(near.length)+' ราย</div>'+grid(near,false,8);
+  html+=gHead('⛔ งานที่เกินกรอบเวลา SLA (เกิน 30 วัน) — '+fmtN(over.length)+' ราย','#fde3e3','var(--danger)','#9b1c1c')+grid(over,true,null);
+  html+='<div style="margin-top:18px"></div>'+gHead('🟡 งานที่ใกล้เกินกรอบเวลา SLA (11–30 วัน) — '+fmtN(near.length)+' ราย','#fcefcf','#E8A200','#8a6500')+grid(near,false,8);
   el.innerHTML=html;
 }
 /* ================= สรุปผู้บริหาร ================= */
