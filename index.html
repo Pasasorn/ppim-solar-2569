@@ -285,6 +285,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <div id="mmHubOverview" style="margin:8px 0"></div>
       <label>เลขที่คำขอ (เฉพาะจุดร่วมงานของท่าน · สถานะรอสับเปลี่ยน)</label><select id="mmReq"></select>
       <div id="mmDetail" style="margin-top:10px"></div>
+      <div id="mmFilesWrap" class="hidden" style="margin-top:10px"><div style="font-weight:700;margin-bottom:6px">📎 เอกสาร/รูปที่แนบ (ดาวน์โหลดได้)</div><div id="mmFiles" class="note"></div></div>
       <div id="mmSwapFields">
         <div class="row2">
           <div><label>หมายเลขมิเตอร์ (= PEA No.)</label><input id="mmMeterNo" placeholder="ดึงจาก PEA No. อัตโนมัติ"></div>
@@ -1475,9 +1476,10 @@ async function renderCaDetail(reqNo){
     }catch(e){ $('#ca82Msg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
   };
 }
-// โหลดเอกสารแนบจาก Drive (base64) — บัตร ปชช./ภพ.20/รูป
-async function loadCaFiles(reqNo){
-  const el=$('#ca82Files'); if(!el) return;
+// โหลดเอกสารแนบจาก Drive (base64) แสดง + ปุ่มดาวน์โหลด — ใช้ร่วมทั้ง CA 82 และหน้ามิเตอร์
+async function loadFilesInto(sel, reqNo){
+  const el=$(sel); if(!el) return;
+  el.innerHTML='<span class="note">กำลังโหลดเอกสาร...</span>';
   try{
     const r=await meterApi({action:'files', emp:mmSession.emp, pw:mmSession.pw, reqNo});
     if(!r||!r.ok){ el.innerHTML='<span style="color:var(--danger)">โหลดเอกสารไม่ได้: '+((r&&r.error)||'')+'</span>'; return; }
@@ -1486,12 +1488,16 @@ async function loadCaFiles(reqNo){
     const docLabel=nm=>{ const u=nm.toUpperCase(); if(/_ID|บัตร/i.test(nm)) return '🪪 สำเนาบัตรประชาชน'; if(/VAT20|VAT_?20|ภพ/i.test(u)||/ภพ/.test(nm)) return '🧾 สำเนา ภพ.20'; return '📄 '+nm; };
     el.innerHTML=fs.map(f=>{
       const lbl=docLabel(f.name);
-      if(f.data && f.mime.indexOf('image/')===0) return `<div style="margin-bottom:8px"><div class="note"><b>${lbl}</b> · ${f.name}</div><a href="${f.data}" target="_blank"><img src="${f.data}" style="max-width:100%;border:1px solid var(--border);border-radius:8px"></a></div>`;
-      if(f.data && f.mime==='application/pdf') return `<div style="margin-bottom:8px"><div class="note"><b>${lbl}</b> (PDF) · ${f.name}</div><iframe src="${f.data}" style="width:100%;height:420px;border:1px solid var(--border);border-radius:8px"></iframe></div>`;
-      return `<div style="margin-bottom:6px">${lbl} (${f.name}) — <a href="${f.url}" target="_blank" rel="noopener">เปิดใน Drive</a></div>`;
+      const dl = f.data
+        ? `<a href="${f.data}" download="${f.name}" style="display:inline-block;margin-top:5px;background:var(--pea);color:#fff;padding:5px 12px;border-radius:8px;text-decoration:none;font-weight:700;font-size:.8rem">⬇ ดาวน์โหลด</a>`
+        : `<a href="${f.url}" target="_blank" rel="noopener" style="display:inline-block;margin-top:5px;color:var(--pea);font-weight:700">เปิดใน Drive ↗</a>`;
+      const preview = (f.data && f.mime.indexOf('image/')===0) ? `<a href="${f.data}" target="_blank"><img src="${f.data}" style="max-width:100%;border:1px solid var(--border);border-radius:8px"></a>`
+                    : (f.data && f.mime==='application/pdf') ? `<iframe src="${f.data}" style="width:100%;height:420px;border:1px solid var(--border);border-radius:8px"></iframe>` : '';
+      return `<div style="margin-bottom:10px"><div class="note"><b>${lbl}</b> · ${f.name}</div>${preview}<div>${dl}</div></div>`;
     }).join('');
   }catch(e){ el.innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
 }
+const loadCaFiles = reqNo => loadFilesInto('#ca82Files', reqNo);
 const METERS = [
   {key:'1P', name:'Meter TOU 1P2W 5(100)A', code:'1060070703', alloc:600},
   {key:'3P', name:'Meter TOU 3P4W 5(100)A', code:'1060070709', alloc:90}
@@ -1968,7 +1974,7 @@ let mmGate = 'meter';   // ประตูที่เปิด login: 'meter' (
 // จำแนกชนิดบัญชีจากตำแหน่ง
 function roleKind(role){ const r=(role||''); if(r.toLowerCase().indexOf('admin')>=0) return 'admin'; if(r.indexOf('ผซฟ')>=0) return 'ca'; return 'meter'; }
 // ประตูนี้อนุญาตบัญชีชนิดนี้ไหม (Admin เข้าได้ทุกประตู)
-function gateAllows(gate, kind){ if(gate==='view') return true; if(kind==='admin') return true; if(gate==='meter') return kind==='meter'; if(gate==='ca') return kind==='ca'; return false; }
+function gateAllows(gate, kind){ if(gate==='view') return true; if(kind==='admin') return true; if(gate==='meter') return kind==='meter'||kind==='ca'; if(gate==='ca') return kind==='ca'; return false; }
 // ข้อมูลกำกับแต่ละประตู
 const GATE_INFO = {
   meter:{ title:'🔐 เข้าสู่ระบบ — พนักงานมิเตอร์ (ผมต.)', note:'⚠ เฉพาะ <b>พนักงานมิเตอร์ (ผมต.)</b> เท่านั้น', regNote:'⚠ ลงทะเบียนได้เฉพาะ <b>พนักงานมิเตอร์ (ผมต.)</b>', regRole:'ผมต.', lockRole:true },
@@ -2020,22 +2026,34 @@ function mmShowReport(){
   $('#mmTitle').textContent = '📝 รายงานผลการสับเปลี่ยนมิเตอร์';
   $('#mmWho').innerHTML='ผู้รายงาน: <b>'+mmSession.name+'</b> · '+(mmSession.dept||'')+' · จุดร่วมงาน <b style="color:var(--pea)">'+(myHub||'-')+'</b>';
   // ภาพรวมงานรอสับเปลี่ยน (ขั้น 8) ทั้ง 18 จุดร่วมงาน (ไฮไลต์จุดของผู้ใช้)
-  const isAdminUser = (mmSession.role||'').toLowerCase().indexOf('admin')>=0;
+  const rl=(mmSession.role||'');
+  const isAdminUser = rl.toLowerCase().indexOf('admin')>=0;
+  const isViewer = !isAdminUser && rl.indexOf('ผซฟ')>=0;   // ผซฟ. = ดูอย่างเดียว (ไม่รายงาน)
+  const seeAll = isAdminUser || isViewer;                   // เห็นทุก กฟฟ.
+  if(isViewer){ $('#mmTitle').textContent='👁 ดูสถานะการสับเปลี่ยนมิเตอร์ (ผซฟ.)'; }
+  $('#mmWho').innerHTML = isViewer
+    ? 'ผู้ใช้งาน: <b>'+mmSession.name+'</b> · '+(mmSession.dept||'')+' · <b style="color:var(--pea)">โหมดดูอย่างเดียว (ทุก กฟฟ.)</b>'
+    : 'ผู้รายงาน: <b>'+mmSession.name+'</b> · '+(mmSession.dept||'')+' · จุดร่วมงาน <b style="color:var(--pea)">'+(myHub||'-')+'</b>';
   const wait8 = rows.filter(r=>r.step===8);
   const cntByHub={}; wait8.forEach(r=>{ const h=reqHub(r); cntByHub[h]=(cntByHub[h]||0)+1; });
-  $('#mmHubOverview').innerHTML = '<div class="note" style="margin-bottom:4px">งานรอสับเปลี่ยนทั้ง 18 จุดร่วมงาน '+(isAdminUser?'(🟣 Admin เห็น/รายงานได้ทุกจุด):':'(🟣 = จุดของท่าน · รายงานได้เฉพาะจุดนี้):')+'</div>'
+  $('#mmHubOverview').innerHTML = '<div class="note" style="margin-bottom:4px">งานรอสับเปลี่ยนทั้ง 18 จุดร่วมงาน '+(seeAll?'(🟣 เห็นทุกจุด):':'(🟣 = จุดของท่าน · รายงานได้เฉพาะจุดนี้):')+'</div>'
     + '<div style="display:flex;flex-wrap:wrap;gap:4px">'
-    + HUB_LIST.map(h=>{ const n=cntByHub[h]||0; const me=isAdminUser||h===myHub;
+    + HUB_LIST.map(h=>{ const n=cntByHub[h]||0; const me=seeAll||h===myHub;
         return `<span style="font-size:.75rem;padding:3px 7px;border-radius:6px;${me?'background:var(--pea);color:#fff;font-weight:700':'background:#eef0f2;color:#555'}">${h} ${n}</span>`;
       }).join('') + '</div>';
-  // Admin เห็นทุก กฟฟ. · ผมต. เห็นเฉพาะจุดร่วมงานตัวเอง
-  const wait = isAdminUser ? wait8 : wait8.filter(r=>reqHub(r)===myHub);
+  // Admin/ผซฟ. เห็นทุก กฟฟ. · ผมต. เห็นเฉพาะจุดร่วมงานตัวเอง
+  const wait = seeAll ? wait8 : wait8.filter(r=>reqHub(r)===myHub);
   $('#mmReq').innerHTML = wait.length
     ? wait.map(r=>`<option value="${r.reqNo}">${r.reqNo} · ${r.areaCheck||r.area}</option>`).join('')
-    : '<option value="">'+(isAdminUser?'— ไม่มีงานรอสับเปลี่ยน —':'— ไม่มีงานรอสับเปลี่ยนในจุดร่วมงานของท่าน —')+'</option>';
+    : '<option value="">'+(seeAll?'— ไม่มีงานรอสับเปลี่ยน —':'— ไม่มีงานรอสับเปลี่ยนในจุดร่วมงานของท่าน —')+'</option>';
   $('#mmCod').value = new Date().toISOString().slice(0,10);
   $('#mmReportMsg').textContent='';
   mmPhotos = []; if(typeof mmRenderPhotos==='function') mmRenderPhotos();
+  // ผซฟ. = ดูอย่างเดียว → ซ่อนช่องกรอก/แนบรูป/ปุ่มบันทึก
+  const ro = isViewer;
+  const sf=$('#mmSwapFields'), sp=$('#mmSwapPhotos'), dr=$('#mmDoReport'), cl=$('#mmCodLabel'), cd=$('#mmCod');
+  if(sf) sf.style.display=ro?'none':''; if(sp) sp.style.display=ro?'none':''; if(dr) dr.style.display=ro?'none':'';
+  if(cl) cl.style.display=ro?'none':''; if(cd) cd.style.display=ro?'none':'';
   // แผงย้อนสถานะ — เฉพาะ Admin: ดึงงานขั้น 9 (รอ ผบส.) ทุก กฟฟ.
   const rw=$('#mmRevertWrap');
   if(rw){
@@ -2074,6 +2092,10 @@ function mmFillDetail(){
       <div style="margin-top:8px">${mapLink}</div>
     </div>`;
   $('#mmMeterNo').value = r.peaNo||'';   // หมายเลขมิเตอร์ = PEA No. (ดึงอัตโนมัติ)
+  // เอกสาร/รูปแนบ: ผซฟ./Admin ดู+ดาวน์โหลดได้ (ผมต. ไม่แสดง เพราะเป็นผู้แนบเอง)
+  const canFiles = !!mmSession && ((mmSession.role||'').toLowerCase().indexOf('admin')>=0 || (mmSession.role||'').indexOf('ผซฟ')>=0);
+  const fw=$('#mmFilesWrap');
+  if(fw){ if(canFiles && req){ fw.classList.remove('hidden'); loadFilesInto('#mmFiles', req); } else fw.classList.add('hidden'); }
 }
 if($('#mmReq')) $('#mmReq').onchange = mmFillDetail;
 
