@@ -2009,7 +2009,7 @@ function mmShowRegister(){
   // ช่องรหัสอนุมัติ Admin: แสดงเฉพาะประตู Admin
   const aw=$('#mmRAdminWrap'); if(aw){ const showAdmin=(g.regRole==='Admin'); aw.classList.toggle('hidden',!showAdmin); if(!showAdmin){ const ac=$('#mmRAdminCode'); if(ac) ac.value=''; } }
   // จุดร่วมงาน: Admin ไม่ต้องเลือก
-  const hubWrap=$('#mmRHub'); if(hubWrap){ const showHub = (g.regRole!=='Admin'); hubWrap.style.display=showHub?'':'none'; const lbl=hubWrap.previousElementSibling; if(lbl&&lbl.tagName==='LABEL') lbl.style.display=showHub?'':'none'; }
+  const hubWrap=$('#mmRHub'); if(hubWrap){ const showHub = (g.regRole==='ผมต.'); hubWrap.style.display=showHub?'':'none'; const lbl=hubWrap.previousElementSibling; if(lbl&&lbl.tagName==='LABEL') lbl.style.display=showHub?'':'none'; }
   $('#mmRegMsg').textContent='';
 }
 function mmShowReport(){
@@ -2201,7 +2201,7 @@ if($('#mmDoRegister')) $('#mmDoRegister').onclick = async ()=>{
   const emp=$('#mmREmp').value.trim(), name=$('#mmRName').value.trim(), role=$('#mmRRole').value, dept=$('#mmRDept').value.trim(), hub=$('#mmRHub').value, pw=$('#mmRPw').value;
   const isAdminReg = role==='Admin';
   const adminCode = isAdminReg ? $('#mmRAdminCode').value : '';
-  const needHub = !isAdminReg;   // Admin ดูแลทุกจุด ไม่ต้องเลือกจุดร่วมงาน
+  const needHub = (role==='ผมต.');   // เฉพาะ ผมต. ที่ต้องเลือกจุดร่วมงาน · ผซฟ.(กฟน.1) และ Admin ไม่ต้อง
   if(!emp||!name||!dept||(needHub&&!hub)||!pw){ $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">กรอกให้ครบ: รหัสพนักงาน ชื่อ-สกุล ตำแหน่ง สังกัด'+(needHub?' จุดร่วมงาน':'')+' และรหัสผ่าน</span>'; return; }
   if(isAdminReg && !adminCode){ $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">กรอกรหัสอนุมัติ Admin</span>'; return; }
   $('#mmRegMsg').textContent='กำลังลงทะเบียน...';
