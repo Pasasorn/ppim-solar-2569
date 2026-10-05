@@ -1403,18 +1403,25 @@ let caAuthed = false;
 function renderCA(){
   const el = $('#caContent'); if(!el) return;
   if(!caAuthed){ el.innerHTML = '<div class="note">🔒 เฉพาะ ผซฟ. — กดปุ่ม “🔐 เข้าสู่ระบบ ผซฟ.” ด้านบนเพื่อดูสถานะการสร้างบัญชี CA 82 (ลงทะเบียนเลือกตำแหน่ง “ผซฟ.”)</div>'; return; }
-  const pop = rows.filter(r=>r.step===8);   // ดึงจากสถานะ ทดสอบเชื่อมต่อ/COD
+  const pop = rows.filter(r=>r.step>=8);   // ขั้น 8 ขึ้นไป (รอสับเปลี่ยน/สับเปลี่ยนแล้ว/COD) — CA 82 เกี่ยวข้องทั้งหมด
   const total = pop.length, done = pop.filter(r=>r.caCreated).length, pct = total?done/total*100:0;
   const c = pct>=80?'var(--green)':pct>=50?'var(--warn)':'var(--danger)';
   const byHub={}; pop.forEach(r=>{ const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; const o=byHub[h]=byHub[h]||{t:0,d:0,items:[]}; o.t++; if(r.caCreated)o.d++; o.items.push(r); });
   const rowsHtml = Object.entries(byHub).sort((a,b)=>b[1].t-a[1].t).map(([h,o],idx)=>{
     const did='caHub_'+idx;
-    const items=o.items.map(r=>`<div style="padding:3px 0">${r.caCreated?'✅':'⬜'} <a href="#" onclick="caPick('${r.reqNo}');return false;" style="color:var(--pea);font-weight:700">${r.reqNo}</a> · ${r.areaCheck||r.area||''}${r.caCreated?(' · <span style="color:var(--green)">CA 82: '+(r.ca82NoSys||r.ca82No||'-')+'</span>'):''}</div>`).join('');
+    const pill=(bg,c,txt)=>`<span style="background:${bg};color:${c};border-radius:8px;padding:1px 8px;font-size:.72rem;font-weight:700;white-space:nowrap">${txt}</span>`;
+    const items=o.items.map(r=>{
+      const caB = r.caCreated ? pill('#e4f6ec','#1f9d57','🧾 CA 82 ✓'+((r.ca82NoSys||r.ca82No)?(' '+(r.ca82NoSys||r.ca82No)):'')) : pill('#eef0f2','#6b7280','🧾 ยังไม่สร้าง CA 82');
+      const swB = r.step>=10 ? pill('#e4f6ec','#1E7A3C','✅ COD แล้ว')
+                : r.step===9 ? pill('#eaf2fc','#2c66ad','🔧 สับเปลี่ยนแล้ว')
+                : pill('#fdf2df','#b07c00','⏳ รอสับเปลี่ยน');
+      return `<div style="padding:5px 0;display:flex;flex-wrap:wrap;align-items:center;gap:7px"><a href="#" onclick="caPick('${r.reqNo}');return false;" style="color:var(--pea);font-weight:700">${r.reqNo}</a><span style="color:var(--gray);font-size:.8rem">${r.areaCheck||r.area||''}</span>${caB}${swB}</div>`;
+    }).join('');
     return `<tr style="cursor:pointer" onclick="mtrToggle('${did}')" title="คลิกดูเลข PPIM"><td><b>▸ ${h}</b></td><td class="cell-green">${o.d||'-'}</td><td><b>${o.t}</b></td><td>${pctTxt(o.t?o.d/o.t*100:0)}</td></tr>
     <tr id="${did}" style="display:none"><td colspan="4" style="background:#faf7fd;font-size:.85rem;padding:8px 14px;line-height:1.5">${items||'—'}</td></tr>`;
   }).join('');
   el.innerHTML = `
-    <div class="note" style="margin-bottom:10px">ผู้ใช้งาน: <b>${mmSession.name}</b> (ผซฟ. · ${mmSession.dept||''}) · นับจากคำขอสถานะ “ทดสอบเชื่อมต่อ/COD” (ขั้น 8)</div>
+    <div class="note" style="margin-bottom:10px">ผู้ใช้งาน: <b>${mmSession.name}</b> (ผซฟ. · ${mmSession.dept||''}) · นับจากคำขอขั้น 8 ขึ้นไป (รอสับเปลี่ยน/สับเปลี่ยนแล้ว/COD)</div>
     <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
       <div><div class="note">สร้างบัญชี CA แล้ว</div><div style="font-size:1.7rem;font-weight:800;color:var(--green)">${fmtN(done)}<span style="font-size:.85rem;font-weight:400"> / ${fmtN(total)} ราย</span></div></div>
       <div><div class="note">คงเหลือ (ยังไม่สร้าง)</div><div style="font-size:1.7rem;font-weight:800;color:var(--pea)">${fmtN(total-done)}</div></div>
@@ -1599,7 +1606,7 @@ function renderKpis(){
   const ov = rows.filter(r=>r.sla.band==='over').length;
   const gridPassN = rows.filter(r=>r.gridPass).length;
   // งานสร้างบัญชี CA 82 — นับจากคำขอขั้น 8
-  const ca82Pop = rows.filter(r=>r.step===8);
+  const ca82Pop = rows.filter(r=>r.step>=8);
   const ca82Done = ca82Pop.filter(r=>r.caCreated).length, ca82Wait = ca82Pop.length - ca82Done;
   const pc = n => tot ? ' <span class="pc">('+pctTxt(n/tot*100)+')</span>' : '';
   const K = (cls,ic,v,l,d)=>`<div class="kpi ${cls}"><div class="ic">${ic}</div><div class="v">${v}</div><div class="l">${l}</div><div class="d">${d}</div></div>`;
