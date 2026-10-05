@@ -285,7 +285,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <div id="mmHubOverview" style="margin:8px 0"></div>
       <label>เลขที่คำขอ (เฉพาะจุดร่วมงานของท่าน · สถานะรอสับเปลี่ยน)</label><select id="mmReq"></select>
       <div id="mmDetail" style="margin-top:10px"></div>
-      <div id="mmFilesWrap" class="hidden" style="margin-top:10px"><div style="font-weight:700;margin-bottom:6px">📎 เอกสาร/รูปที่แนบ (ดาวน์โหลดได้)</div><div id="mmFiles" class="note"></div></div>
+      <div id="mmFilesWrap" class="hidden" style="margin-top:10px"><div style="font-weight:700;margin-bottom:6px">📷 รูปการสับเปลี่ยนมิเตอร์ (ดาวน์โหลดได้)</div><div id="mmFiles" class="note"></div></div>
       <div id="mmSwapFields">
         <div class="row2">
           <div><label>หมายเลขมิเตอร์ (= PEA No.)</label><input id="mmMeterNo" placeholder="ดึงจาก PEA No. อัตโนมัติ"></div>
@@ -1477,15 +1477,18 @@ async function renderCaDetail(reqNo){
   };
 }
 // โหลดเอกสารแนบจาก Drive (base64) แสดง + ปุ่มดาวน์โหลด — ใช้ร่วมทั้ง CA 82 และหน้ามิเตอร์
-async function loadFilesInto(sel, reqNo){
+const isPersonalDoc=nm=>{ const u=(nm||'').toUpperCase(); return /_ID|บัตร/i.test(nm)||/VAT20|VAT_?20/i.test(u)||/ภพ/.test(nm); };
+async function loadFilesInto(sel, reqNo, opts){
+  opts=opts||{};
   const el=$(sel); if(!el) return;
   el.innerHTML='<span class="note">กำลังโหลดเอกสาร...</span>';
   try{
     const r=await meterApi({action:'files', emp:mmSession.emp, pw:mmSession.pw, reqNo});
     if(!r||!r.ok){ el.innerHTML='<span style="color:var(--danger)">โหลดเอกสารไม่ได้: '+((r&&r.error)||'')+'</span>'; return; }
-    const fs=r.files||[];
-    if(!fs.length){ el.innerHTML='<span style="color:var(--gray)">— ไม่พบเอกสารแนบของคำขอนี้ (ชื่อไฟล์ต้องมีเลขคำขอ) —</span>'; return; }
-    const docLabel=nm=>{ const u=nm.toUpperCase(); if(/_ID|บัตร/i.test(nm)) return '🪪 สำเนาบัตรประชาชน'; if(/VAT20|VAT_?20|ภพ/i.test(u)||/ภพ/.test(nm)) return '🧾 สำเนา ภพ.20'; return '📄 '+nm; };
+    let fs=r.files||[];
+    if(opts.onlyPhotos) fs=fs.filter(f=>!isPersonalDoc(f.name));   // หน้ามิเตอร์: ไม่แสดงบัตร ปชช./ภพ.20
+    if(!fs.length){ el.innerHTML='<span style="color:var(--gray)">— ไม่พบ'+(opts.onlyPhotos?'รูปสับเปลี่ยน':'เอกสารแนบ')+'ของคำขอนี้ —</span>'; return; }
+    const docLabel=nm=>{ const u=nm.toUpperCase(); if(/_ID|บัตร/i.test(nm)) return '🪪 สำเนาบัตรประชาชน'; if(/VAT20|VAT_?20|ภพ/i.test(u)||/ภพ/.test(nm)) return '🧾 สำเนา ภพ.20'; return '📷 '+nm; };
     el.innerHTML=fs.map(f=>{
       const lbl=docLabel(f.name);
       const dl = f.data
@@ -2097,7 +2100,7 @@ function mmFillDetail(){
   // เอกสาร/รูปแนบ: ผซฟ./Admin ดู+ดาวน์โหลดได้ (ผมต. ไม่แสดง เพราะเป็นผู้แนบเอง)
   const canFiles = !!mmSession && ((mmSession.role||'').toLowerCase().indexOf('admin')>=0 || (mmSession.role||'').indexOf('ผซฟ')>=0);
   const fw=$('#mmFilesWrap');
-  if(fw){ if(canFiles && req){ fw.classList.remove('hidden'); loadFilesInto('#mmFiles', req); } else fw.classList.add('hidden'); }
+  if(fw){ if(canFiles && req){ fw.classList.remove('hidden'); loadFilesInto('#mmFiles', req, {onlyPhotos:true}); } else fw.classList.add('hidden'); }
 }
 if($('#mmReq')) $('#mmReq').onchange = mmFillDetail;
 
