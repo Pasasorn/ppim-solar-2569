@@ -1997,6 +1997,7 @@ function mmShowLogin(){
   const g = GATE_INFO[mmGate] || GATE_INFO.meter;
   $('#mmTitle').textContent = g.title;
   const ln = $('#mmLoginNote'); if(ln) ln.innerHTML = g.note;
+  const gl=$('#mmGoRegister'); if(gl) gl.textContent = mmGate==='ca'?'ลงทะเบียนพนักงาน ผซฟ.' : mmGate==='admin'?'ลงทะเบียนผู้ดูแลระบบ' : mmGate==='view'?'ลงทะเบียนเข้าใช้งาน' : 'ลงทะเบียนพนักงานมิเตอร์';
   $('#mmLoginMsg').textContent='';
 }
 function mmShowRegister(){
