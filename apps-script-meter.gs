@@ -36,6 +36,9 @@ var COL_SWAP_STATUS = 'สถานะการสับเปลี่ยน (�
 var COL_CA82_STATUS = 'สถานะสร้างบัญชี CA 82 (ระบบ)';   // ผซฟ. บันทึกว่าสร้างบัญชี CA 82 แล้ว (คอลัมน์ระบบ ไม่ทับ PPIM)
 var COL_CA82_NO     = 'เลขที่ CA 82 (ระบบ)';            // หมายเลข CA 82 ที่ ผซฟ. กรอก
 var COL_CA82_DATE   = 'วันที่สร้างบัญชี CA 82';          // วันที่บันทึกการสร้างบัญชี
+var CENTRAL_HUB     = 'กบล.กฟน.1';                       // จุดกลาง — จัดสรรมิเตอร์ได้ทุก กฟฟ.
+var COL_ALLOC_PULL  = 'วันที่ดึงข้อมูลจัดสรร';           // ดึงไป Export แล้ว = รอจัดสรรมิเตอร์
+var COL_ALLOC_DATE  = 'วันที่จัดสรรมิเตอร์';             // จัดสรรจริงแล้ว
 var COL_COD_DATE  = 'วันที่เชื่อมต่อเข้าระบบ';   // คอลัมน์วัน COD (ถ้ามี จะเขียนตอน ผบส. ยืนยัน)
 var ADMIN_SECRET  = 'PEA-N1-ADMIN-2569';   // 🔑 รหัสอนุมัติ Admin — ต้องกรอกให้ตรงตอนสมัครตำแหน่ง Admin (เปลี่ยนเป็นรหัสลับของคุณเอง)
 
@@ -49,6 +52,7 @@ function doPost(e) {
     if (body.action === 'revert')   return json(doRevert(body));
     if (body.action === 'ca82')     return json(doCreateCA82(body));
     if (body.action === 'files')    return json(doGetFiles(body));
+    if (body.action === 'markpull') return json(doMarkPull(body));
     if (body.action === 'cod')      return json(doCod(body));
     if (body.action === 'log')      return json(doGetLog(body));
     if (body.action === 'ticker')   return json(doGetTicker());
@@ -297,6 +301,41 @@ function doReport(b) {
   logUser(b.emp, b.name, 'ผมต.', '', 'รายงานสับเปลี่ยนมิเตอร์ ' + reqNo);
 
   return { ok:true, photos:photoLinks.length };
+}
+
+// ตรวจว่าเป็น ผมต.กบล. (จุดกลาง) หรือ Admin — สำหรับดึงข้อมูลจัดสรรมิเตอร์
+function isCentralOrAdmin(emp, pw) {
+  var sh = sheet(EMP_TAB); if (!sh) return false;
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iE = colIndex(h,'รหัสพนักงาน'), iP = colIndex(h,'password'), iR = colIndex(h,'ตำแหน่ง'), iH = colIndex(h,'จุดร่วมงาน');
+  for (var r=1;r<data.length;r++){
+    if (String(data[r][iE]).trim() === String(emp||'').trim() && String(data[r][iP]) === String(pw||'')) {
+      var role = String(data[r][iR]||'').toLowerCase();
+      var hub = iH>=0 ? String(data[r][iH]||'') : '';
+      return role.indexOf('admin') >= 0 || hub.indexOf('กบล') >= 0;
+    }
+  }
+  return false;
+}
+
+// ผมต.กบล. ดึงข้อมูลจัดสรร → บันทึกวันที่ดึง (รอจัดสรรมิเตอร์) ให้แต่ละเลขคำขอ
+function doMarkPull(b) {
+  if (!isCentralOrAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  var reqNos = b.reqNos || [];
+  if (!reqNos.length) return { ok:false, error:'ไม่มีรายการให้ดึง' };
+  var sh = sheet(MAIN_TAB); if (!sh) return { ok:false, error:'ไม่พบแท็บ '+MAIN_TAB };
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iReq = colIndex(h,'เลขที่คำขอ'); if (iReq < 0) return { ok:false, error:'ไม่พบคอลัมน์ เลขที่คำขอ' };
+  function ensureCol(nm){ var i=colIndex(h,nm); if(i<0){ i=h.length; sh.getRange(1,i+1).setValue(nm); h.push(nm);} return i; }
+  var iPull = ensureCol(COL_ALLOC_PULL);
+  var set = {}; reqNos.forEach(function(x){ set[String(x).trim()] = true; });
+  var now = new Date(), n = 0;
+  for (var r=1;r<data.length;r++){
+    var rq = String(data[r][iReq]).trim();
+    if (set[rq] && !String(data[r][iPull]||'').trim()) { sh.getRange(r+1, iPull+1).setValue(now); n++; }
+  }
+  logUser(b.emp, b.name, 'ผมต.กบล', '', 'ดึงข้อมูลจัดสรรมิเตอร์ ' + n + ' ราย');
+  return { ok:true, marked:n };
 }
 
 // ตรวจว่าเป็น ผซฟ. หรือ Admin (สำหรับบันทึก CA 82)
