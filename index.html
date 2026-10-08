@@ -563,6 +563,7 @@ const FIELDS = [
   {key:'custName', label:'ชื่อผู้ใช้ไฟฟ้า', kw:['ชื่อผู้ใช้ไฟฟ้า']},
   {key:'projLoc', label:'ที่ตั้งโครงการ', kw:['ที่ตั้งโครงการ']},
   {key:'prodKw', label:'กำลังการผลิต (kW)', kw:['กำลังการผลิต']},
+  {key:'custPhone', label:'เบอร์โทรศัพท์', kw:['เบอร์โทรศัพท์','หมายเลขโทรศัพท์','เบอร์โทร','โทรศัพท์','เบอร์ติดต่อ','โทร']},
   {key:'caStatus', label:'สถานะการสร้างบัญชี CA', kw:['สถานะการสร้างบัญชี','สถานะสร้างบัญชีแสดงสัญญา','สร้างบัญชีแสดงสัญญา','บัญชีแสดงสัญญา','สถานะบัญชี']}
 ];
 const SLA = {reviewDays:30, signDays:30};
@@ -917,7 +918,7 @@ function buildRowsFrom(rawArr, map){
       dConnReq:parseDate(get('dConnReq')), dConnApprove:parseDate(get('dConnApprove')),
       dCod:parseDate(get('dCod')), dSwapReport:parseDate(get('dSwapReport')),
       swapStatus: clean(get('swapStatus')),
-      ca82No: clean(get('ca82No')), ca82Sys: clean(get('ca82Sys')), ca82NoSys: clean(get('ca82NoSys')), custName: clean(get('custName')), projLoc: clean(get('projLoc')), prodKw: clean(get('prodKw')),
+      ca82No: clean(get('ca82No')), ca82Sys: clean(get('ca82Sys')), ca82NoSys: clean(get('ca82NoSys')), custName: clean(get('custName')), projLoc: clean(get('projLoc')), prodKw: clean(get('prodKw')), custPhone: clean(get('custPhone')),
       caStatus: clean(get('caStatus'))
     };
     // สร้างบัญชี CA 82 แล้ว ถ้า: ผซฟ.บันทึกผ่านระบบ (ca82Sys) · หรือมีหมายเลข CA 82 จริงในชีต · หรือ caStatus บอกว่าสร้างแล้ว
@@ -1479,7 +1480,7 @@ async function renderCaDetail(reqNo){
   const r=rows.find(x=>x.reqNo===reqNo); if(!r){ el.innerHTML='<div class="note">ไม่พบคำขอ</div>'; return; }
   const created=r.caCreated;
   const curNo=r.ca82NoSys||r.ca82No||'';
-  const F=[['เลขที่คำขอ',r.reqNo],['ชื่อผู้ใช้ไฟฟ้า',r.custName],['สถานะคำขอ',r.statusTxt],['กฟฟ.ที่ตรวจสอบ',r.areaCheck||r.area],['CA ลูกค้า',r.ca],['หมายเลข CA 82 (ชีต)',r.ca82No],['PEA No.',r.peaNo],['ชนิดมิเตอร์',r.meterPhase==='1P'?'1 เฟส (1P2W)':r.meterPhase==='3P'?'3 เฟส (3P4W)':(r.meterPhase||'-')],['กำลังการผลิต (kW)',r.prodKw],['ที่ตั้งโครงการ',r.projLoc],['พิกัด',(r.lat&&r.lng)?(r.lat+', '+r.lng):'-']];
+  const F=[['เลขที่คำขอ',r.reqNo],['ชื่อผู้ใช้ไฟฟ้า',r.custName],['เบอร์โทรศัพท์',r.custPhone],['สถานะคำขอ',r.statusTxt],['กฟฟ.ที่ตรวจสอบ',r.areaCheck||r.area],['CA ลูกค้า',r.ca],['หมายเลข CA 82 (ชีต)',r.ca82No],['PEA No.',r.peaNo],['ชนิดมิเตอร์',r.meterPhase==='1P'?'1 เฟส (1P2W)':r.meterPhase==='3P'?'3 เฟส (3P4W)':(r.meterPhase||'-')],['กำลังการผลิต (kW)',r.prodKw],['ที่ตั้งโครงการ',r.projLoc],['พิกัด',(r.lat&&r.lng)?(r.lat+', '+r.lng):'-']];
   const info=F.map(([k,v])=>`<div><b>${k}:</b> ${v||'-'}</div>`).join('')
     + `<div style="margin-top:6px;display:inline-block;background:#fff3b0;border:1px solid #e3c000;border-radius:8px;padding:5px 12px;font-weight:800;color:#6b5500">⚡ ปริมาณเสนอขาย: ${r.kw||'-'} kW</div>`;
   const mapBtn=(r.lat&&r.lng)?`<a href="https://www.google.com/maps?q=${encodeURIComponent(r.lat+','+r.lng)}" target="_blank" rel="noopener" style="color:#fff;background:var(--danger);padding:5px 10px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;margin-top:6px">📍 เปิดแผนที่</a>`:'';
@@ -1629,22 +1630,28 @@ function renderMeters(){
   const touNote=`<div class="note" style="margin:4px 0 8px;background:#eef7ee;border-left:4px solid var(--green);padding:8px 10px;border-radius:6px">✅ <b>เป็น TOU อยู่แล้ว ${fmtN(touOld)} ราย</b> — ไม่ต้องเปลี่ยน ไม่กระทบโควตา${none?` · ⚠ ไม่ระบุประเภทมิเตอร์เดิม ${fmtN(none)} ราย (ตรวจคอลัมน์ "ขนาด/ชนิด")`:''}</div>`;
   const tabBar=`<div style="border-bottom:2px solid var(--pea);margin-bottom:12px">
     <button class="mtab on" id="mtabA" onclick="mtrTab('A')">📈 ส่วนที่ 1 · คาดการณ์ความต้องการ (ตั้งแต่ทำสัญญา)</button>
-    <button class="mtab" id="mtabB" onclick="mtrTab('B')">📦 ส่วนที่ 2 · มิเตอร์ที่ต้องจัดสรร (รอ COD)</button></div>`;
+    <button class="mtab" id="mtabB" onclick="mtrTab('B')">📦 ส่วนที่ 2 · มิเตอร์ที่ต้องจัดสรร (รอ COD)</button>
+    <button class="mtab" id="mtabC" onclick="mtrTab('C')">🔌 ส่วนที่ 3 · ผลการจัดสรร/สับเปลี่ยน แยก กฟฟ.</button></div>`;
   const tabA=`<div id="mtrTabA">
-    <div class="note" style="margin-bottom:8px">นับความต้องการมิเตอร์ TOU ตั้งแต่ลูกค้าลงนามสัญญา (ขั้น 3 ขึ้นไป) — ใช้วางแผนล่วงหน้า</div>
+    <div class="note" style="margin-bottom:8px">นับความต้องการมิเตอร์ TOU ตั้งแต่ลูกค้าลงนามสัญญา (ขั้น 3 ขึ้นไป) — ใช้วางแผนล่วงหน้า · ยอดรวมของส่วนนี้ = <b>1P ${fmtN(fore['1P'])} · 3P ${fmtN(fore['3P'])} · รวม ${fmtN(fore['1P']+fore['3P'])}</b></div>
     ${METERS.map(m=>cardHtml(m,fore,'📈 คาดการณ์ (ยังต้องเปลี่ยน)')).join('')}${touNote}</div>`;
   const tabB=`<div id="mtrTabB" style="display:none">
-    <div class="note" style="margin-bottom:8px">มิเตอร์ที่พร้อมจัดสรรจริง — เฉพาะคำขอ <b>รอสับเปลี่ยน/รอ COD (ขั้น 8)</b> · ออกเอกสารจัดสรรได้ที่ปุ่ม 📝 รายงานฯ (ผมต.กบล.)</div>
+    <div class="note" style="margin-bottom:8px">มิเตอร์ที่พร้อมจัดสรรจริง — เฉพาะคำขอ <b>รอสับเปลี่ยน/รอ COD (ขั้น 8)</b> · ออกเอกสารจัดสรรได้ที่ปุ่ม 📝 รายงานฯ (ผมต.กบล.) · ยอดรวมของส่วนนี้ = <b>1P ${fmtN(fore8['1P'])} · 3P ${fmtN(fore8['3P'])} · รวม ${fmtN(fore8['1P']+fore8['3P'])}</b></div>
     ${METERS.map(m=>cardHtml(m,fore8,'📦 รอจัดสรร (ขั้น 8)')).join('')}</div>`;
-  el.innerHTML = tabBar + tabA + tabB + timeBlock + areaTable
-    + `<div class="note" style="margin-top:8px">📈 คาดการณ์ = ลงนามสัญญาแล้ว (ขั้น 3+) ที่เป็นจานหมุน/E-meter · 📦 รอจัดสรร = ขั้น 8 · จัดสรรแล้ว = มีวันที่จัดสรร · สับเปลี่ยนแล้ว = ขั้น 9-10</div>`;
+  const tabC=`<div id="mtrTabC" style="display:none">
+    <div class="note" style="margin-bottom:8px">คิวสับเปลี่ยนจริง แยกตาม กฟฟ. (ขั้น 8–10) — รอสับเปลี่ยน + สับเปลี่ยนแล้ว · ยอดรวมของส่วนนี้ = <b>รอ ${fmtN(gPend)} · สับเปลี่ยนแล้ว ${fmtN(gDone)} · รวม ${fmtN(gAll)}</b></div>
+    ${timeBlock}${areaTable}
+    <div class="note" style="margin-top:8px">📦 รอจัดสรร = ขั้น 8 · จัดสรรแล้ว = มีวันที่จัดสรร · สับเปลี่ยนแล้ว = ขั้น 9-10</div></div>`;
+  el.innerHTML = tabBar + tabA + tabB + tabC;
 }
 function mtrTab(t){
-  const A=$('#mtrTabA'), B=$('#mtrTabB'), ta=$('#mtabA'), tb=$('#mtabB');
+  const A=$('#mtrTabA'), B=$('#mtrTabB'), C=$('#mtrTabC'), ta=$('#mtabA'), tb=$('#mtabB'), tc=$('#mtabC');
   if(A) A.style.display = t==='A'?'':'none';
   if(B) B.style.display = t==='B'?'':'none';
+  if(C) C.style.display = t==='C'?'':'none';
   if(ta) ta.classList.toggle('on', t==='A');
   if(tb) tb.classList.toggle('on', t==='B');
+  if(tc) tc.classList.toggle('on', t==='C');
 }
 function renderKpis(){
   const tot = rows.length;
