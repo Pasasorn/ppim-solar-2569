@@ -540,6 +540,7 @@ const FIELDS = [
   {key:'meterV',  label:'ระดับแรงดันมิเตอร์',    kw:['ระดับแรงดันมิเตอร์','แรงดันมิเตอร์']},
   {key:'phaseNo', label:'จำนวนเฟส',            kw:['จำนวนเฟส']},
   {key:'meterSize', label:'ขนาด/ชนิดมิเตอร์เดิม', kw:['ขนาด/ชนิด','ขนาดชนิด','ขนาด/ ชนิด']},
+  {key:'meterModel', label:'ประเภทมิเตอร์ (รุ่น/ขนาด)', kw:['ประเภทมิเตอร์']},
   {key:'allocDate', label:'วันที่จัดสรรมิเตอร์', kw:['วันที่จัดสรรมิเตอร์','วันที่จัดสรร','จัดสรรมิเตอร์']},
   {key:'pullDate', label:'วันที่ดึงข้อมูลจัดสรร', kw:['วันที่ดึงข้อมูลจัดสรร','วันที่ดึงจัดสรร','ดึงข้อมูลจัดสรร']},
   {key:'ca',      label:'หมายเลขผู้ใช้ไฟฟ้า (CA)', kw:['หมายเลขผู้ใช้ไฟฟ้า','ผู้ใช้ไฟฟ้า (ca','ca']},
@@ -940,9 +941,11 @@ function buildRowsFrom(rawArr, map){
                  : (/kv/i.test(o.meterV)) ? 'MV' : '';
     // ===== ประเภทมิเตอร์เดิม (คอลัมน์ "ขนาด/ชนิด") → คาดการณ์การเปลี่ยนเป็น TOU =====
     o.meterSize = clean(get('meterSize'));
-    o.isTOU = /TOU/i.test(o.meterSize);                                    // เป็น TOU
-    o.isTOU5100 = o.isTOU && /5\s*\(?\s*100/.test(o.meterSize);            // TOU ขนาด 5(100) เท่านั้น → ไม่ต้องเปลี่ยน
-    // ประเภทมิเตอร์เดิม: จานหมุน / E-meter / TOU 5(100) / TOU ขนาดอื่น / ไม่ระบุ
+    o.meterModel = clean(get('meterModel'));                               // ประเภทมิเตอร์ (มีขนาด เช่น 5(100)A, 15(45)amp, 30(100))
+    const is5100 = s => /(^|[^0-9])5\s*\(\s*100/.test(s);                  // ขนาด 5(100) เท่านั้น (ไม่ชนกับ 15,25,30(100))
+    o.isTOU = /TOU/i.test(o.meterSize) || /TOU/i.test(o.meterModel);       // เป็น TOU (ดูทั้ง 2 คอลัมน์)
+    o.isTOU5100 = o.isTOU && (is5100(o.meterModel) || is5100(o.meterSize)); // TOU ขนาด 5(100) → ไม่ต้องเปลี่ยน
+    // ประเภทมิเตอร์เดิม: จานหมุน / E-meter / TOU 5(100) / TOU ขนาดอื่น / ไม่ระบุ — ชนิดดูจาก "ขนาด/ชนิด", ขนาดดูจาก "ประเภทมิเตอร์"
     o.meterType = /จานหมุน/.test(o.meterSize) ? 'จานหมุน'
                 : /e[\s-]?meter|อิเล็ก/i.test(o.meterSize) ? 'E-meter'
                 : o.isTOU5100 ? 'TOU 5(100)'
@@ -1690,7 +1693,7 @@ function renderMeters(){
         scales:{x:{ticks:{font:{size:11},maxRotation:60,minRotation:0}},y:{beginAtZero:true,ticks:{precision:0},title:{display:true,text:'เครื่อง'}}}}});
   };
   drawHub('chMtrFore',hubFore); drawHub('chMtrAlloc',hubAlloc);
-  const bAlloc=$('#btnAllocReport'); if(bAlloc) bAlloc.onclick=()=>openMeterModal('meter');
+  const bAlloc=$('#btnAllocReport'); if(bAlloc) bAlloc.onclick=exportAllocReport;
 }
 function mtrTab(t){
   const A=$('#mtrTabA'), B=$('#mtrTabB'), C=$('#mtrTabC'), ta=$('#mtabA'), tb=$('#mtabB'), tc=$('#mtabC');
@@ -2404,11 +2407,17 @@ function openAllocPdf(list, docNo){
   const rowsHtml=hubs.map(h=>{const o=byHub[h];return `<tr><td>${esc(h)}</td><td class=n>${o.p1||'-'}</td><td class=n>${o.p3||'-'}</td><td class=n><b>${o.p1+o.p3}</b></td></tr>`;}).join('');
   const detail=hubs.map(h=>`<div class=hd>${esc(h)} — ${byHub[h].p1+byHub[h].p3} ราย (1 เฟส ${byHub[h].p1} · 3 เฟส ${byHub[h].p3})</div>`
       +byHub[h].items.map(r=>`<div class=it>• ${esc(r.reqNo)} · ${r.swapPhase==='3P'?'3 เฟส':'1 เฟส'} · ${esc(r.meterSize)} · ${esc(r.custName)}</div>`).join('')).join('');
-  const html=`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>สรุปความต้องการมิเตอร์เพื่อจัดสรร</title>
+  const docTxt = docNo ? (String(docNo).padStart(3,'0')+'/2569') : '........../2569';
+  const logoUrl = localStorage.getItem('pea_logo_url') || new URL('pea-logo.png', location.href).href;
+  const html=`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>สรุปความต้องการมิเตอร์เพื่อจัดสรร ${docTxt}</title>
   <style>
    @page{size:A4;margin:16mm}
-   body{font-family:'Sarabun','TH Sarabun New','Tahoma',sans-serif;color:#1f2937;font-size:15px;line-height:1.55}
-   h1{font-size:19px;text-align:center;margin:0 0 3px} .sub{text-align:center;color:#555;font-size:13px;margin-bottom:14px}
+   body{font-family:'Sarabun','TH Sarabun New','Tahoma',sans-serif;color:#1f2937;font-size:15px;line-height:1.55;margin:0}
+   #paper{max-width:800px;margin:0 auto;padding:24px}
+   .lh{display:flex;align-items:center;gap:14px;border-bottom:2px solid #5E2483;padding-bottom:10px;margin-bottom:12px}
+   .lh img{height:72px;width:auto} .lh .org{font-size:14px;color:#333;line-height:1.4}
+   .lh .org b{color:#5E2483;font-size:16px}
+   h1{font-size:19px;text-align:center;margin:6px 0 3px} .sub{text-align:center;color:#555;font-size:13px;margin-bottom:14px}
    .meta{font-size:13px;margin-bottom:8px}
    .intro{font-size:14px;text-align:justify;text-indent:2.5em;margin-bottom:10px}
    table{width:100%;border-collapse:collapse;margin:8px 0}
@@ -2418,14 +2427,27 @@ function openAllocPdf(list, docNo){
    .code{font-size:12.5px;color:#555;margin-top:6px}
    .sign{margin-top:36px;text-align:center;float:right;width:48%;font-size:13.5px}
    .attach{page-break-before:always} .atHead{font-weight:bold;font-size:16px;text-align:center;margin:0 0 12px;color:#5E2483}
-   @media print{ .noprint{display:none} }
-   .noprint{text-align:center;margin:14px 0}
-   .btn{background:#6B2C91;color:#fff;border:0;padding:9px 20px;border-radius:8px;font-size:15px;cursor:pointer;font-family:inherit}
+   [contenteditable="true"]:focus{outline:2px dashed #b89bd6;outline-offset:2px;background:#faf7ff}
+   @media print{ .noprint{display:none} [contenteditable]{outline:none!important;background:none!important} }
+   .bar{position:sticky;top:0;background:#f3eefa;border-bottom:1px solid #d9c9ec;padding:10px 16px;text-align:center;z-index:5}
+   .bar .hint{font-size:12.5px;color:#6b4a8a;margin-right:12px}
+   .btn{background:#6B2C91;color:#fff;border:0;padding:9px 20px;border-radius:8px;font-size:15px;cursor:pointer;font-family:inherit;font-weight:700}
+   .logobtn{background:#fff;color:#6B2C91;border:1px solid #c9b2e3;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;margin-left:8px}
   </style></head><body>
-   <div class="noprint"><button class="btn" onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button></div>
+   <div class="bar noprint">
+     <span class="hint">✏️ คลิกที่ข้อความเพื่อแก้ไขได้โดยตรง แล้วกดพิมพ์</span>
+     <button class="btn" onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
+     <button class="logobtn" onclick="var u=prompt('วางลิงก์รูปโลโก้ PEA (URL หรือ data:image...)','');if(u){try{localStorage.setItem('pea_logo_url',u);}catch(e){}var im=document.getElementById('peaLogo');im.src=u;im.style.display='';}">🖼️ ตั้งค่าโลโก้</button>
+   </div>
+   <div id="paper">
+   <div class="lh">
+     <img id="peaLogo" src="${logoUrl}" alt="PEA" onerror="this.style.display='none'">
+     <div class="org"><b>การไฟฟ้าส่วนภูมิภาค</b><br>กองวิศวกรรม การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ) จ.เชียงใหม่</div>
+   </div>
+   <div contenteditable="true" spellcheck="false">
    <h1>บันทึกสรุปปริมาณความต้องการมิเตอร์เพื่อจัดสรร</h1>
    <div class="sub">โครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์ที่ติดตั้งบนหลังคา สำหรับภาคประชาชนประเภทบ้านอยู่อาศัย ปี 2569<br>การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ)</div>
-   <div class="meta"><b>ที่</b> กวว.(น1) ${docNo?(String(docNo).padStart(3,'0')+'/2569'):'.../2569'} &nbsp;·&nbsp; <b>ลงวันที่</b> ${today}</div>
+   <div class="meta"><b>ที่</b> กวว.(น1) ${docTxt} &nbsp;·&nbsp; <b>ลงวันที่</b> ${today}</div>
    <div class="meta"><b>จัดทำโดย:</b> ระบบติดตามสถานะคำขอโครงการโซลาร์ภาคประชาชน ปี 2569 (อัตโนมัติ)</div>
    <div class="intro">ตามที่การไฟฟ้าส่วนภูมิภาคดำเนินโครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์ที่ติดตั้งบนหลังคาสำหรับภาคประชาชนประเภทบ้านอยู่อาศัย ปี 2569 ซึ่งผู้เข้าร่วมโครงการที่ได้ลงนามในสัญญาซื้อขายไฟฟ้าแล้ว จะต้องดำเนินการสับเปลี่ยนเครื่องวัดหน่วยไฟฟ้าเดิม (ชนิดจานหมุน/E-meter) เป็นมิเตอร์ TOU เพื่อรองรับการจ่ายไฟฟ้าเข้าระบบเชิงพาณิชย์ (COD) นั้น</div>
    <div class="intro">กบล.(น1) ได้รวบรวมและสรุปปริมาณความต้องการมิเตอร์ TOU เพื่อการจัดสรร จำแนกตามจุดร่วมงาน/การไฟฟ้า ณ วันที่จัดทำเอกสาร ดังนี้</div>
@@ -2434,11 +2456,25 @@ function openAllocPdf(list, docNo){
    <div class="code">รหัสพัสดุ: มิเตอร์ TOU 1P2W 5(100)A = <b>1060070703</b> &nbsp;·&nbsp; มิเตอร์ TOU 3P4W 5(100)A = <b>1060070709</b></div>
    <div style="overflow:hidden;margin-top:30px"><div class="sign">ลงชื่อ ............................................<br>( นายศุภวัฒิ กินีสี )<br>วศก.6 ผสอ.กวว.(น1)</div></div>
    <div class="attach"><div class="atHead">เอกสารแนบ 1 — รายละเอียดคำขอ (รวม ${list.length} ราย)</div>${detail}</div>
+   </div>
+   </div>
   </body></html>`;
   const w=window.open('','_blank');
   if(!w){ alert('เบราว์เซอร์บล็อกหน้าต่างใหม่ — กรุณาอนุญาต Popup แล้วลองใหม่'); return; }
   w.document.open(); w.document.write(html); w.document.close();
-  setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} }, 500);
+}
+// กดปุ่มในส่วนที่ 2 → ออกเอกสารตัวอย่าง PDF ทันที (แก้ข้อความได้) · ถ้า login แล้วจะออกเลขที่จริง+บันทึกการดึง
+async function exportAllocReport(){
+  const list = allocFresh();
+  if(!list.length){ alert('ไม่มีรายการใหม่ให้จัดสรร — ทุกคำขอขั้น 8 ถูกดึง/จัดสรรแล้ว'); return; }
+  let docNo=null;
+  if(mmSession && mmSession.emp){   // login เป็น ผมต.กบล./Admin แล้ว → ออกเลขที่จริง + ทำเครื่องหมาย "รอจัดสรรมิเตอร์"
+    if(!confirm('ออกเอกสารขอจัดสรรมิเตอร์ '+list.length+' ราย?\nระบบจะออกเลขที่เอกสารอัตโนมัติ และทำเครื่องหมาย "รอจัดสรรมิเตอร์" (ไม่ถูกดึงซ้ำ)')) return;
+    try{ const r=await meterApi({action:'markpull', emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name, reqNos:list.map(x=>x.reqNo)});
+      if(r&&r.ok){ docNo=r.docNo; } else alert('ออกเลขที่อัตโนมัติไม่สำเร็จ ('+((r&&r.error)||'')+') — จะออกเป็นเอกสารร่าง (แก้เลขที่เองได้)'); }catch(e){ alert('เชื่อมต่อไม่สำเร็จ — จะออกเป็นเอกสารร่าง'); }
+  }
+  openAllocPdf(list, docNo);
+  if(docNo){ await loadDashboardData(); }   // รีเฟรชสถานะหลังบันทึกการดึง
 }
 if($('#mmExportAlloc')) $('#mmExportAlloc').onclick = async ()=>{
   const list = allocFresh();
