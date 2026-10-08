@@ -2410,14 +2410,16 @@ function openAllocPdf(list, docNo, opts){
   const tou5100Lot = rows.filter(r=>r.step===8 && r.isTOU5100).length;   // TOU 5(100) เดิม ใน lot ขั้น 8 นี้ (ไม่ต้องจัดสรร)
   const today=new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
   const esc=s=>String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
-  const rowsHtml=hubs.map((h,i)=>{const o=byHub[h];return `<tr><td class=n>${i+1}</td><td>${esc(h)}</td><td class=n>${o.p1||'-'}</td><td class=n>${o.p3||'-'}</td><td class=n><b>${o.p1+o.p3}</b></td></tr>`;}).join('');
+  const peaName=s=>String(s||'').replace(/กฟอ\./g,'กฟส.');   // ในเอกสาร PDF ให้ใช้ กฟส. แทน กฟอ.
+  const rowsHtml=hubs.map((h,i)=>{const o=byHub[h];return `<tr><td class=n>${i+1}</td><td>${esc(peaName(h))}</td><td class=n>${o.p1||'-'}</td><td class=n>${o.p3||'-'}</td><td class=n><b>${o.p1+o.p3}</b></td></tr>`;}).join('');
   // เอกสารแนบ 1: ตารางรายคำขอ แยกตาม กฟฟ. มี subtotal แต่ละ กฟฟ. (1 เฟส/3 เฟส/รวม)
   let run=0;
   const attachRows=hubs.map(h=>{const o=byHub[h];
     const its=o.items.slice().sort((a,b)=>(a.swapPhase==='3P'?1:0)-(b.swapPhase==='3P'?1:0));
-    const body=its.map(r=>{run++;return `<tr><td class=n>${run}</td><td class=n>${esc(r.reqNo)}</td><td>${esc(r.custName)}</td><td>${esc(r.meterModel||r.meterSize)}</td><td class=n>${r.swapPhase==='3P'?'3 เฟส':'1 เฟส'}</td></tr>`;}).join('');
-    return `<tr class="grp"><td colspan=5>▍ ${esc(h)}</td></tr>${body}<tr class="sub"><td colspan=2>รวม ${esc(h)}</td><td class=n>1 เฟส ${o.p1}</td><td class=n>3 เฟส ${o.p3}</td><td class=n><b>${o.p1+o.p3}</b></td></tr>`;}).join('');
-  const docTxt = docNo ? (String(docNo).padStart(3,'0')+'/2569') : '........../2569';
+    const body=its.map(r=>{run++;const is3=r.swapPhase==='3P';return `<tr><td class=n>${run}</td><td class=n>${esc(r.reqNo)}</td><td>${esc(r.meterModel||r.meterSize)}</td><td class=n>${is3?'-':'1'}</td><td class=n>${is3?'1':'-'}</td></tr>`;}).join('');
+    return `<tr class="grp"><td colspan=5>▍ ${esc(peaName(h))}</td></tr>${body}<tr class="sub"><td colspan=3>รวม</td><td class=n>${o.p1}</td><td class=n>${o.p3}</td></tr>`;}).join('');
+  const docYear = new Date().getFullYear()+543;                       // ปี พ.ศ. อัตโนมัติ (2569 → ปีถัดไปเปลี่ยนเอง)
+  const docTxt = String(docNo||1).padStart(3,'0')+'/'+docYear;        // เริ่ม 001 ถ้ายังไม่มีเลขจริง
   const logoUrl = localStorage.getItem('pea_logo_url') || new URL('pea-logo.png', location.href).href;
   const html=`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>ขอจัดสรรมิเตอร์ TOU ${docTxt}</title>
   <style>
@@ -2438,7 +2440,8 @@ function openAllocPdf(list, docNo, opts){
    .note{margin:10px 0;text-indent:2.5em}
    .code{font-size:14.5pt;margin-top:8px}
    .sign{margin-top:40px;float:right;text-align:center;width:52%;line-height:1.7}
-   .attach{page-break-before:always} .atHead{font-weight:bold;font-size:17pt;text-align:center;margin:0 0 4px} .atSub{text-align:center;font-size:14.5pt;margin-bottom:10px;color:#333}
+   .attach{page-break-before:always} .atHead{font-weight:bold;font-size:17pt;text-align:center;margin:0 0 4px} .atSub{text-align:center;font-size:14pt;margin-bottom:10px;color:#333}
+   table.attbl{font-size:14pt} table.attbl th,table.attbl td{padding:3px 7px}
    [contenteditable="true"]:focus{outline:2px dashed #b89bd6;outline-offset:2px;background:#faf7ff}
    @media print{ .noprint{display:none} [contenteditable]{outline:none!important;background:none!important} #paper{padding:0} }
    .bar{position:sticky;top:0;background:#f3eefa;border-bottom:1px solid #d9c9ec;padding:10px 16px;text-align:center;z-index:5;font-family:'Sarabun',Tahoma,sans-serif}
@@ -2451,26 +2454,25 @@ function openAllocPdf(list, docNo, opts){
      <button class="btn" onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
    </div>
    <div id="paper" contenteditable="${readOnly?'false':'true'}" spellcheck="false">
-   <div class="lh">
+   <div class="lh" style="justify-content:center">
      <img id="peaLogo" src="${logoUrl}" alt="PEA" onerror="this.style.display='none'">
-     <div class="org"><b>บันทึกข้อความ</b><br>ส่วนราชการ&nbsp; แผนกบริหารงานทั่วไป กบล. การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ) จ.เชียงใหม่</div>
    </div>
    <div class="fld"><b>ที่</b>&nbsp; กวว.(น1) ${docTxt}</div>
    <div class="fld" style="text-align:center"><b>ลงวันที่</b>&nbsp; ${today}</div>
-   <div class="fld"><b>เรื่อง</b>&nbsp; ขอจัดสรรมิเตอร์ TOU สำหรับโครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์ภาคประชาชน ปี 2569</div>
-   <div class="fld"><b>เรียน</b>&nbsp; ผู้อำนวยการกองบำรุงรักษา การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ)</div>
+   <div class="fld"><b>เรื่อง</b>&nbsp; ขอจัดสรรมิเตอร์ TOU สำหรับโครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์ภาคประชาชน ปี ${docYear}</div>
+   <div class="fld"><b>เรียน</b>&nbsp; อก.บล.(น1)</div>
    <hr style="border:none;border-top:1px solid #000;margin:8px 0 12px">
-   <div class="intro">ตามที่การไฟฟ้าส่วนภูมิภาคดำเนินโครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์ที่ติดตั้งบนหลังคาสำหรับภาคประชาชนประเภทบ้านอยู่อาศัย ปี 2569 ซึ่งผู้เข้าร่วมโครงการที่ได้ลงนามในสัญญาซื้อขายไฟฟ้าแล้ว จะต้องดำเนินการสับเปลี่ยนเครื่องวัดหน่วยไฟฟ้าเดิม (ชนิดจานหมุน/E-meter หรือ TOU ที่มิใช่ขนาด 5(100)) เป็นมิเตอร์ TOU ขนาด 5(100) เพื่อรองรับการจ่ายไฟฟ้าเข้าระบบเชิงพาณิชย์ (COD) นั้น</div>
-   <div class="intro">กวว.(น1) ได้ตรวจสอบข้อมูลการ COD และการสับเปลี่ยนมิเตอร์ ของ กฟส.(L,M) ณ วันที่ ..................... ถึงวันที่ ${today} (วันที่ดึงข้อมูลแล้วจะไม่ถูกดึงซ้ำ) พบว่ามีจำนวนสัญญาที่รอการจัดสรรมิเตอร์ จำนวน <b>${t1+t3}</b> ราย สรุปได้ดังนี้ (รายละเอียดตามเอกสารแนบ 1)</div>
+   <div class="intro">ตามที่การไฟฟ้าส่วนภูมิภาคดำเนินโครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์ที่ติดตั้งบนหลังคาสำหรับภาคประชาชนประเภทบ้านอยู่อาศัย ปี ${docYear} ซึ่งผู้เข้าร่วมโครงการที่ได้ลงนามในสัญญาซื้อขายไฟฟ้าแล้ว จะต้องดำเนินการสับเปลี่ยนเครื่องวัดหน่วยไฟฟ้าเดิมเพื่อรองรับการจ่ายไฟฟ้าเข้าระบบเชิงพาณิชย์ (COD) นั้น</div>
+   <div class="intro">กวว.(น1) ได้ตรวจสอบข้อมูลการ COD และการสับเปลี่ยนมิเตอร์ ของ กฟฟ.(L,M,S) ณ วันที่ 1 กรกฎาคม ${docYear} ถึงวันที่ ${today} พบว่ามีจำนวนสัญญาที่รอการจัดสรรมิเตอร์ จำนวน <b>${t1+t3}</b> ราย สรุปได้ดังนี้ (รายละเอียดตามเอกสารแนบ 1)</div>
    <table><thead><tr><th style="width:8%">ลำดับ</th><th>จุดร่วมงาน / การไฟฟ้า</th><th style="width:16%">1 เฟส (เครื่อง)</th><th style="width:16%">3 เฟส (เครื่อง)</th><th style="width:14%">รวม</th></tr></thead>
    <tbody>${rowsHtml}<tr class="total"><td class=n></td><td>รวมทั้งสิ้น ${hubs.length} จุดร่วมงาน</td><td class=n>${t1}</td><td class=n>${t3}</td><td class=n>${t1+t3}</td></tr></tbody></table>
    <div class="code"><b>รหัสพัสดุ:</b> มิเตอร์ TOU 1P2W 5(100)A = <b>1060070703</b> &nbsp;·&nbsp; มิเตอร์ TOU 3P4W 5(100)A = <b>1060070709</b></div>
-   <div class="note"><b>หมายเหตุ:</b> ในชุด (lot) นี้มีคำขอที่ติดตั้งมิเตอร์ TOU ขนาด 5(100) อยู่แล้ว จำนวน <b>${tou5100Lot}</b> ราย ซึ่งไม่ต้องขอรับการจัดสรรมิเตอร์ใหม่</div>
-   <div class="intro">จึงเรียนมาเพื่อโปรดพิจารณาจัดสรรมิเตอร์ TOU ขนาด 5(100) จำนวน <b>${t1+t3}</b> เครื่อง ตามรายละเอียดเอกสารแนบ 1 ต่อไปด้วย จะเป็นพระคุณ</div>
+   <div class="note"><b>หมายเหตุ:</b> มีผู้เข้าร่วมโครงการที่ติดตั้งเครื่องวัดหน่วยไฟฟ้าชนิด TOU ขนาด 5(100) อยู่เดิมแล้ว จำนวน <b>${tou5100Lot}</b> ราย ซึ่งไม่อยู่ในข่ายที่ต้องขอรับการจัดสรรมิเตอร์ในครั้งนี้</div>
+   <div class="intro">จึงเรียนมาเพื่อโปรดพิจารณาจัดสรรมิเตอร์ TOU จำนวน <b>${t1+t3}</b> เครื่อง ตามรายละเอียดเอกสารแนบ 1 ต่อไป</div>
    <div style="overflow:hidden"><div class="sign">ลงชื่อ&nbsp; นายศุภวัฒิ กินีสี<br>( นายศุภวัฒิ กินีสี )<br>วิศวกร ระดับ 6 ผสอ.กวว.(น1)</div></div>
    <div class="attach"><div class="atHead">เอกสารแนบ 1</div><div class="atSub">รายละเอียดคำขอที่ขอรับการจัดสรรมิเตอร์ แยกตามจุดร่วมงาน/การไฟฟ้า (รวม ${list.length} ราย)</div>
-   <table><thead><tr><th style="width:8%">ลำดับ</th><th style="width:22%">เลขที่คำขอ (PPIM)</th><th>ชื่อผู้ใช้ไฟฟ้า</th><th style="width:26%">ประเภทมิเตอร์เดิม</th><th style="width:12%">เฟส</th></tr></thead>
-   <tbody>${attachRows}<tr class="total"><td colspan=2>รวมทั้งสิ้น</td><td class=n>1 เฟส ${t1}</td><td class=n>3 เฟส ${t3}</td><td class=n><b>${t1+t3}</b></td></tr></tbody></table></div>
+   <table class="attbl"><thead><tr><th style="width:10%">ลำดับ</th><th style="width:28%">เลขที่คำขอ (PPIM)</th><th>ประเภทมิเตอร์เดิม</th><th style="width:13%">1 เฟส</th><th style="width:13%">3 เฟส</th></tr></thead>
+   <tbody>${attachRows}<tr class="total"><td colspan=3>รวม</td><td class=n>${t1}</td><td class=n>${t3}</td></tr></tbody></table></div>
    </div>
   </body></html>`;
   const w=window.open('','_blank');
