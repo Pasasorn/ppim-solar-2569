@@ -1565,6 +1565,7 @@ function renderMeters(){
   let touOld=0, unknownType=0;                    // TOU เดิม (ไม่ต้องเปลี่ยน) · ไม่ทราบประเภท
   const byArea = {};                             // กฟฟ. -> {รอสับเปลี่ยน 1P/3P, สับเปลี่ยนแล้ว done}
   const hubFore = {}, hubAlloc = {};             // กฟฟ. -> {1P,3P} สำหรับกราฟ ส่วนที่ 1 (คาดการณ์) และ ส่วนที่ 2 (รอจัดสรร)
+  const hub5100 = {};                            // กฟฟ. -> จำนวน TOU 5(100) เดิม (ขั้น 8)
   const step8Type = {'จานหมุน':{'1P':0,'3P':0},'E-meter':{'1P':0,'3P':0},'TOU ขนาดอื่น':{'1P':0,'3P':0},'TOU 5(100)':{'1P':0,'3P':0},'ไม่ระบุ':{'1P':0,'3P':0}}; // ขั้น 8 แยกประเภท
   const swapAging=[], codAging=[];               // ระยะเวลาดำเนินงาน
   rows.forEach(r=>{
@@ -1583,7 +1584,8 @@ function renderMeters(){
       } else { unknownType++; }
     }
     // ===== ขั้น 8 ทั้งหมด (= สถานะ รอทดสอบเชื่อมต่อ/COD) แยกตามประเภทมิเตอร์เดิม — รวม 49 =====
-    if(r.step===8 && mph){ (step8Type[r.meterType]=step8Type[r.meterType]||{'1P':0,'3P':0})[mph]++; }
+    if(r.step===8 && mph){ (step8Type[r.meterType]=step8Type[r.meterType]||{'1P':0,'3P':0})[mph]++;
+      if(r.isTOU5100){ hub5100[gk]=(hub5100[gk]||0)+1; } }
     // ===== ตารางคิวสับเปลี่ยนจริง (ขั้น 8-10) แยกตาม กฟฟ. =====
     if((r.step===8||r.step===9||r.step===10) && r.needSwap && ph){
       const a=byArea[gk]=byArea[gk]||{'1P':0,'3P':0,done:0,items:[]};
@@ -1604,7 +1606,7 @@ function renderMeters(){
   const areaTable = `
     <div style="font-weight:700;color:#374151;font-size:.9rem;margin:16px 0 8px">📍 ผลการสับเปลี่ยนมิเตอร์ แยกตาม กฟฟ. (ผลดำเนินงาน = สับเปลี่ยนแล้ว ÷ ทั้งหมด)</div>
     <div style="overflow-x:auto"><table><thead><tr>
-      <th>กฟฟ.</th><th>1P2W รอ</th><th>3P4W รอ</th><th>รอสับเปลี่ยน</th><th>สับเปลี่ยนแล้ว</th><th>ทั้งหมด</th><th>ผลดำเนินงาน</th>
+      <th>กฟฟ.</th><th>1P2W รอ</th><th>3P4W รอ</th><th>รอสับเปลี่ยน</th><th>สับเปลี่ยนแล้ว</th><th>ทั้งหมด</th><th>ผลดำเนินงาน</th><th title="มี TOU 5(100) อยู่แล้ว ไม่ต้องจัดสรร">✓ TOU 5(100)</th>
     </tr></thead><tbody>
     ${areaRows.map(([k,v],idx)=>{const pend=v['1P']+v['3P'], tot=pend+v.done; const did='mtrDet_'+idx;
       const stLabel=s=>s===8?'<span style="color:#b07c00">🔧 รอสับเปลี่ยน</span>':s===9?'<span style="color:#2c66ad">⏳ รอ ผบส.กด COD ใน PPIM ⚠</span>':s===10?'<span style="color:var(--green)">✅ COD เรียบร้อยแล้ว</span>':'-';
@@ -1617,9 +1619,9 @@ function renderMeters(){
         ? '<span style="color:#b07c00;font-weight:700">⏳ รอจัดสรรมิเตอร์</span>'
         : '<span style="color:var(--gray)">📦 ยังไม่ดึง</span>';
       const items=(v.items||[]).slice().sort((a,b)=>a.step-b.step).map(it=>`<div style="padding:4px 0">• <b>${it.reqNo}</b> · ${it.phase==='1P'?'1P2W':'3P4W'}${it.meterSize?(' · <span style="color:#555">'+it.meterSize+'</span>'):''} · ${stLabel(it.step)} · ${allocLabel(it)} · ${caLabel(it)}</div>`).join('');
-      return `<tr style="cursor:pointer" onclick="mtrToggle('${did}')" title="คลิกดูรายละเอียด PPIM"><td><b>▸ ${k}</b></td><td>${v['1P']||'-'}</td><td>${v['3P']||'-'}</td><td>${pend||'-'}</td><td class="cell-green">${v.done||'-'}</td><td><b>${fmtN(tot)}</b></td><td>${pctCell(v.done,tot)}</td></tr>
-      <tr id="${did}" style="display:none"><td colspan="7" style="background:#faf7fd;font-size:.82rem;padding:8px 14px;line-height:1.5">${items||'—'}</td></tr>`;}).join('')}
-    <tr style="background:#F4F7FC;font-weight:700"><td>รวม ${areaRows.length} กฟฟ.</td><td>${fmtN(fore8['1P'])}</td><td>${fmtN(fore8['3P'])}</td><td>${fmtN(gPend)}</td><td>${fmtN(gDone)}</td><td>${fmtN(gAll)}</td><td>${pctCell(gDone,gAll)}</td></tr>
+      return `<tr style="cursor:pointer" onclick="mtrToggle('${did}')" title="คลิกดูรายละเอียด PPIM"><td><b>▸ ${k}</b></td><td>${v['1P']||'-'}</td><td>${v['3P']||'-'}</td><td>${pend||'-'}</td><td class="cell-green">${v.done||'-'}</td><td><b>${fmtN(tot)}</b></td><td>${pctCell(v.done,tot)}</td><td style="color:var(--green);font-weight:700">${hub5100[k]||'-'}</td></tr>
+      <tr id="${did}" style="display:none"><td colspan="8" style="background:#faf7fd;font-size:.82rem;padding:8px 14px;line-height:1.5">${items||'—'}</td></tr>`;}).join('')}
+    <tr style="background:#F4F7FC;font-weight:700"><td>รวม ${areaRows.length} กฟฟ.</td><td>${fmtN(fore8['1P'])}</td><td>${fmtN(fore8['3P'])}</td><td>${fmtN(gPend)}</td><td>${fmtN(gDone)}</td><td>${fmtN(gAll)}</td><td>${pctCell(gDone,gAll)}</td><td style="color:var(--green)">${fmtN(Object.values(hub5100).reduce((a,b)=>a+b,0))}</td></tr>
     </tbody></table></div>`;
   const cardHtml=(m, needSet, lblNeed)=>{
     const done = swapped[m.key]||0, need = needSet[m.key]||0, total = done+need;
@@ -1674,7 +1676,7 @@ function renderMeters(){
     ${typeTable}${allocBtn}
     <div class="note" style="margin-bottom:8px">การ์ดจัดสรร — เฉพาะที่ต้องจัดสรรมิเตอร์ใหม่ (จานหมุน/E-meter/TOU ขนาดอื่น) ขั้น 8 · ยอดรวม = <b>1P ${fmtN(fore8['1P'])} · 3P ${fmtN(fore8['3P'])} · รวม ${fmtN(fore8['1P']+fore8['3P'])}</b></div>
     ${METERS.map(m=>cardHtml(m,fore8,'📦 รอจัดสรร (ขั้น 8)')).join('')}
-    ${hubChartBox('chMtrAlloc','มิเตอร์ที่ต้องจัดสรรใหม่ ขั้น 8')}</div>`;
+    ${hubChartBox('chMtrAlloc','ขั้น 8 แยก กฟฟ. — ต้องจัดสรร (1 เฟส/3 เฟส) + มี TOU 5(100) อยู่แล้ว')}</div>`;
   const tabC=`<div id="mtrTabC" style="display:none">
     <div class="note" style="margin-bottom:8px">คิวสับเปลี่ยนจริง แยกตาม กฟฟ. (ขั้น 8–10) — รอสับเปลี่ยน + สับเปลี่ยนแล้ว · ยอดรวมของส่วนนี้ = <b>รอ ${fmtN(gPend)} · สับเปลี่ยนแล้ว ${fmtN(gDone)} · รวม ${fmtN(gAll)}</b></div>
     ${timeBlock}${areaTable}
@@ -1684,17 +1686,21 @@ function renderMeters(){
   el.innerHTML = tabBar + tabA + tabB + tabC;
   // ===== วาดกราฟราย กฟฟ. (แยก 1 เฟส/3 เฟส) =====
   Object.values(meterCharts).forEach(c=>{try{c.destroy();}catch(e){}}); meterCharts={};
-  const drawHub=(cid,hubData)=>{
+  const drawHub=(cid,hubData,extra)=>{
     const cv=$('#'+cid); if(!cv||typeof Chart==='undefined')return;
-    const entries=Object.entries(hubData).sort((a,b)=>((b[1]['1P']+b[1]['3P'])-(a[1]['1P']+a[1]['3P'])));
+    const keys=new Set(Object.keys(hubData)); if(extra){ Object.keys(extra.data||{}).forEach(k=>keys.add(k)); }
+    const entries=[...keys].map(k=>[k,hubData[k]||{'1P':0,'3P':0}]).sort((a,b)=>((b[1]['1P']+b[1]['3P']+(extra?(extra.data[b[0]]||0):0))-(a[1]['1P']+a[1]['3P']+(extra?(extra.data[a[0]]||0):0))));
     if(!entries.length){ cv.parentElement.innerHTML='<div class="note" style="padding:20px;text-align:center">— ยังไม่มีข้อมูล —</div>'; return; }
-    meterCharts[cid]=new Chart(cv,{type:'bar',data:{labels:entries.map(e=>e[0]),datasets:[
+    const datasets=[
       {label:'1 เฟส (1P2W)',data:entries.map(e=>e[1]['1P']||0),backgroundColor:'#7A34A6',borderRadius:4},
-      {label:'3 เฟส (3P4W)',data:entries.map(e=>e[1]['3P']||0),backgroundColor:'#F2A93B',borderRadius:4}]},
+      {label:'3 เฟส (3P4W)',data:entries.map(e=>e[1]['3P']||0),backgroundColor:'#F2A93B',borderRadius:4}];
+    if(extra){ datasets.push({label:extra.label,data:entries.map(e=>extra.data[e[0]]||0),backgroundColor:extra.color||'#22A45D',borderRadius:4}); }
+    meterCharts[cid]=new Chart(cv,{type:'bar',data:{labels:entries.map(e=>e[0]),datasets},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:14,font:{size:12}}}},
         scales:{x:{ticks:{font:{size:11},maxRotation:60,minRotation:0}},y:{beginAtZero:true,ticks:{precision:0},title:{display:true,text:'เครื่อง'}}}}});
   };
-  drawHub('chMtrFore',hubFore); drawHub('chMtrAlloc',hubAlloc);
+  drawHub('chMtrFore',hubFore);
+  drawHub('chMtrAlloc',hubAlloc,{label:'✓ มี TOU 5(100) แล้ว',color:'#22A45D',data:hub5100});
   const bAlloc=$('#btnAllocReport'); if(bAlloc) bAlloc.onclick=exportAllocReport;
 }
 function mtrTab(t){
@@ -2429,7 +2435,7 @@ function openAllocPdf(list, docNo, opts){
   const attach2Rows=hubs5.map(h=>{const o=by5[h];
     const body=o.items.map(it=>{run5++;return `<tr><td class=n>${run5}</td><td class=n>${esc(it.reqNo)}</td><td class=mt>${esc(it.model)}</td><td class=n>${it.is3?'-':'1'}</td><td class=n>${it.is3?'1':'-'}</td></tr>`;}).join('');
     return `<tr class="grp"><td colspan=5>▍ ${esc(peaName(h))}</td></tr>${body}<tr class="sub"><td colspan=3>รวม</td><td class=n>${o.p1}</td><td class=n>${o.p3}</td></tr>`;}).join('');
-  const logoUrl = localStorage.getItem('pea_logo_url') || new URL('pea-logo.png', location.href).href;
+  let logoUrl; try{ logoUrl = new URL('pea-logo.png', location.href).href; }catch(e){ logoUrl = 'pea-logo.png'; }
   const html=`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>ขอจัดสรรมิเตอร์ TOU ${docTxt}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap" rel="stylesheet">
@@ -2480,7 +2486,7 @@ function openAllocPdf(list, docNo, opts){
    <table class="sumtbl"><thead><tr><th style="width:8%">ลำดับ</th><th>จุดร่วมงาน / การไฟฟ้า</th><th style="width:16%">1 เฟส (เครื่อง)</th><th style="width:16%">3 เฟส (เครื่อง)</th><th style="width:14%">รวม</th></tr></thead>
    <tbody>${rowsHtml}<tr class="total"><td class=n></td><td>รวมทั้งสิ้น ${hubs.length} จุดร่วมงาน</td><td class=n>${t1}</td><td class=n>${t3}</td><td class=n>${t1+t3}</td></tr></tbody></table>
    <div class="code"><b>รหัสพัสดุ:</b> มิเตอร์ TOU 1P2W 5(100)A = <b>1060070703</b> &nbsp;·&nbsp; มิเตอร์ TOU 3P4W 5(100)A = <b>1060070709</b></div>
-   <div class="note" style="font-size:13.5pt;white-space:nowrap"><b>หมายเหตุ:</b> มีผู้ติดตั้งมิเตอร์ TOU ขนาด 5(100) อยู่เดิมแล้ว จำนวน <b>${tou5100Lot}</b> ราย ไม่อยู่ในข่ายต้องจัดสรร (รายละเอียดตามเอกสารแนบ 2)</div>
+   <div class="note" style="font-size:13.5pt;text-indent:0"><b>หมายเหตุ:</b> มีผู้ติดตั้งมิเตอร์ TOU ขนาด 5(100) อยู่เดิมแล้ว จำนวน <b>${tou5100Lot}</b> ราย ไม่อยู่ในข่ายต้องจัดสรร (รายละเอียดตามเอกสารแนบ 2)</div>
    <div class="intro">จึงเรียนมาเพื่อโปรดพิจารณาจัดสรรมิเตอร์ TOU จำนวน <b>${t1+t3}</b> เครื่อง ตามรายละเอียดเอกสารแนบ 1 ต่อไป</div>
    <div style="overflow:hidden"><div class="sign">ลงชื่อ&nbsp; นายศุภวัฒิ กินีสี<br>( นายศุภวัฒิ กินีสี )<br>วิศวกร ระดับ 6 ผสอ.กวว.(น1)</div></div>
    <div class="attach"><div class="atHead">เอกสารแนบ 1</div><div class="atSub">รายการมิเตอร์ที่ต้องขอรับการจัดสรร (เปลี่ยนเป็น TOU) แยกตามจุดร่วมงาน/การไฟฟ้า (รวม ${list.length} ราย)</div>
