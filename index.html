@@ -832,7 +832,7 @@ async function loadDashboardData(){
   try{
     const r = await meterApi({action:'data'});   // ภาพรวมดูได้เลย ไม่ต้อง login
     if(!r || !r.ok) throw new Error((r&&r.error)||'โหลดไม่ได้');
-    if(!r.main || !r.main.headers){ throw new Error('API ไม่ส่งข้อมูลกลับ (request ไปโดน doGet) — ให้ Deploy Apps Script ใหม่เป็น "New version" สิทธิ์ "Anyone" และตรวจว่า URL ลงท้าย /exec ตรงกับ deployment ล่าสุด'); }
+    if(!r.main || !r.main.headers){ const u=String(METER_API_URL||''); throw new Error('API ไม่ส่งข้อมูลกลับ (request ไปโดน doGet) · URL ที่ใช้: ...'+u.slice(-28)+(localStorage.getItem('meter_api_url')?' [มาจาก localStorage]':' [ค่าในโค้ด]')+' — ตรวจ: Execute as "Me" + Who has access "Anyone" + URL ต้องเป็น /exec ของ deployment ล่าสุด'); }
     // main → raw/headers (แปลง array เป็น object ตามหัวคอลัมน์)
     headers = r.main.headers||[];
     raw = (r.main.rows||[]).map(row=>{ const o={}; headers.forEach((h,i)=>o[h]= row[i]!=null?String(row[i]):''); return o; });
