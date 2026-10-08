@@ -2314,7 +2314,7 @@ if($('#mmDoRegister')) $('#mmDoRegister').onclick = async ()=>{
 // รายการที่ต้องจัดสรร แต่ยังไม่เคยถูกดึง (จานหมุน/E-meter · ลงนามสัญญาแล้ว · ยังไม่ดึง/จัดสรร)
 function allocFresh(){ return rows.filter(r=>r.needSwap && r.step>=3 && r.step!==0 && r.allocStatus==='ยังไม่จัดสรร'); }
 // สร้างเอกสาร PDF (เปิดหน้าพิมพ์ → บันทึกเป็น PDF) สรุปความต้องการมิเตอร์เพื่อจัดสรร
-function openAllocPdf(list){
+function openAllocPdf(list, docNo){
   const byHub={};
   list.forEach(r=>{ const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; const o=byHub[h]=byHub[h]||{p1:0,p3:0,items:[]}; if(r.swapPhase==='3P')o.p3++; else o.p1++; o.items.push(r); });
   const hubs=Object.keys(byHub).sort((a,b)=>(byHub[b].p1+byHub[b].p3)-(byHub[a].p1+byHub[a].p3));
@@ -2345,7 +2345,8 @@ function openAllocPdf(list){
    <div class="noprint"><button class="btn" onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button></div>
    <h1>บันทึกสรุปปริมาณความต้องการมิเตอร์เพื่อจัดสรร</h1>
    <div class="sub">โครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์ที่ติดตั้งบนหลังคา สำหรับภาคประชาชนประเภทบ้านอยู่อาศัย ปี 2569<br>การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ)</div>
-   <div class="meta"><b>วันที่จัดทำ:</b> ${today} &nbsp;·&nbsp; <b>ผู้จัดทำ:</b> แผนกส่งเสริมพลังงานทดแทนและอนุรักษ์พลังงาน</div>
+   <div class="meta"><b>ที่</b> กวว.(น1) ${docNo?(String(docNo).padStart(3,'0')+'/2569'):'.../2569'} &nbsp;·&nbsp; <b>ลงวันที่</b> ${today}</div>
+   <div class="meta"><b>จัดทำโดย:</b> ระบบติดตามสถานะคำขอโครงการโซลาร์ภาคประชาชน ปี 2569 (อัตโนมัติ)</div>
    <div class="intro">ตามที่การไฟฟ้าส่วนภูมิภาคดำเนินโครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์ที่ติดตั้งบนหลังคาสำหรับภาคประชาชนประเภทบ้านอยู่อาศัย ปี 2569 ซึ่งผู้เข้าร่วมโครงการที่ได้ลงนามในสัญญาซื้อขายไฟฟ้าแล้ว จะต้องดำเนินการสับเปลี่ยนเครื่องวัดหน่วยไฟฟ้าเดิม (ชนิดจานหมุน/E-meter) เป็นมิเตอร์ TOU เพื่อรองรับการจ่ายไฟฟ้าเข้าระบบเชิงพาณิชย์ (COD) นั้น</div>
    <div class="intro">กบล.(น1) ได้รวบรวมและสรุปปริมาณความต้องการมิเตอร์ TOU เพื่อการจัดสรร จำแนกตามจุดร่วมงาน/การไฟฟ้า ณ วันที่จัดทำเอกสาร ดังนี้</div>
    <table><thead><tr><th>จุดร่วมงาน / การไฟฟ้า</th><th>มิเตอร์ TOU 1 เฟส</th><th>มิเตอร์ TOU 3 เฟส</th><th>รวม (เครื่อง)</th></tr></thead>
@@ -2363,14 +2364,16 @@ if($('#mmExportAlloc')) $('#mmExportAlloc').onclick = async ()=>{
   const list = allocFresh();
   if(!list.length){ $('#mmAllocMsg').innerHTML='<span style="color:var(--gray)">ไม่มีรายการใหม่ให้ดึง (ทุกรายการถูกดึง/จัดสรรแล้ว)</span>'; return; }
   if(!confirm('ออกเอกสาร PDF สรุปความต้องการมิเตอร์ '+list.length+' ราย?\nรายการที่ดึงจะถูกทำเครื่องหมาย "รอจัดสรรมิเตอร์" และจะไม่ถูกดึงซ้ำ')) return;
-  openAllocPdf(list);   // เปิดหน้าพิมพ์ → บันทึกเป็น PDF
-  // บันทึกว่าดึงแล้ว (รอจัดสรรมิเตอร์)
-  $('#mmAllocMsg').textContent='กำลังบันทึกสถานะ...';
+  // ออกเลขที่เอกสาร + บันทึกสถานะก่อน แล้วค่อยสร้าง PDF (เพื่อให้มีเลขที่ในเอกสาร)
+  $('#mmAllocMsg').textContent='กำลังออกเลขที่เอกสาร...';
+  let docNo=null, marked=0, err='';
   try{
     const r=await meterApi({action:'markpull', emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name, reqNos:list.map(x=>x.reqNo)});
-    if(r&&r.ok){ $('#mmAllocMsg').innerHTML='<span style="color:var(--green)">✅ ดึง '+fmtN(r.marked)+' ราย + ดาวน์โหลดไฟล์แล้ว — กำลังโหลดใหม่</span>'; await loadDashboardData(); if(mmSession) mmShowReport(); }
-    else $('#mmAllocMsg').innerHTML='<span style="color:var(--danger)">ดาวน์โหลดแล้ว แต่บันทึกสถานะไม่สำเร็จ: '+((r&&r.error)||'')+'</span>';
-  }catch(e){ $('#mmAllocMsg').innerHTML='<span style="color:var(--danger)">ดาวน์โหลดแล้ว แต่เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
+    if(r&&r.ok){ docNo=r.docNo; marked=r.marked; } else err=(r&&r.error)||'ไม่ทราบสาเหตุ';
+  }catch(e){ err=e.message; }
+  openAllocPdf(list, docNo);   // เปิดหน้าพิมพ์ → บันทึกเป็น PDF
+  if(!err){ $('#mmAllocMsg').innerHTML='<span style="color:var(--green)">✅ ออกเอกสารเลขที่ '+(docNo||'-')+' · ดึง '+fmtN(marked)+' ราย — กำลังโหลดใหม่</span>'; await loadDashboardData(); if(mmSession) mmShowReport(); }
+  else $('#mmAllocMsg').innerHTML='<span style="color:var(--danger)">ออก PDF แล้ว แต่บันทึกสถานะไม่สำเร็จ: '+err+' (ตรวจว่า redeploy .gs แล้วหรือยัง)</span>';
 };
 if($('#mmRevertBtn')) $('#mmRevertBtn').onclick = async ()=>{
   if(!mmSession || (mmSession.role||'').toLowerCase().indexOf('admin')<0){ $('#mmRevertMsg').textContent='เฉพาะ Admin'; return; }

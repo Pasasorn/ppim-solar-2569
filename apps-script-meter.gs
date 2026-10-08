@@ -318,7 +318,17 @@ function isCentralOrAdmin(emp, pw) {
   return false;
 }
 
-// ผมต.กบล. ดึงข้อมูลจัดสรร → บันทึกวันที่ดึง (รอจัดสรรมิเตอร์) ให้แต่ละเลขคำขอ
+// ตัวนับเลขที่เอกสารจัดสรร (เก็บใน A1 ของแท็บ "ลำดับเอกสารจัดสรร") — รันเลขถัดไปทุกครั้ง
+function nextDocNo() {
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var t = ss.getSheetByName('ลำดับเอกสารจัดสรร');
+  if (!t) { t = ss.insertSheet('ลำดับเอกสารจัดสรร'); t.getRange('A1').setValue(0); }
+  var cur = Number(t.getRange('A1').getValue()) || 0, nx = cur + 1;
+  t.getRange('A1').setValue(nx);
+  return nx;
+}
+
+// ผมต.กบล. ดึงข้อมูลจัดสรร → บันทึกวันที่ดึง (รอจัดสรรมิเตอร์) + ออกเลขที่เอกสาร
 function doMarkPull(b) {
   if (!isCentralOrAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
   var reqNos = b.reqNos || [];
@@ -334,8 +344,9 @@ function doMarkPull(b) {
     var rq = String(data[r][iReq]).trim();
     if (set[rq] && !String(data[r][iPull]||'').trim()) { sh.getRange(r+1, iPull+1).setValue(now); n++; }
   }
-  logUser(b.emp, b.name, 'ผมต.กบล', '', 'ดึงข้อมูลจัดสรรมิเตอร์ ' + n + ' ราย');
-  return { ok:true, marked:n };
+  var docNo = nextDocNo();
+  logUser(b.emp, b.name, 'ผมต.กบล', '', 'ออกเอกสารจัดสรรเลขที่ ' + docNo + ' · ดึง ' + n + ' ราย');
+  return { ok:true, marked:n, docNo:docNo };
 }
 
 // ตรวจว่าเป็น ผซฟ. หรือ Admin (สำหรับบันทึก CA 82)
