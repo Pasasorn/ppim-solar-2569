@@ -2407,7 +2407,8 @@ function openAllocPdf(list, docNo, opts){
   list.forEach(r=>{ const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; const o=byHub[h]=byHub[h]||{p1:0,p3:0,items:[]}; if(r.swapPhase==='3P')o.p3++; else o.p1++; o.items.push(r); });
   const hubs=Object.keys(byHub).sort((a,b)=>(byHub[b].p1+byHub[b].p3)-(byHub[a].p1+byHub[a].p3));
   let t1=0,t3=0; hubs.forEach(h=>{t1+=byHub[h].p1;t3+=byHub[h].p3;});
-  const tou5100Lot = rows.filter(r=>r.step===8 && r.isTOU5100).length;   // TOU 5(100) เดิม ใน lot ขั้น 8 นี้ (ไม่ต้องจัดสรร)
+  const lot5100 = rows.filter(r=>r.step===8 && r.isTOU5100);              // TOU 5(100) เดิม ใน lot ขั้น 8 (ไม่ต้องจัดสรร)
+  const tou5100Lot = lot5100.length;
   const today=new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
   const esc=s=>String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
   const peaName=s=>String(s||'').replace(/กฟอ\./g,'กฟส.');   // ในเอกสาร PDF ให้ใช้ กฟส. แทน กฟอ.
@@ -2420,6 +2421,14 @@ function openAllocPdf(list, docNo, opts){
     return `<tr class="grp"><td colspan=5>▍ ${esc(peaName(h))}</td></tr>${body}<tr class="sub"><td colspan=3>รวม</td><td class=n>${o.p1}</td><td class=n>${o.p3}</td></tr>`;}).join('');
   const docYear = new Date().getFullYear()+543;                       // ปี พ.ศ. อัตโนมัติ (2569 → ปีถัดไปเปลี่ยนเอง)
   const docTxt = String(docNo||1).padStart(3,'0')+'/'+docYear;        // เริ่ม 001 ถ้ายังไม่มีเลขจริง
+  // ===== เอกสารแนบ 2: รายการที่ติดตั้ง TOU 5(100) อยู่เดิม (ไม่ต้องจัดสรร) =====
+  const by5={}; lot5100.forEach(r=>{ const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; const ph=(r.swapPhase==='3P'||r.meterPhase==='3P')?'3P':'1P'; const o=by5[h]=by5[h]||{p1:0,p3:0,items:[]}; ph==='3P'?o.p3++:o.p1++; o.items.push({reqNo:r.reqNo,model:(r.meterModel||r.meterSize),is3:ph==='3P'}); });
+  const hubs5=Object.keys(by5).sort((a,b)=>(by5[b].p1+by5[b].p3)-(by5[a].p1+by5[a].p3));
+  let f1=0,f3=0; hubs5.forEach(h=>{f1+=by5[h].p1;f3+=by5[h].p3;});
+  let run5=0;
+  const attach2Rows=hubs5.map(h=>{const o=by5[h];
+    const body=o.items.map(it=>{run5++;return `<tr><td class=n>${run5}</td><td class=n>${esc(it.reqNo)}</td><td>${esc(it.model)}</td><td class=n>${it.is3?'-':'1'}</td><td class=n>${it.is3?'1':'-'}</td></tr>`;}).join('');
+    return `<tr class="grp"><td colspan=5>▍ ${esc(peaName(h))}</td></tr>${body}<tr class="sub"><td colspan=3>รวม</td><td class=n>${o.p1}</td><td class=n>${o.p3}</td></tr>`;}).join('');
   const logoUrl = localStorage.getItem('pea_logo_url') || new URL('pea-logo.png', location.href).href;
   const html=`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>ขอจัดสรรมิเตอร์ TOU ${docTxt}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -2427,9 +2436,10 @@ function openAllocPdf(list, docNo, opts){
   <style>
    @page{size:A4;margin:2.5cm 2cm 2cm 3cm}
    body{font-family:'TH SarabunPSK','TH Sarabun New','Sarabun','Tahoma',sans-serif;color:#000;font-size:16pt;line-height:1.5;margin:0}
-   #paper{max-width:820px;margin:0 auto;padding:28px 30px}
-   .lh{display:flex;align-items:center;gap:16px;margin-bottom:6px}
-   .lh img{height:80px;width:auto}
+   #paper{max-width:820px;margin:0 auto;padding:18px 30px}
+   .lh{display:flex;align-items:center;justify-content:flex-start;gap:16px;margin:0 0 2px}
+   .lh img{height:66px;width:auto}
+   tr{page-break-inside:avoid} table.sumtbl{page-break-inside:avoid}
    .lh .org{font-size:16pt;line-height:1.35} .lh .org b{font-size:17pt}
    .memohd{text-align:center;font-size:22pt;font-weight:bold;letter-spacing:1px;margin:2px 0 10px}
    .fld{margin:2px 0} .fld b{font-weight:bold}
@@ -2456,7 +2466,7 @@ function openAllocPdf(list, docNo, opts){
      <button class="btn" onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
    </div>
    <div id="paper" contenteditable="${readOnly?'false':'true'}" spellcheck="false">
-   <div class="lh" style="justify-content:center">
+   <div class="lh">
      <img id="peaLogo" src="${logoUrl}" alt="PEA" onerror="this.style.display='none'">
    </div>
    <div class="fld"><b>ที่</b>&nbsp; กวว.(น1) ${docTxt}</div>
@@ -2466,15 +2476,18 @@ function openAllocPdf(list, docNo, opts){
    <hr style="border:none;border-top:1px solid #000;margin:8px 0 12px">
    <div class="intro">ตามที่การไฟฟ้าส่วนภูมิภาคดำเนินโครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์ที่ติดตั้งบนหลังคาสำหรับภาคประชาชนประเภทบ้านอยู่อาศัย ปี ${docYear} ซึ่งผู้เข้าร่วมโครงการที่ได้ลงนามในสัญญาซื้อขายไฟฟ้าแล้ว จะต้องดำเนินการสับเปลี่ยนเครื่องวัดหน่วยไฟฟ้าเดิมเพื่อรองรับการจ่ายไฟฟ้าเข้าระบบเชิงพาณิชย์ (COD) นั้น</div>
    <div class="intro">กวว.(น1) ได้ตรวจสอบข้อมูลการ COD และการสับเปลี่ยนมิเตอร์ ของ กฟฟ.(L,M,S) ณ วันที่ 1 กรกฎาคม ${docYear} ถึงวันที่ ${today} พบว่ามีจำนวนสัญญาที่รอการจัดสรรมิเตอร์ จำนวน <b>${t1+t3}</b> ราย สรุปได้ดังนี้ (รายละเอียดตามเอกสารแนบ 1)</div>
-   <table><thead><tr><th style="width:8%">ลำดับ</th><th>จุดร่วมงาน / การไฟฟ้า</th><th style="width:16%">1 เฟส (เครื่อง)</th><th style="width:16%">3 เฟส (เครื่อง)</th><th style="width:14%">รวม</th></tr></thead>
+   <table class="sumtbl"><thead><tr><th style="width:8%">ลำดับ</th><th>จุดร่วมงาน / การไฟฟ้า</th><th style="width:16%">1 เฟส (เครื่อง)</th><th style="width:16%">3 เฟส (เครื่อง)</th><th style="width:14%">รวม</th></tr></thead>
    <tbody>${rowsHtml}<tr class="total"><td class=n></td><td>รวมทั้งสิ้น ${hubs.length} จุดร่วมงาน</td><td class=n>${t1}</td><td class=n>${t3}</td><td class=n>${t1+t3}</td></tr></tbody></table>
    <div class="code"><b>รหัสพัสดุ:</b> มิเตอร์ TOU 1P2W 5(100)A = <b>1060070703</b> &nbsp;·&nbsp; มิเตอร์ TOU 3P4W 5(100)A = <b>1060070709</b></div>
-   <div class="note"><b>หมายเหตุ:</b> มีผู้เข้าร่วมโครงการที่ติดตั้งเครื่องวัดหน่วยไฟฟ้าชนิด TOU ขนาด 5(100) อยู่เดิมแล้ว จำนวน <b>${tou5100Lot}</b> ราย ซึ่งไม่อยู่ในข่ายที่ต้องขอรับการจัดสรรมิเตอร์ในครั้งนี้</div>
+   <div class="note" style="font-size:13.5pt;white-space:nowrap"><b>หมายเหตุ:</b> มีผู้ติดตั้งมิเตอร์ TOU ขนาด 5(100) อยู่เดิมแล้ว จำนวน <b>${tou5100Lot}</b> ราย ไม่อยู่ในข่ายต้องจัดสรร (รายละเอียดตามเอกสารแนบ 2)</div>
    <div class="intro">จึงเรียนมาเพื่อโปรดพิจารณาจัดสรรมิเตอร์ TOU จำนวน <b>${t1+t3}</b> เครื่อง ตามรายละเอียดเอกสารแนบ 1 ต่อไป</div>
    <div style="overflow:hidden"><div class="sign">ลงชื่อ&nbsp; นายศุภวัฒิ กินีสี<br>( นายศุภวัฒิ กินีสี )<br>วิศวกร ระดับ 6 ผสอ.กวว.(น1)</div></div>
-   <div class="attach"><div class="atHead">เอกสารแนบ 1</div><div class="atSub">รายละเอียดคำขอที่ขอรับการจัดสรรมิเตอร์ แยกตามจุดร่วมงาน/การไฟฟ้า (รวม ${list.length} ราย)</div>
+   <div class="attach"><div class="atHead">เอกสารแนบ 1</div><div class="atSub">รายการมิเตอร์ที่ต้องขอรับการจัดสรร (เปลี่ยนเป็น TOU) แยกตามจุดร่วมงาน/การไฟฟ้า (รวม ${list.length} ราย)</div>
    <table class="attbl"><thead><tr><th style="width:10%">ลำดับ</th><th style="width:28%">เลขที่คำขอ (PPIM)</th><th>ประเภทมิเตอร์เดิม</th><th style="width:13%">1 เฟส</th><th style="width:13%">3 เฟส</th></tr></thead>
    <tbody>${attachRows}<tr class="total"><td colspan=3>รวม</td><td class=n>${t1}</td><td class=n>${t3}</td></tr></tbody></table></div>
+   <div class="attach"><div class="atHead">เอกสารแนบ 2</div><div class="atSub">รายการที่ติดตั้งมิเตอร์ TOU ขนาด 5(100) อยู่เดิมแล้ว — ไม่อยู่ในข่ายต้องจัดสรร (รวม ${tou5100Lot} ราย)</div>
+   ${tou5100Lot?`<table class="attbl"><thead><tr><th style="width:10%">ลำดับ</th><th style="width:28%">เลขที่คำขอ (PPIM)</th><th>ประเภทมิเตอร์</th><th style="width:13%">1 เฟส</th><th style="width:13%">3 เฟส</th></tr></thead>
+   <tbody>${attach2Rows}<tr class="total"><td colspan=3>รวม</td><td class=n>${f1}</td><td class=n>${f3}</td></tr></tbody></table>`:'<div style="text-align:center;color:#555;padding:14px">— ไม่มีรายการ —</div>'}</div>
    </div>
    ${opts.autoPrint?`<script>(function(){function p(){try{window.focus();window.print();}catch(e){}}var done=false;function go(){if(done)return;done=true;p();}if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){setTimeout(go,300);});}setTimeout(go,1600);})();<\/script>`:''}
   </body></html>`;
