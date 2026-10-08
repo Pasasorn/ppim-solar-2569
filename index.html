@@ -945,10 +945,10 @@ function buildRowsFrom(rawArr, map){
     const is5100 = s => /(^|[^0-9])5\s*\(\s*100/.test(s);                  // ขนาด 5(100) เท่านั้น (ไม่ชนกับ 15,25,30(100))
     o.isTOU = /TOU/i.test(o.meterSize) || /TOU/i.test(o.meterModel);       // เป็น TOU (ดูทั้ง 2 คอลัมน์)
     o.isTOU5100 = o.isTOU && (is5100(o.meterModel) || is5100(o.meterSize)); // TOU ขนาด 5(100) → ไม่ต้องเปลี่ยน
-    // ประเภทมิเตอร์เดิม: จานหมุน / E-meter / TOU 5(100) / TOU ขนาดอื่น / ไม่ระบุ — ชนิดดูจาก "ขนาด/ชนิด", ขนาดดูจาก "ประเภทมิเตอร์"
-    o.meterType = /จานหมุน/.test(o.meterSize) ? 'จานหมุน'
+    // ประเภทมิเตอร์เดิม: TOU 5(100) เป็นตัวตัดสินก่อน (ถ้าเป็น TOU 5(100) แล้วไม่ต้องเปลี่ยน แม้ "ขนาด/ชนิด" จะยังเขียนชนิดเดิม)
+    o.meterType = o.isTOU5100 ? 'TOU 5(100)'
+                : /จานหมุน/.test(o.meterSize) ? 'จานหมุน'
                 : /e[\s-]?meter|อิเล็ก/i.test(o.meterSize) ? 'E-meter'
-                : o.isTOU5100 ? 'TOU 5(100)'
                 : o.isTOU ? 'TOU ขนาดอื่น' : 'ไม่ระบุ';
     // ต้องจัดสรรมิเตอร์ใหม่: จานหมุน / E-meter / TOU ที่ไม่ใช่ 5(100)
     o.needSwap = o.meterType==='จานหมุน' || o.meterType==='E-meter' || o.meterType==='TOU ขนาดอื่น';
@@ -2462,6 +2462,8 @@ function openAllocPdf(list, docNo){
   const w=window.open('','_blank');
   if(!w){ alert('เบราว์เซอร์บล็อกหน้าต่างใหม่ — กรุณาอนุญาต Popup แล้วลองใหม่'); return; }
   w.document.open(); w.document.write(html); w.document.close();
+  // เด้ง dialog พิมพ์/บันทึกเป็น PDF ให้เลย (รอให้ฟอนต์/โลโก้โหลดก่อน) — กดยกเลิกแล้วแก้ข้อความต่อ แล้วกดปุ่มพิมพ์ซ้ำได้
+  setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} }, 700);
 }
 // กดปุ่มในส่วนที่ 2 → ออกเอกสารตัวอย่าง PDF ทันที (แก้ข้อความได้) · ถ้า login แล้วจะออกเลขที่จริง+บันทึกการดึง
 async function exportAllocReport(){
