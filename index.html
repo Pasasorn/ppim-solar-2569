@@ -177,6 +177,8 @@ tr:hover td{background:#F4F7FC}
 .btn-3d:active{transform:translateY(4px);box-shadow:0 1px 0 #C27F00,0 2px 6px rgba(0,0,0,.3)}
 @keyframes btnPulse{0%,100%{box-shadow:0 5px 0 #C27F00,0 9px 18px rgba(0,0,0,.30)}50%{box-shadow:0 5px 0 #C27F00,0 9px 24px rgba(255,200,0,.65)}}
 @media (prefers-reduced-motion: reduce){.btn-3d{animation:none}}
+.btn-3d.green{background:linear-gradient(180deg,#B9F0C9,#5FcF86);color:#1c6b3a;box-shadow:0 5px 0 #2f9558,0 9px 18px rgba(0,0,0,.25);text-shadow:0 1px 0 rgba(255,255,255,.5);animation:none}
+.btn-3d.green:active{box-shadow:0 1px 0 #2f9558,0 2px 6px rgba(0,0,0,.3)}
 .mtab{display:inline-block;padding:8px 16px;border:none;background:#ede6f4;color:#6b5a86;font-weight:700;border-radius:10px 10px 0 0;cursor:pointer;font-size:.92rem;margin-right:4px}
 .mtab.on{background:var(--pea);color:#fff}
 .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.72rem;white-space:nowrap}
@@ -1674,7 +1676,7 @@ function renderMeters(){
     <tr style="background:#F4F7FC;font-weight:700"><td>รวมทั้งสิ้น</td><td class=n>${fmtN(sumCol('1P'))}</td><td class=n>${fmtN(sumCol('3P'))}</td><td class=n>${fmtN(step8Total)}</td><td class=n>ต้องจัดสรรใหม่ <b style="color:#b07c00">${fmtN(needNew)}</b></td></tr>
     </tbody></table></div>
     <div class="note" style="margin-bottom:10px">ต้องจัดสรรมิเตอร์ TOU 5(100) ใหม่ (จานหมุน + E-meter + TOU ขนาดอื่น) = <b>${fmtN(needNew)}</b> เครื่อง — ตรงกับการ์ดจัดสรรด้านล่าง · เฉพาะ TOU 5(100) เดิมเท่านั้นที่ไม่ต้องจัดสรร</div>`;
-  const allocBtn=`<div style="text-align:center;margin:6px 0 16px"><button class="btn-3d no-print" id="btnAllocReport">📄 รายงานขอจัดสรรมิเตอร์ (ออกเอกสาร PDF)</button></div>`;
+  const allocBtn=`<div style="text-align:center;margin:6px 0 16px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap"><button class="btn-3d no-print" id="btnAllocReport">📄 รายงานขอจัดสรรมิเตอร์ (ออกเอกสาร PDF)</button><button class="btn-3d green no-print" id="btnAllocDone">✅ รายงานผลการจัดสรรมิเตอร์</button></div>`;
   const tabA=`<div id="mtrTabA">
     <div class="note" style="margin-bottom:8px">นับความต้องการมิเตอร์ TOU ตั้งแต่ลูกค้าลงนามสัญญา (ขั้น 3 ขึ้นไป) — ใช้วางแผนล่วงหน้า · ยอดรวมของส่วนนี้ = <b>1P ${fmtN(fore['1P'])} · 3P ${fmtN(fore['3P'])} · รวม ${fmtN(fore['1P']+fore['3P'])}</b></div>
     ${METERS.map(m=>cardHtml(m,fore,'📈 คาดการณ์ (ยังต้องเปลี่ยน)')).join('')}${touNote}
@@ -1709,6 +1711,7 @@ function renderMeters(){
   drawHub('chMtrFore',hubFore);
   drawHub('chMtrAlloc',hubAlloc,{label:'✓ มี TOU 5(100) แล้ว',color:'#22A45D',data:hub5100});
   const bAlloc=$('#btnAllocReport'); if(bAlloc) bAlloc.onclick=exportAllocReport;
+  const bDone=$('#btnAllocDone'); if(bDone) bDone.onclick=openAllocDoneModal;
 }
 function mtrTab(t){
   const A=$('#mtrTabA'), B=$('#mtrTabB'), C=$('#mtrTabC'), ta=$('#mtabA'), tb=$('#mtabB'), tc=$('#mtabC');
@@ -2423,6 +2426,7 @@ function openAllocPdf(list, docNo, opts){
   const lot5100 = rows.filter(r=>r.step===8 && r.isTOU5100);              // TOU 5(100) เดิม ใน lot ขั้น 8 (ไม่ต้องจัดสรร)
   const tou5100Lot = lot5100.length;
   const today=new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
+  const nowTime=new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
   const esc=s=>String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
   const peaName=s=>String(s||'').replace(/กฟอ\./g,'กฟส.');   // ในเอกสาร PDF ให้ใช้ กฟส. แทน กฟอ.
   const rowsHtml=hubs.map((h,i)=>{const o=byHub[h];return `<tr><td class=n>${i+1}</td><td>${esc(peaName(h))}</td><td class=n>${o.p1||'-'}</td><td class=n>${o.p3||'-'}</td><td class=n><b>${o.p1+o.p3}</b></td></tr>`;}).join('');
@@ -2469,12 +2473,17 @@ function openAllocPdf(list, docNo, opts){
    table.attbl{font-size:14pt} table.attbl th,table.attbl td{padding:3px 7px}
    table.attbl td.mt{white-space:nowrap;font-size:11pt}
    [contenteditable="true"]:focus{outline:2px dashed #b89bd6;outline-offset:2px;background:#faf7ff}
-   @media print{ .noprint{display:none} [contenteditable]{outline:none!important;background:none!important} #paper{padding:0} }
+   .pghdr,.pgftr{display:none}
+   @media print{ .noprint{display:none} [contenteditable]{outline:none!important;background:none!important} #paper{padding:0}
+     .pghdr{display:block;position:fixed;top:-1.7cm;left:0;right:0;padding:0 2cm 0 3cm;text-align:center;color:#9aa0a6;font-size:10.5pt}
+     .pgftr{display:flex;justify-content:space-between;position:fixed;bottom:-1.3cm;left:0;right:0;padding:3px 2cm 0 3cm;color:#666;font-size:10.5pt;border-top:.5px solid #bbb} }
    .bar{position:sticky;top:0;background:#f3eefa;border-bottom:1px solid #d9c9ec;padding:10px 16px;text-align:center;z-index:5;font-family:'Sarabun',Tahoma,sans-serif}
    .bar .hint{font-size:12.5px;color:#6b4a8a;margin-right:12px}
    .btn{background:#6B2C91;color:#fff;border:0;padding:9px 20px;border-radius:8px;font-size:15px;cursor:pointer;font-family:inherit;font-weight:700}
    .logobtn{background:#fff;color:#6B2C91;border:1px solid #c9b2e3;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;margin-left:8px}
   </style></head><body>
+   <div class="pghdr">สรุปการขอจัดสรรมิเตอร์ (โดยระบบอัตโนมัติ) · ดึงข้อมูล ณ วันที่ ${today} เวลา ${nowTime} น.</div>
+   <div class="pgftr"><span>กองวิศวกรรมและวางแผน กฟน.1</span><span>ที่ กวว.(น1) ${docTxt}</span></div>
    <div class="bar noprint">
      <span class="hint">${readOnly?'🔒 เอกสารนี้ออกจากระบบแล้ว — ดู/พิมพ์ได้อย่างเดียว (แก้ไขต้องยืนยันตัวตนในระบบ)':'✏️ คลิกที่ข้อความเพื่อแก้ไขได้โดยตรง แล้วกดพิมพ์ · ฟอนต์ TH Sarabun New (ต้องมีติดตั้งในเครื่อง)'}</span>
      <button class="btn" onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
@@ -2563,6 +2572,64 @@ async function editAllocDoc(docNo){
     if(r&&r.ok){ openAllocPdf(list, docNo, {readOnly:false}); renderAllocDocs(); }
     else alert('แก้ไขไม่สำเร็จ: '+((r&&r.error)==='forbidden'?'ไม่มีสิทธิ์ (เฉพาะ ผมต.กบล./Admin)':((r&&r.error)||'')));
   }catch(e){ alert('เชื่อมต่อไม่สำเร็จ: '+e.message); }
+}
+// ===== รายงานผลการจัดสรรมิเตอร์ (ลิงก์จากเลขที่รายงานขอจัดสรร) =====
+async function openAllocDoneModal(){
+  if(!(mmSession&&mmSession.emp)){ alert('กรุณาเข้าสู่ระบบ ผมต.กบล./Admin ก่อน (ปุ่ม 📝 กดรายงานผลการสับเปลี่ยนมิเตอร์ ด้านบน)'); openMeterModal('meter'); return; }
+  let ov=$('#allocDoneBg');
+  if(!ov){ ov=document.createElement('div'); ov.id='allocDoneBg'; ov.className='mmodal-bg'; ov.style.display='none'; document.body.appendChild(ov); }
+  ov.innerHTML=`<div class="mmodal" style="max-width:640px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+      <h3>✅ รายงานผลการจัดสรรมิเตอร์</h3><button class="btn btn-outline btn-sm" id="adClose">✕</button></div>
+    <div class="note" style="margin:4px 0 8px;background:#eef9f1;border-left:3px solid var(--green);padding:6px 9px;border-radius:6px">เลือกเลขที่รายงานขอจัดสรร → เลือกรายการที่จัดสรรเสร็จ → กรอกเลขที่บันทึกผล → บันทึก</div>
+    <label>อ้างอิงเลขที่รายงานขอจัดสรร</label>
+    <select id="adDoc"><option value="">— กำลังโหลด —</option></select>
+    <div id="adItems" style="margin-top:10px"></div>
+    <label style="margin-top:10px;display:block">เลขที่บันทึกผลการจัดสรร (กรอกเอง)</label>
+    <input id="adResultNo" placeholder="เช่น กวว.(น1) ผจ.012/2569">
+    <label style="margin-top:8px;display:block">หมายเหตุ</label>
+    <textarea id="adNote" rows="2" placeholder="เช่น จัดสรรครบตามคำขอ / ขาดบางรายการ..." style="width:100%;resize:vertical"></textarea>
+    <div class="mmsg" id="adMsg"></div>
+    <div class="toolbar" style="margin-top:12px"><button class="btn btn-primary" id="adSubmit">💾 บันทึกผลการจัดสรร</button></div>
+  </div>`;
+  ov.style.display='flex';
+  const close=()=>{ ov.style.display='none'; };
+  ov.onclick=e=>{ if(e.target===ov) close(); };
+  $('#adClose').onclick=close;
+  // โหลดรายการเลขที่ขอจัดสรร
+  try{ const r=await meterApi({action:'allocdocs'}); allocDocs=(r&&r.docs)||[]; }catch(e){}
+  const sel=$('#adDoc');
+  const docsWithPending=allocDocs.filter(d=>{ const set={}; (d.reqNos||[]).forEach(x=>set[String(x).trim()]=1); return rows.some(r=>set[String(r.reqNo).trim()] && r.allocStatus==='รอจัดสรรมิเตอร์'); });
+  if(!docsWithPending.length){ sel.innerHTML='<option value="">— ไม่มีเอกสารที่มีรายการรอจัดสรร —</option>'; $('#adItems').innerHTML='<div class="note">ทุกรายการจัดสรรครบแล้ว หรือยังไม่ได้ออกเอกสารขอจัดสรร</div>'; return; }
+  sel.innerHTML='<option value="">— เลือกเลขที่ —</option>'+docsWithPending.map(d=>`<option value="${d.docNo}">กวว.(น1) ${String(d.docNo).padStart(3,'0')}/2569 · ${d.count} ราย</option>`).join('');
+  sel.onchange=()=>renderAdItems(sel.value);
+  $('#adSubmit').onclick=submitAllocDone;
+}
+function renderAdItems(docNo){
+  const box=$('#adItems'); const d=allocDocs.find(x=>String(x.docNo)===String(docNo));
+  if(!d){ box.innerHTML=''; return; }
+  const set={}; (d.reqNos||[]).forEach(x=>set[String(x).trim()]=1);
+  const pend=rows.filter(r=>set[String(r.reqNo).trim()] && r.allocStatus==='รอจัดสรรมิเตอร์');
+  if(!pend.length){ box.innerHTML='<div class="note">— เอกสารนี้จัดสรรครบแล้ว —</div>'; return; }
+  const esc=s=>String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  box.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><label style="margin:0">รายการรอจัดสรร (${pend.length} ราย)</label><label style="font-weight:600;font-size:.85rem"><input type="checkbox" id="adAll" checked> เลือกทั้งหมด</label></div>
+    <div style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:6px 10px">
+    ${pend.map(r=>`<label style="display:block;padding:3px 0;font-size:.9rem"><input type="checkbox" class="adChk" value="${esc(r.reqNo)}" checked> <b>${esc(r.reqNo)}</b> · ${r.swapPhase==='3P'?'3 เฟส':'1 เฟส'} · ${esc(r.custName||'')}</label>`).join('')}
+    </div>`;
+  const all=$('#adAll'); if(all) all.onchange=()=>{ document.querySelectorAll('.adChk').forEach(c=>c.checked=all.checked); };
+}
+async function submitAllocDone(){
+  const docNo=$('#adDoc').value; if(!docNo){ $('#adMsg').innerHTML='<span style="color:var(--danger)">กรุณาเลือกเลขที่รายงานขอจัดสรร</span>'; return; }
+  const reqNos=[...document.querySelectorAll('.adChk')].filter(c=>c.checked).map(c=>c.value);
+  if(!reqNos.length){ $('#adMsg').innerHTML='<span style="color:var(--danger)">กรุณาเลือกอย่างน้อย 1 รายการ</span>'; return; }
+  const resultNo=$('#adResultNo').value.trim(); if(!resultNo){ $('#adMsg').innerHTML='<span style="color:var(--danger)">กรุณากรอกเลขที่บันทึกผลการจัดสรร</span>'; return; }
+  const note=$('#adNote').value.trim();
+  $('#adMsg').textContent='กำลังบันทึก...';
+  try{
+    const r=await meterApi({action:'allocdone', emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name, reqNos, resultNo, refNo:docNo, note});
+    if(r&&r.ok){ $('#adMsg').innerHTML='<span style="color:var(--green)">✅ บันทึกผลแล้ว '+fmtN(r.done)+' ราย — กำลังโหลดใหม่</span>'; await loadDashboardData(); renderAllocDocs(); setTimeout(()=>{ const ov=$('#allocDoneBg'); if(ov) ov.style.display='none'; },900); }
+    else $('#adMsg').innerHTML='<span style="color:var(--danger)">บันทึกไม่สำเร็จ: '+((r&&r.error)==='forbidden'?'ไม่มีสิทธิ์ (เฉพาะ ผมต.กบล./Admin)':((r&&r.error)||''))+'</span>';
+  }catch(e){ $('#adMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่สำเร็จ: '+e.message+'</span>'; }
 }
 if($('#mmExportAlloc')) $('#mmExportAlloc').onclick = async ()=>{
   const list = allocFresh();

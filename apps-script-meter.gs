@@ -66,6 +66,8 @@ function doPost(e) {
     if (body.action === 'markpull') return json(doMarkPull(body));
     if (body.action === 'allocdocs')return json(doGetAllocDocs(body));
     if (body.action === 'editdoc')  return json(doEditAllocDoc(body));
+    if (body.action === 'allocdone')return json(doAllocDone(body));
+    if (body.action === 'donedocs') return json(doGetAllocDoneDocs(body));
     if (body.action === 'cod')      return json(doCod(body));
     if (body.action === 'log')      return json(doGetLog(body));
     if (body.action === 'ticker')   return json(doGetTicker());
@@ -404,6 +406,47 @@ function doEditAllocDoc(b){
   }
   logUser(b.emp, b.name, 'ผมต.กบล', '', 'ขอแก้ไขเอกสารจัดสรรเลขที่ ' + b.docNo + ' · เหตุผล: ' + String(b.reason||''));
   return { ok:true };
+}
+
+// ===== รายงานผลการจัดสรรมิเตอร์ (จัดสรรเสร็จแล้ว) =====
+var DONE_TAB = 'บันทึกผลการจัดสรร';
+function allocDoneSheet(){
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var t = ss.getSheetByName(DONE_TAB);
+  if (!t) { t = ss.insertSheet(DONE_TAB);
+    t.appendRow(['เลขที่บันทึกผล','อ้างอิงเลขที่ขอจัดสรร','วันที่รายงาน','รหัสผู้รายงาน','ชื่อผู้รายงาน','จำนวน','เลขที่คำขอ','หมายเหตุ']); }
+  return t;
+}
+// ผมต.กบล. รายงานว่าจัดสรรมิเตอร์เสร็จแล้ว → ลงวันที่จัดสรรมิเตอร์ + บันทึกเลขที่ผล (กรอกเอง) อ้างอิงเลขที่ขอจัดสรร
+function doAllocDone(b){
+  if (!isCentralOrAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  var reqNos = b.reqNos || [];
+  if (!reqNos.length) return { ok:false, error:'ไม่มีรายการที่เลือก' };
+  if (!String(b.resultNo||'').trim()) return { ok:false, error:'กรุณากรอกเลขที่บันทึกผลการจัดสรร' };
+  var sh = sheet(MAIN_TAB); if (!sh) return { ok:false, error:'ไม่พบแท็บ '+MAIN_TAB };
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iReq = colIndex(h,'เลขที่คำขอ'); if (iReq < 0) return { ok:false, error:'ไม่พบคอลัมน์ เลขที่คำขอ' };
+  function ensureCol(nm){ var i=colIndex(h,nm); if(i<0){ i=h.length; sh.getRange(1,i+1).setValue(nm); h.push(nm);} return i; }
+  var iAlloc = ensureCol(COL_ALLOC_DATE);
+  var set = {}; reqNos.forEach(function(x){ set[String(x).trim()] = true; });
+  var now = new Date(), n = 0;
+  for (var r=1;r<data.length;r++){
+    var rq = String(data[r][iReq]).trim();
+    if (set[rq] && !String(data[r][iAlloc]||'').trim()) { sh.getRange(r+1, iAlloc+1).setValue(now); n++; }
+  }
+  allocDoneSheet().appendRow([String(b.resultNo), String(b.refNo||''), now, String(b.emp||''), String(b.name||''), n, reqNos.join(','), String(b.note||'')]);
+  logUser(b.emp, b.name, 'ผมต.กบล', '', 'รายงานผลจัดสรรเลขที่ ' + b.resultNo + ' (อ้างอิง ' + String(b.refNo||'-') + ') · จัดสรร ' + n + ' ราย');
+  return { ok:true, done:n };
+}
+function doGetAllocDoneDocs(b){
+  var t = allocDoneSheet(); var d = t.getDataRange().getValues(); var tz = Session.getScriptTimeZone(); var out=[];
+  for (var r=1;r<d.length;r++){
+    out.push({ resultNo:String(d[r][0]||''), refNo:String(d[r][1]||''),
+      date:(d[r][2] instanceof Date)?Utilities.formatDate(d[r][2],tz,'yyyy-MM-dd HH:mm:ss'):String(d[r][2]||''),
+      emp:String(d[r][3]||''), name:String(d[r][4]||''), count:Number(d[r][5])||0,
+      reqNos:String(d[r][6]||'').split(',').filter(function(x){return x;}), note:String(d[r][7]||'') });
+  }
+  out.reverse(); return { ok:true, docs:out };
 }
 
 // ตรวจว่าเป็น ผซฟ. หรือ Admin (สำหรับบันทึก CA 82)
