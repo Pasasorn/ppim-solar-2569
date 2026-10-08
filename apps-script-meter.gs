@@ -40,7 +40,18 @@ var CENTRAL_HUB     = 'กบล.กฟน.1';                       // จุ�
 var COL_ALLOC_PULL  = 'วันที่ดึงข้อมูลจัดสรร';           // ดึงไป Export แล้ว = รอจัดสรรมิเตอร์
 var COL_ALLOC_DATE  = 'วันที่จัดสรรมิเตอร์';             // จัดสรรจริงแล้ว
 var COL_COD_DATE  = 'วันที่เชื่อมต่อเข้าระบบ';   // คอลัมน์วัน COD (ถ้ามี จะเขียนตอน ผบส. ยืนยัน)
-var ADMIN_SECRET  = 'PEA-N1-ADMIN-2569';   // 🔑 รหัสอนุมัติ Admin — ต้องกรอกให้ตรงตอนสมัครตำแหน่ง Admin (เปลี่ยนเป็นรหัสลับของคุณเอง)
+var ADMIN_SECRET  = 'PEA-N1-ADMIN-2569';   // 🔑 รหัสอนุมัติ Admin (ค่าตั้งต้น) — แก้รหัสจริงได้ที่แท็บ "ตั้งค่า" เซลล์ B1 ในชีต
+
+// อ่านรหัสอนุมัติ Admin จากชีต (แท็บ "ตั้งค่า" B1) — ถ้าไม่มีใช้ค่าตั้งต้น ADMIN_SECRET
+function getAdminSecret() {
+  try {
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var t = ss.getSheetByName('ตั้งค่า');
+    if (!t) { t = ss.insertSheet('ตั้งค่า'); t.getRange('A1').setValue('รหัสอนุมัติ Admin'); t.getRange('B1').setValue(ADMIN_SECRET); }
+    var v = String(t.getRange('B1').getValue() || '').trim();
+    return v || ADMIN_SECRET;
+  } catch (e) { return ADMIN_SECRET; }
+}
 
 function doPost(e) {
   try {
@@ -122,7 +133,7 @@ function doRegister(b) {
   var pw   = String(b.pw||'');
   if (!emp || !name || !pw) return { ok:false, error:'missing fields' };
   // สมัครตำแหน่ง Admin ต้องกรอกรหัสอนุมัติ Admin ให้ตรง (กันไม่ให้ใครตั้งตัวเองเป็น Admin)
-  if (role.toLowerCase().indexOf('admin') >= 0 && String(b.adminCode||'') !== ADMIN_SECRET) {
+  if (role.toLowerCase().indexOf('admin') >= 0 && String(b.adminCode||'') !== getAdminSecret()) {
     return { ok:false, error:'bad_admin_code' };
   }
   // สมัครตำแหน่ง ผซฟ. ต้องสังกัด ผซฟ. จริง (กันแผนกอื่นมาลงเพื่อดูข้อมูลลูกค้า)

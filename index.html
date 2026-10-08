@@ -2311,8 +2311,8 @@ if($('#mmDoRegister')) $('#mmDoRegister').onclick = async ()=>{
     else $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">ลงทะเบียนไม่สำเร็จ: '+((r&&r.error)||'')+'</span>';
   }catch(e){ $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
 };
-// รายการที่ต้องจัดสรร แต่ยังไม่เคยถูกดึง (จานหมุน/E-meter · ลงนามสัญญาแล้ว · ยังไม่ดึง/จัดสรร)
-function allocFresh(){ return rows.filter(r=>r.needSwap && r.step>=3 && r.step!==0 && r.allocStatus==='ยังไม่จัดสรร'); }
+// รายการที่ต้องจัดสรร แต่ยังไม่เคยถูกดึง (จานหมุน/E-meter · ขั้น 8 รอสับเปลี่ยน/รอ COD · ยังไม่ดึง/จัดสรร)
+function allocFresh(){ return rows.filter(r=>r.needSwap && r.step===8 && r.allocStatus==='ยังไม่จัดสรร'); }
 // สร้างเอกสาร PDF (เปิดหน้าพิมพ์ → บันทึกเป็น PDF) สรุปความต้องการมิเตอร์เพื่อจัดสรร
 function openAllocPdf(list, docNo){
   const byHub={};
