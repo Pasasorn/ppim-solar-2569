@@ -2575,7 +2575,6 @@ async function editAllocDoc(docNo){
 }
 // ===== รายงานผลการจัดสรรมิเตอร์ (ลิงก์จากเลขที่รายงานขอจัดสรร) =====
 async function openAllocDoneModal(){
-  if(!(mmSession&&mmSession.emp)){ alert('กรุณาเข้าสู่ระบบ ผมต.กบล./Admin ก่อน (ปุ่ม 📝 กดรายงานผลการสับเปลี่ยนมิเตอร์ ด้านบน)'); openMeterModal('meter'); return; }
   let ov=$('#allocDoneBg');
   if(!ov){ ov=document.createElement('div'); ov.id='allocDoneBg'; ov.className='mmodal-bg'; ov.style.display='none'; document.body.appendChild(ov); }
   ov.innerHTML=`<div class="mmodal" style="max-width:640px">
@@ -2601,7 +2600,8 @@ async function openAllocDoneModal(){
   const sel=$('#adDoc');
   const docsWithPending=allocDocs.filter(d=>{ const set={}; (d.reqNos||[]).forEach(x=>set[String(x).trim()]=1); return rows.some(r=>set[String(r.reqNo).trim()] && r.allocStatus==='รอจัดสรรมิเตอร์'); });
   if(!docsWithPending.length){ sel.innerHTML='<option value="">— ไม่มีเอกสารที่มีรายการรอจัดสรร —</option>'; $('#adItems').innerHTML='<div class="note">ทุกรายการจัดสรรครบแล้ว หรือยังไม่ได้ออกเอกสารขอจัดสรร</div>'; return; }
-  sel.innerHTML='<option value="">— เลือกเลขที่ —</option>'+docsWithPending.map(d=>`<option value="${d.docNo}">กวว.(น1) ${String(d.docNo).padStart(3,'0')}/2569 · ${d.count} ราย</option>`).join('');
+  const fmtD=s=>{ const dt=parseDate(s); return dt?dt.toLocaleDateString('th-TH'):''; };
+  sel.innerHTML='<option value="">— เลือกเลขที่ —</option>'+docsWithPending.map(d=>`<option value="${d.docNo}">กวว.(น1) ${String(d.docNo).padStart(3,'0')}/2569 · ลว. ${fmtD(d.date)} · ${d.count} ราย</option>`).join('');
   sel.onchange=()=>renderAdItems(sel.value);
   $('#adSubmit').onclick=submitAllocDone;
 }
@@ -2624,9 +2624,13 @@ async function submitAllocDone(){
   if(!reqNos.length){ $('#adMsg').innerHTML='<span style="color:var(--danger)">กรุณาเลือกอย่างน้อย 1 รายการ</span>'; return; }
   const resultNo=$('#adResultNo').value.trim(); if(!resultNo){ $('#adMsg').innerHTML='<span style="color:var(--danger)">กรุณากรอกเลขที่บันทึกผลการจัดสรร</span>'; return; }
   const note=$('#adNote').value.trim();
+  // ยืนยันตัวตน ผมต.กบล./Admin (ถ้ายังไม่ได้ login ให้กรอก)
+  const emp=(mmSession&&mmSession.emp)||prompt('รหัสพนักงาน (ผมต.กบล./Admin):'); if(!emp)return;
+  const pw=(mmSession&&mmSession.pw)||prompt('รหัสผ่าน:'); if(!pw)return;
+  const name=(mmSession&&mmSession.name)||prompt('ชื่อ-สกุล:')||emp;
   $('#adMsg').textContent='กำลังบันทึก...';
   try{
-    const r=await meterApi({action:'allocdone', emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name, reqNos, resultNo, refNo:docNo, note});
+    const r=await meterApi({action:'allocdone', emp, pw, name, reqNos, resultNo, refNo:docNo, note});
     if(r&&r.ok){ $('#adMsg').innerHTML='<span style="color:var(--green)">✅ บันทึกผลแล้ว '+fmtN(r.done)+' ราย — กำลังโหลดใหม่</span>'; await loadDashboardData(); renderAllocDocs(); setTimeout(()=>{ const ov=$('#allocDoneBg'); if(ov) ov.style.display='none'; },900); }
     else $('#adMsg').innerHTML='<span style="color:var(--danger)">บันทึกไม่สำเร็จ: '+((r&&r.error)==='forbidden'?'ไม่มีสิทธิ์ (เฉพาะ ผมต.กบล./Admin)':((r&&r.error)||''))+'</span>';
   }catch(e){ $('#adMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่สำเร็จ: '+e.message+'</span>'; }
