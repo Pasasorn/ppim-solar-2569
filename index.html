@@ -172,6 +172,11 @@ th{background:var(--navy);color:#fff;padding:8px;text-align:left;cursor:pointer;
 th .arrow{font-size:.7rem;opacity:.8}
 td{padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:top}
 tr:hover td{background:#F4F7FC}
+.btn-3d{background:linear-gradient(180deg,#8A4DB0,#6B2C91);color:#fff;border:none;border-radius:12px;padding:11px 22px;font-weight:800;font-size:1rem;cursor:pointer;box-shadow:0 5px 0 #4A1A6B,0 8px 16px rgba(74,26,107,.35);transition:transform .08s,box-shadow .08s,filter .1s;letter-spacing:.3px}
+.btn-3d:hover{filter:brightness(1.08)}
+.btn-3d:active{transform:translateY(4px);box-shadow:0 1px 0 #4A1A6B,0 2px 6px rgba(74,26,107,.3)}
+.mtab{display:inline-block;padding:8px 16px;border:none;background:#ede6f4;color:#6b5a86;font-weight:700;border-radius:10px 10px 0 0;cursor:pointer;font-size:.92rem;margin-right:4px}
+.mtab.on{background:var(--pea);color:#fff}
 .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:.72rem;white-space:nowrap}
 .b1{background:#e8eef7;color:#2f5fa8}.b2{background:#ffe9d1;color:#c2690a}.b3{background:#fdf2df;color:#b07c00}
 .b4{background:#efe7f8;color:#5A2D82}.b5{background:#e7f3ec;color:#22794a}.b6{background:#e2ecf9;color:#2c66ad}
@@ -350,7 +355,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     <!-- METER SUMMARY -->
     <div class="card" id="sec-meter" data-view="meter">
       <h2 style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>🔧 สถานะของการสับเปลี่ยนมิเตอร์</span>
-        <button class="btn btn-primary btn-sm no-print" id="btnMeterReport">📝 รายงานผลการสับเปลี่ยน (สำหรับ ผมต.)</button></h2>
+        <button class="btn-3d no-print" id="btnMeterReport">📝 กดรายงานผลการสับเปลี่ยนมิเตอร์</button></h2>
       <div class="note" style="margin-bottom:10px">🔧 สับเปลี่ยนแล้วจริง = COD แล้ว · 📈 คาดการณ์ = สถานะ “รอทดสอบเชื่อมต่อ/COD” (รอ ผมต. สับเปลี่ยนมิเตอร์) เท่านั้น · แยกเฟสจากคอลัมน์ “จำนวนเฟส”</div>
       <div id="meterSummary"></div>
     </div>
@@ -1541,7 +1546,7 @@ const METERS = [
 function renderMeters(){
   const el = $('#meterSummary'); if(!el) return;
   // แยกเป็น "สับเปลี่ยนแล้วจริง" = COD แล้ว (ขั้น 10) กับ "คาดการณ์" = กำลังดำเนินการ ยังไม่ COD/ยกเลิก
-  const swapped = {'1P':0,'3P':0}, fore = {'1P':0,'3P':0}, alloc = {'1P':0,'3P':0};
+  const swapped = {'1P':0,'3P':0}, fore = {'1P':0,'3P':0}, fore8 = {'1P':0,'3P':0}, alloc = {'1P':0,'3P':0};
   let touOld=0, unknownType=0;                    // TOU เดิม (ไม่ต้องเปลี่ยน) · ไม่ทราบประเภท
   const byArea = {};                             // กฟฟ. -> {รอสับเปลี่ยน 1P/3P, สับเปลี่ยนแล้ว done}
   const swapAging=[], codAging=[];               // ระยะเวลาดำเนินงาน
@@ -1554,7 +1559,7 @@ function renderMeters(){
       else if(r.needSwap && ph){                 // จานหมุน/E-meter → ต้องเปลี่ยนเป็น TOU
         if(r.allocated) alloc[ph]++;
         if(r.step>=9) swapped[ph]++;             // สับเปลี่ยนแล้วจริง (ขั้น 9-10)
-        else fore[ph]++;                         // คาดการณ์ ยังต้องเปลี่ยน (ขั้น 3-8)
+        else { fore[ph]++; if(r.step===8) fore8[ph]++; }   // คาดการณ์ (ขั้น 3-8) · รอจัดสรร (ขั้น 8)
       } else { unknownType++; }
     }
     // ===== ตารางคิวสับเปลี่ยนจริง (ขั้น 8-10) แยกตาม กฟฟ. =====
@@ -1593,8 +1598,8 @@ function renderMeters(){
       <tr id="${did}" style="display:none"><td colspan="7" style="background:#faf7fd;font-size:.82rem;padding:8px 14px;line-height:1.5">${items||'—'}</td></tr>`;}).join('')}
     <tr style="background:#F4F7FC;font-weight:700"><td>รวม ${areaRows.length} กฟฟ.</td><td>${fmtN(fore['1P'])}</td><td>${fmtN(fore['3P'])}</td><td>${fmtN(gPend)}</td><td>${fmtN(gDone)}</td><td>${fmtN(gAll)}</td><td>${pctCell(gDone,gAll)}</td></tr>
     </tbody></table></div>`;
-  el.innerHTML = METERS.map(m=>{
-    const done = swapped[m.key]||0, need = fore[m.key]||0, total = done+need;
+  const cardHtml=(m, needSet, lblNeed)=>{
+    const done = swapped[m.key]||0, need = needSet[m.key]||0, total = done+need;
     const pct = m.alloc ? total/m.alloc*100 : 0;
     const over = pct>100;
     const dPct = m.alloc ? done/m.alloc*100 : 0, nPct = m.alloc ? need/m.alloc*100 : 0;
@@ -1609,20 +1614,35 @@ function renderMeters(){
         <div><div class="note">จัดสรร</div><div style="font-size:1.5rem;font-weight:800">${fmtN(m.alloc)}<span style="font-size:.8rem;font-weight:400"> เครื่อง</span></div></div>
         <div><div class="note">🔧 สับเปลี่ยนแล้วจริง</div><div style="font-size:1.5rem;font-weight:800;color:var(--green)">${fmtN(done)}<span style="font-size:.8rem;font-weight:400"> · ${pctTxt(dPct)}</span></div></div>
         <div><div class="note">📦 จัดสรรแล้ว</div><div style="font-size:1.5rem;font-weight:800;color:#2F7FD1">${fmtN(alloc[m.key]||0)}</div></div>
-        <div><div class="note">📈 คาดการณ์ (ยังต้องเปลี่ยน)</div><div style="font-size:1.5rem;font-weight:800;color:var(--pea)">${fmtN(need)}<span style="font-size:.8rem;font-weight:400"> · ${pctTxt(nPct)}</span></div></div>
+        <div><div class="note">${lblNeed}</div><div style="font-size:1.5rem;font-weight:800;color:var(--pea)">${fmtN(need)}<span style="font-size:.8rem;font-weight:400"> · ${pctTxt(nPct)}</span></div></div>
         <div><div class="note">รวมต้องใช้</div><div style="font-size:1.5rem;font-weight:800;color:${headColor}">${fmtN(total)}<span style="font-size:.8rem;font-weight:400"> · ${pctTxt(pct)}</span></div></div>
         <div><div class="note">${over?'ขาดอีก':'คงเหลือ'}</div><div style="font-size:1.5rem;font-weight:800;color:${over?'var(--danger)':'var(--green)'}">${fmtN(Math.abs(m.alloc-total))}<span style="font-size:.8rem;font-weight:400"> เครื่อง</span></div></div>
       </div>
       <div style="background:#eceff3;border-radius:8px;height:16px;overflow:hidden;display:flex">
         <div title="สับเปลี่ยนแล้ว ${fmtN(done)}" style="background:var(--green);height:100%;width:${Math.min(100,dPct)}%"></div>
-        <div title="คาดการณ์ ${fmtN(need)}" style="background:${over?'var(--danger)':'var(--warn)'};height:100%;width:${Math.min(100-Math.min(100,dPct),nPct)}%"></div>
+        <div title="${lblNeed} ${fmtN(need)}" style="background:${over?'var(--danger)':'var(--warn)'};height:100%;width:${Math.min(100-Math.min(100,dPct),nPct)}%"></div>
       </div>
-      <div class="note" style="margin-top:5px">🟢 สับเปลี่ยนแล้ว · 🟡 คาดการณ์ (เทียบยอดจัดสรร)${over?` · <span style="color:var(--danger)">⚠ รวมเกินจัดสรร ${pctTxt(pct)} ต้องขอเพิ่มอีก ${fmtN(total-m.alloc)} เครื่อง</span>`:''}</div>
     </div>`;
-  }).join('')
-    + `<div class="note" style="margin:4px 0 8px;background:#eef7ee;border-left:4px solid var(--green);padding:8px 10px;border-radius:6px">✅ <b>เป็น TOU อยู่แล้ว ${fmtN(touOld)} ราย</b> — ไม่ต้องเปลี่ยน ไม่กระทบโควตา${none?` · ⚠ ไม่ระบุประเภทมิเตอร์เดิม ${fmtN(none)} ราย (ตรวจคอลัมน์ "ขนาด/ชนิด")`:''}</div>`
-    + timeBlock + areaTable
-    + `<div class="note" style="margin-top:8px">📈 คาดการณ์ = คำขอลงนามสัญญาแล้ว (ขั้น 3+) ที่เป็นจานหมุน/E-meter · 📦 จัดสรรแล้ว = มีวันที่จัดสรรมิเตอร์ · 🔧 สับเปลี่ยนแล้ว = ขั้น 9-10</div>`;
+  };
+  const touNote=`<div class="note" style="margin:4px 0 8px;background:#eef7ee;border-left:4px solid var(--green);padding:8px 10px;border-radius:6px">✅ <b>เป็น TOU อยู่แล้ว ${fmtN(touOld)} ราย</b> — ไม่ต้องเปลี่ยน ไม่กระทบโควตา${none?` · ⚠ ไม่ระบุประเภทมิเตอร์เดิม ${fmtN(none)} ราย (ตรวจคอลัมน์ "ขนาด/ชนิด")`:''}</div>`;
+  const tabBar=`<div style="border-bottom:2px solid var(--pea);margin-bottom:12px">
+    <button class="mtab on" id="mtabA" onclick="mtrTab('A')">📈 ส่วนที่ 1 · คาดการณ์ความต้องการ (ตั้งแต่ทำสัญญา)</button>
+    <button class="mtab" id="mtabB" onclick="mtrTab('B')">📦 ส่วนที่ 2 · มิเตอร์ที่ต้องจัดสรร (รอ COD)</button></div>`;
+  const tabA=`<div id="mtrTabA">
+    <div class="note" style="margin-bottom:8px">นับความต้องการมิเตอร์ TOU ตั้งแต่ลูกค้าลงนามสัญญา (ขั้น 3 ขึ้นไป) — ใช้วางแผนล่วงหน้า</div>
+    ${METERS.map(m=>cardHtml(m,fore,'📈 คาดการณ์ (ยังต้องเปลี่ยน)')).join('')}${touNote}</div>`;
+  const tabB=`<div id="mtrTabB" style="display:none">
+    <div class="note" style="margin-bottom:8px">มิเตอร์ที่พร้อมจัดสรรจริง — เฉพาะคำขอ <b>รอสับเปลี่ยน/รอ COD (ขั้น 8)</b> · ออกเอกสารจัดสรรได้ที่ปุ่ม 📝 รายงานฯ (ผมต.กบล.)</div>
+    ${METERS.map(m=>cardHtml(m,fore8,'📦 รอจัดสรร (ขั้น 8)')).join('')}</div>`;
+  el.innerHTML = tabBar + tabA + tabB + timeBlock + areaTable
+    + `<div class="note" style="margin-top:8px">📈 คาดการณ์ = ลงนามสัญญาแล้ว (ขั้น 3+) ที่เป็นจานหมุน/E-meter · 📦 รอจัดสรร = ขั้น 8 · จัดสรรแล้ว = มีวันที่จัดสรร · สับเปลี่ยนแล้ว = ขั้น 9-10</div>`;
+}
+function mtrTab(t){
+  const A=$('#mtrTabA'), B=$('#mtrTabB'), ta=$('#mtabA'), tb=$('#mtabB');
+  if(A) A.style.display = t==='A'?'':'none';
+  if(B) B.style.display = t==='B'?'':'none';
+  if(ta) ta.classList.toggle('on', t==='A');
+  if(tb) tb.classList.toggle('on', t==='B');
 }
 function renderKpis(){
   const tot = rows.length;
