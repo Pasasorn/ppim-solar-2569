@@ -2473,21 +2473,28 @@ function openAllocPdf(list, docNo, opts){
    table.attbl{font-size:14pt} table.attbl th,table.attbl td{padding:3px 7px}
    table.attbl td.mt{white-space:nowrap;font-size:11pt}
    [contenteditable="true"]:focus{outline:2px dashed #b89bd6;outline-offset:2px;background:#faf7ff}
+   /* ตารางครอบเอกสาร: thead/tfoot จะถูกพิมพ์ซ้ำทุกหน้า (หัว-ท้ายกระดาษ) */
+   .pgtbl{width:100%;border-collapse:collapse;margin:0;font-size:inherit}
+   .pgtbl>thead>tr>td,.pgtbl>tfoot>tr>td,.pgtbl>tbody>tr>td{border:0;padding:0}
+   .pgtbl>tbody>tr,.pgtbl>tbody>tr>td{page-break-inside:auto}
    .pghdr,.pgftr{display:none}
    @media print{ .noprint{display:none} [contenteditable]{outline:none!important;background:none!important} #paper{padding:0}
-     .pghdr{display:block;position:fixed;top:-1.7cm;left:0;right:0;padding:0 2cm 0 3cm;text-align:center;color:#9aa0a6;font-size:10.5pt}
-     .pgftr{display:flex;justify-content:space-between;position:fixed;bottom:-1.3cm;left:0;right:0;padding:3px 2cm 0 3cm;color:#666;font-size:10.5pt;border-top:.5px solid #bbb} }
+     .pgtbl>thead{display:table-header-group} .pgtbl>tfoot{display:table-footer-group}
+     .pghdr{display:block;text-align:center;color:#9aa0a6;font-size:10.5pt;padding-bottom:8px}
+     .pgftr{display:flex;justify-content:space-between;color:#666;font-size:10.5pt;border-top:.5px solid #bbb;padding-top:3px;margin-top:10px} }
    .bar{position:sticky;top:0;background:#f3eefa;border-bottom:1px solid #d9c9ec;padding:10px 16px;text-align:center;z-index:5;font-family:'Sarabun',Tahoma,sans-serif}
    .bar .hint{font-size:12.5px;color:#6b4a8a;margin-right:12px}
    .btn{background:#6B2C91;color:#fff;border:0;padding:9px 20px;border-radius:8px;font-size:15px;cursor:pointer;font-family:inherit;font-weight:700}
    .logobtn{background:#fff;color:#6B2C91;border:1px solid #c9b2e3;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;margin-left:8px}
   </style></head><body>
-   <div class="pghdr">สรุปการขอจัดสรรมิเตอร์ (โดยระบบอัตโนมัติ) · ดึงข้อมูล ณ วันที่ ${today} เวลา ${nowTime} น.</div>
-   <div class="pgftr"><span>กองวิศวกรรมและวางแผน กฟน.1</span><span>ที่ กวว.(น1) ${docTxt}</span></div>
    <div class="bar noprint">
      <span class="hint">${readOnly?'🔒 เอกสารนี้ออกจากระบบแล้ว — ดู/พิมพ์ได้อย่างเดียว (แก้ไขต้องยืนยันตัวตนในระบบ)':'✏️ คลิกที่ข้อความเพื่อแก้ไขได้โดยตรง แล้วกดพิมพ์ · ฟอนต์ TH Sarabun New (ต้องมีติดตั้งในเครื่อง)'}</span>
      <button class="btn" onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
    </div>
+   <table class="pgtbl">
+   <thead><tr><td><div class="pghdr">สรุปการขอจัดสรรมิเตอร์ (โดยระบบอัตโนมัติ) · ดึงข้อมูล ณ วันที่ ${today} เวลา ${nowTime} น.</div></td></tr></thead>
+   <tfoot><tr><td><div class="pgftr"><span>กองวิศวกรรมและวางแผน กฟน.1</span><span>ที่ กวว.(น1) ${docTxt}</span></div></td></tr></tfoot>
+   <tbody><tr><td>
    <div id="paper" contenteditable="${readOnly?'false':'true'}" spellcheck="false">
    <div class="lh">
      <img id="peaLogo" src="${logoUrl}" alt="PEA" onerror="this.style.display='none'">
@@ -2512,6 +2519,7 @@ function openAllocPdf(list, docNo, opts){
    ${tou5100Lot?`<table class="attbl"><thead><tr><th style="width:8%">ลำดับ</th><th style="width:22%">เลขที่คำขอ (PPIM)</th><th>ประเภทมิเตอร์</th><th style="width:11%">1 เฟส</th><th style="width:11%">3 เฟส</th></tr></thead>
    <tbody>${attach2Rows}<tr class="total"><td colspan=3>รวมมิเตอร์ TOU ขนาด 5(100)</td><td class=n>${f1}</td><td class=n>${f3}</td></tr></tbody></table>`:'<div style="text-align:center;color:#555;padding:14px">— ไม่มีรายการ —</div>'}</div>
    </div>
+   </td></tr></tbody></table>
    ${opts.autoPrint?`<script>(function(){function p(){try{window.focus();window.print();}catch(e){}}var done=false;function go(){if(done)return;done=true;p();}if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){setTimeout(go,300);});}setTimeout(go,1600);})();<\/script>`:''}
   </body></html>`;
   const w=window.open('','_blank');
