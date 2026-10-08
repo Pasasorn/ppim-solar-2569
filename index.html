@@ -1678,7 +1678,9 @@ function renderMeters(){
   const tabC=`<div id="mtrTabC" style="display:none">
     <div class="note" style="margin-bottom:8px">คิวสับเปลี่ยนจริง แยกตาม กฟฟ. (ขั้น 8–10) — รอสับเปลี่ยน + สับเปลี่ยนแล้ว · ยอดรวมของส่วนนี้ = <b>รอ ${fmtN(gPend)} · สับเปลี่ยนแล้ว ${fmtN(gDone)} · รวม ${fmtN(gAll)}</b></div>
     ${timeBlock}${areaTable}
-    <div class="note" style="margin-top:8px">📦 รอจัดสรร = ขั้น 8 · จัดสรรแล้ว = มีวันที่จัดสรร · สับเปลี่ยนแล้ว = ขั้น 9-10</div></div>`;
+    <div class="note" style="margin-top:8px">📦 รอจัดสรร = ขั้น 8 · จัดสรรแล้ว = มีวันที่จัดสรร · สับเปลี่ยนแล้ว = ขั้น 9-10</div>
+    <div style="font-weight:700;color:#374151;font-size:.9rem;margin:18px 0 8px">🗂️ ประวัติเอกสารจัดสรรที่ออกจากระบบแล้ว</div>
+    <div id="allocDocsBox"><div class="note">กดแท็บนี้เพื่อโหลดประวัติ…</div></div></div>`;
   el.innerHTML = tabBar + tabA + tabB + tabC;
   // ===== วาดกราฟราย กฟฟ. (แยก 1 เฟส/3 เฟส) =====
   Object.values(meterCharts).forEach(c=>{try{c.destroy();}catch(e){}}); meterCharts={};
@@ -1705,6 +1707,7 @@ function mtrTab(t){
   if(tc) tc.classList.toggle('on', t==='C');
   // กราฟที่เพิ่งถูกแสดง (วาดตอนซ่อน ขนาดจะเพี้ยน) → resize
   setTimeout(()=>{ if(t==='A'&&meterCharts.chMtrFore)meterCharts.chMtrFore.resize(); if(t==='B'&&meterCharts.chMtrAlloc)meterCharts.chMtrAlloc.resize(); },30);
+  if(t==='C' && typeof renderAllocDocs==='function'){ const b=$('#allocDocsBox'); if(b && !b.getAttribute('data-loaded')){ b.setAttribute('data-loaded','1'); renderAllocDocs(); } }
 }
 function renderKpis(){
   const tot = rows.length;
@@ -2397,7 +2400,9 @@ if($('#mmDoRegister')) $('#mmDoRegister').onclick = async ()=>{
 // รายการที่ต้องจัดสรร แต่ยังไม่เคยถูกดึง (จานหมุน/E-meter · ขั้น 8 รอสับเปลี่ยน/รอ COD · ยังไม่ดึง/จัดสรร)
 function allocFresh(){ return rows.filter(r=>r.needSwap && r.step===8 && r.allocStatus==='ยังไม่จัดสรร'); }
 // สร้างเอกสาร PDF (เปิดหน้าพิมพ์ → บันทึกเป็น PDF) สรุปความต้องการมิเตอร์เพื่อจัดสรร
-function openAllocPdf(list, docNo){
+function openAllocPdf(list, docNo, opts){
+  opts = opts || {};
+  const readOnly = !!opts.readOnly;
   const byHub={};
   list.forEach(r=>{ const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; const o=byHub[h]=byHub[h]||{p1:0,p3:0,items:[]}; if(r.swapPhase==='3P')o.p3++; else o.p1++; o.items.push(r); });
   const hubs=Object.keys(byHub).sort((a,b)=>(byHub[b].p1+byHub[b].p3)-(byHub[a].p1+byHub[a].p3));
@@ -2442,10 +2447,10 @@ function openAllocPdf(list, docNo){
    .logobtn{background:#fff;color:#6B2C91;border:1px solid #c9b2e3;padding:8px 14px;border-radius:8px;font-size:13px;cursor:pointer;font-family:inherit;margin-left:8px}
   </style></head><body>
    <div class="bar noprint">
-     <span class="hint">✏️ คลิกที่ข้อความเพื่อแก้ไขได้โดยตรง แล้วกดพิมพ์ · ฟอนต์ TH Sarabun New (ต้องมีติดตั้งในเครื่อง)</span>
+     <span class="hint">${readOnly?'🔒 เอกสารนี้ออกจากระบบแล้ว — ดู/พิมพ์ได้อย่างเดียว (แก้ไขต้องยืนยันตัวตนในระบบ)':'✏️ คลิกที่ข้อความเพื่อแก้ไขได้โดยตรง แล้วกดพิมพ์ · ฟอนต์ TH Sarabun New (ต้องมีติดตั้งในเครื่อง)'}</span>
      <button class="btn" onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
    </div>
-   <div id="paper" contenteditable="true" spellcheck="false">
+   <div id="paper" contenteditable="${readOnly?'false':'true'}" spellcheck="false">
    <div class="lh">
      <img id="peaLogo" src="${logoUrl}" alt="PEA" onerror="this.style.display='none'">
      <div class="org"><b>บันทึกข้อความ</b><br>ส่วนราชการ&nbsp; แผนกบริหารงานทั่วไป กบล. การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ) จ.เชียงใหม่</div>
@@ -2471,8 +2476,8 @@ function openAllocPdf(list, docNo){
   const w=window.open('','_blank');
   if(!w){ alert('เบราว์เซอร์บล็อกหน้าต่างใหม่ — กรุณาอนุญาต Popup แล้วลองใหม่'); return; }
   w.document.open(); w.document.write(html); w.document.close();
-  // เด้ง dialog พิมพ์/บันทึกเป็น PDF ให้เลย (รอให้ฟอนต์/โลโก้โหลดก่อน) — กดยกเลิกแล้วแก้ข้อความต่อ แล้วกดปุ่มพิมพ์ซ้ำได้
-  setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} }, 700);
+  // เด้ง dialog พิมพ์/บันทึกเป็น PDF ให้เลย เฉพาะตอนออกเอกสารใหม่ (ไม่เด้งตอนเปิดดู/แก้ไข)
+  if(opts.autoPrint){ setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} }, 700); }
 }
 // กดปุ่มในส่วนที่ 2 → ออกเอกสารตัวอย่าง PDF ทันที (แก้ข้อความได้) · ถ้า login แล้วจะออกเลขที่จริง+บันทึกการดึง
 async function exportAllocReport(){
@@ -2484,8 +2489,50 @@ async function exportAllocReport(){
     try{ const r=await meterApi({action:'markpull', emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name, reqNos:list.map(x=>x.reqNo)});
       if(r&&r.ok){ docNo=r.docNo; } else alert('ออกเลขที่อัตโนมัติไม่สำเร็จ ('+((r&&r.error)||'')+') — จะออกเป็นเอกสารร่าง (แก้เลขที่เองได้)'); }catch(e){ alert('เชื่อมต่อไม่สำเร็จ — จะออกเป็นเอกสารร่าง'); }
   }
-  openAllocPdf(list, docNo);
-  if(docNo){ await loadDashboardData(); }   // รีเฟรชสถานะหลังบันทึกการดึง
+  openAllocPdf(list, docNo, {autoPrint:true});
+  if(docNo){ await loadDashboardData(); renderAllocDocs(); }   // รีเฟรชสถานะ + ประวัติหลังบันทึกการดึง
+}
+// ===== ประวัติเอกสารจัดสรรที่ออกจากระบบแล้ว (ดูได้ · แก้ไขต้องยืนยันตัวตน) =====
+let allocDocs = [];
+async function renderAllocDocs(){
+  const box=$('#allocDocsBox'); if(!box) return;
+  box.innerHTML='<div class="note">กำลังโหลดประวัติเอกสาร...</div>';
+  try{
+    const r=await meterApi({action:'allocdocs'});
+    if(!r||!r.ok){ box.innerHTML='<div class="note">โหลดประวัติไม่สำเร็จ</div>'; return; }
+    allocDocs = r.docs||[];
+    if(!allocDocs.length){ box.innerHTML='<div class="note" style="padding:8px">— ยังไม่มีเอกสารที่ออกจากระบบ —</div>'; return; }
+    const esc=s=>String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+    const fmtD=s=>{ const d=parseDate(s); return d?d.toLocaleDateString('th-TH'):esc(s); };
+    box.innerHTML=`<div style="overflow-x:auto"><table style="font-size:.9rem">
+      <thead><tr><th>เลขที่</th><th>วันที่ออก</th><th>ผู้ออก</th><th>จำนวน</th><th>สถานะ</th><th></th></tr></thead><tbody>
+      ${allocDocs.map(d=>`<tr>
+        <td><b>กวว.(น1) ${esc(String(d.docNo).padStart(3,'0'))}/2569</b></td>
+        <td>${fmtD(d.date)}</td>
+        <td>${esc(d.name||d.emp||'-')}</td>
+        <td style="text-align:center">${fmtN(d.count)}</td>
+        <td style="text-align:center">${d.status==='แก้ไข'?('<span style="color:#b07c00" title="แก้ไขโดย '+esc(d.editedBy)+' · '+esc(d.reason)+'">✏️ แก้ไขแล้ว</span>'):'<span style="color:var(--green)">ออกแล้ว</span>'}</td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-sm" style="background:#6B2C91;color:#fff;border:0;padding:4px 10px;border-radius:6px;cursor:pointer" onclick="viewAllocDoc('${esc(d.docNo)}')">👁 ดู</button>
+          <button class="btn btn-sm" style="background:#fff;color:#b07c00;border:1px solid #e3c000;padding:4px 10px;border-radius:6px;cursor:pointer" onclick="editAllocDoc('${esc(d.docNo)}')">✏️ แก้ไข</button>
+        </td></tr>`).join('')}
+      </tbody></table></div>
+      <div class="note" style="margin-top:6px">👁 ดู = เปิดอ่าน/พิมพ์ซ้ำ (แก้ไม่ได้) · ✏️ แก้ไข = ต้องยืนยันรหัสพนักงาน ชื่อ-สกุล และเหตุผล (บันทึก log)</div>`;
+  }catch(e){ box.innerHTML='<div class="note">โหลดประวัติไม่สำเร็จ: '+e.message+'</div>'; }
+}
+function allocDocList(docNo){ const d=allocDocs.find(x=>String(x.docNo)===String(docNo)); if(!d)return null;
+  const set={}; (d.reqNos||[]).forEach(x=>set[String(x).trim()]=1); return rows.filter(r=>set[String(r.reqNo).trim()]); }
+function viewAllocDoc(docNo){ const list=allocDocList(docNo); if(!list||!list.length){ alert('ไม่พบรายการของเอกสารนี้'); return; } openAllocPdf(list, docNo, {readOnly:true}); }
+async function editAllocDoc(docNo){
+  const list=allocDocList(docNo); if(!list){ alert('ไม่พบรายการของเอกสารนี้'); return; }
+  const emp=(mmSession&&mmSession.emp)||prompt('รหัสพนักงาน:'); if(!emp)return;
+  const pw=(mmSession&&mmSession.pw)||prompt('รหัสผ่าน:'); if(!pw)return;
+  const name=(mmSession&&mmSession.name)||prompt('ชื่อ-สกุล:'); if(!name)return;
+  const reason=prompt('เหตุผลที่ต้องแก้ไขเอกสารเลขที่ '+docNo+':'); if(!reason||!reason.trim()){ alert('ต้องระบุเหตุผลการแก้ไข'); return; }
+  try{ const r=await meterApi({action:'editdoc', emp, pw, name, docNo, reason});
+    if(r&&r.ok){ openAllocPdf(list, docNo, {readOnly:false}); renderAllocDocs(); }
+    else alert('แก้ไขไม่สำเร็จ: '+((r&&r.error)==='forbidden'?'ไม่มีสิทธิ์ (เฉพาะ ผมต.กบล./Admin)':((r&&r.error)||'')));
+  }catch(e){ alert('เชื่อมต่อไม่สำเร็จ: '+e.message); }
 }
 if($('#mmExportAlloc')) $('#mmExportAlloc').onclick = async ()=>{
   const list = allocFresh();
