@@ -577,6 +577,7 @@ let rows = [];
 let sort = {col:'dSubmit', dir:-1};
 let page = 1; const PER = 25;
 let charts = {};
+let meterCharts = {};
 let stepFilter = null;
 
 /* ================= HELPERS ================= */
@@ -828,6 +829,7 @@ async function loadDashboardData(){
   try{
     const r = await meterApi({action:'data'});   // ภาพรวมดูได้เลย ไม่ต้อง login
     if(!r || !r.ok) throw new Error((r&&r.error)||'โหลดไม่ได้');
+    if(!r.main || !r.main.headers){ throw new Error('API ไม่ส่งข้อมูลกลับ (request ไปโดน doGet) — ให้ Deploy Apps Script ใหม่เป็น "New version" สิทธิ์ "Anyone" และตรวจว่า URL ลงท้าย /exec ตรงกับ deployment ล่าสุด'); }
     // main → raw/headers (แปลง array เป็น object ตามหัวคอลัมน์)
     headers = r.main.headers||[];
     raw = (r.main.rows||[]).map(row=>{ const o={}; headers.forEach((h,i)=>o[h]= row[i]!=null?String(row[i]):''); return o; });
@@ -940,6 +942,10 @@ function buildRowsFrom(rawArr, map){
     o.meterSize = clean(get('meterSize'));
     o.isTOU = /TOU/i.test(o.meterSize);                                    // เป็น TOU อยู่แล้ว → ไม่ต้องเปลี่ยน
     o.needSwap = !o.isTOU && /จานหมุน|e[\s-]?meter|อิเล็ก/i.test(o.meterSize); // จานหมุน/E-meter → ต้องเปลี่ยนเป็น TOU
+    // ประเภทมิเตอร์เดิม 3 กลุ่ม: จานหมุน / E-meter / TOU (ไม่งั้น = ไม่ระบุ)
+    o.meterType = /จานหมุน/.test(o.meterSize) ? 'จานหมุน'
+                : /e[\s-]?meter|อิเล็ก/i.test(o.meterSize) ? 'E-meter'
+                : /TOU/i.test(o.meterSize) ? 'TOU' : 'ไม่ระบุ';
     o.swapPhase = /3\s*เฟส|3p/i.test(o.meterSize) ? '3P'
                 : /1\s*เฟส|1p/i.test(o.meterSize) ? '1P'
                 : (o.meterPhase==='1P'||o.meterPhase==='3P') ? o.meterPhase : '';
@@ -1552,28 +1558,35 @@ function renderMeters(){
   const swapped = {'1P':0,'3P':0}, fore = {'1P':0,'3P':0}, fore8 = {'1P':0,'3P':0}, alloc = {'1P':0,'3P':0};
   let touOld=0, unknownType=0;                    // TOU เดิม (ไม่ต้องเปลี่ยน) · ไม่ทราบประเภท
   const byArea = {};                             // กฟฟ. -> {รอสับเปลี่ยน 1P/3P, สับเปลี่ยนแล้ว done}
+  const hubFore = {}, hubAlloc = {};             // กฟฟ. -> {1P,3P} สำหรับกราฟ ส่วนที่ 1 (คาดการณ์) และ ส่วนที่ 2 (รอจัดสรร)
+  const step8Type = {'จานหมุน':{'1P':0,'3P':0},'E-meter':{'1P':0,'3P':0},'TOU':{'1P':0,'3P':0},'ไม่ระบุ':{'1P':0,'3P':0}}; // 49 ราย ขั้น 8 แยกประเภท
   const swapAging=[], codAging=[];               // ระยะเวลาดำเนินงาน
   rows.forEach(r=>{
     if(r.step===0) return;                       // สถานะยกเลิก — ไม่นับมิเตอร์ทั้งหมด
     const ph = r.swapPhase==='3P'?'3P':r.swapPhase==='1P'?'1P':null;
+    const mph = r.meterPhase==='3P'?'3P':r.meterPhase==='1P'?'1P':null;   // เฟสสำหรับนับทั้ง 49 (รวมทุกประเภท)
+    const gk = reqHub(r) || r.areaCheck || r.area || 'ไม่ระบุ';
     // ===== คาดการณ์โควตา: นับจากคำขอที่ลงนามสัญญาแล้ว (ขั้น 3 ขึ้นไป) =====
     if(r.step>=3){
       if(r.isTOU){ touOld++; }                   // เป็น TOU อยู่แล้ว → ไม่ต้องเปลี่ยน (ไม่กระทบโควตา)
       else if(r.needSwap && ph){                 // จานหมุน/E-meter → ต้องเปลี่ยนเป็น TOU
         if(r.allocated) alloc[ph]++;
         if(r.step>=9) swapped[ph]++;             // สับเปลี่ยนแล้วจริง (ขั้น 9-10)
-        else { fore[ph]++; if(r.step===8) fore8[ph]++; }   // คาดการณ์ (ขั้น 3-8) · รอจัดสรร (ขั้น 8)
+        else { fore[ph]++; (hubFore[gk]=hubFore[gk]||{'1P':0,'3P':0})[ph]++;
+               if(r.step===8){ fore8[ph]++; (hubAlloc[gk]=hubAlloc[gk]||{'1P':0,'3P':0})[ph]++; } }  // คาดการณ์ (ขั้น 3-8) · รอจัดสรร (ขั้น 8)
       } else { unknownType++; }
     }
+    // ===== ขั้น 8 ทั้งหมด (= สถานะ รอทดสอบเชื่อมต่อ/COD) แยกตามประเภทมิเตอร์เดิม — รวม 49 =====
+    if(r.step===8 && mph){ (step8Type[r.meterType]=step8Type[r.meterType]||{'1P':0,'3P':0})[mph]++; }
     // ===== ตารางคิวสับเปลี่ยนจริง (ขั้น 8-10) แยกตาม กฟฟ. =====
     if((r.step===8||r.step===9||r.step===10) && r.needSwap && ph){
-      const gk = reqHub(r) || r.areaCheck || r.area || 'ไม่ระบุ';
       const a=byArea[gk]=byArea[gk]||{'1P':0,'3P':0,done:0,items:[]};
       a.items.push({reqNo:r.reqNo, phase:ph, step:r.step, caCreated:r.caCreated, ca82:(r.ca82NoSys||r.ca82No||''), meterSize:r.meterSize, allocStatus:r.allocStatus});
       if(r.step===8){ a[ph]++; if(r.swapWaitDays!=null) swapAging.push(r.swapWaitDays); }
       else { a.done++; if(r.step===9 && r.codWaitDays!=null) codAging.push(r.codWaitDays); }
     }
   });
+  const step8Total = ['จานหมุน','E-meter','TOU','ไม่ระบุ'].reduce((s,t)=>s+step8Type[t]['1P']+step8Type[t]['3P'],0);
   const mv=0, none=unknownType;
   const agg=arr=>arr.length?{n:arr.length,max:Math.max(...arr),avg:Math.round(arr.reduce((a,b)=>a+b,0)/arr.length)}:{n:0,max:0,avg:0};
   const swA=agg(swapAging), cdA=agg(codAging);
@@ -1632,17 +1645,46 @@ function renderMeters(){
     <button class="mtab on" id="mtabA" onclick="mtrTab('A')">📈 ส่วนที่ 1 · คาดการณ์ความต้องการ (ตั้งแต่ทำสัญญา)</button>
     <button class="mtab" id="mtabB" onclick="mtrTab('B')">📦 ส่วนที่ 2 · มิเตอร์ที่ต้องจัดสรร (รอ COD)</button>
     <button class="mtab" id="mtabC" onclick="mtrTab('C')">🔌 ส่วนที่ 3 · ผลการจัดสรร/สับเปลี่ยน แยก กฟฟ.</button></div>`;
+  // ===== กราฟราย กฟฟ. แยก 1 เฟส/3 เฟส =====
+  const hubChartBox=(cid,sub)=>`<div style="margin-top:14px"><div style="font-weight:700;color:#374151;font-size:.9rem;margin-bottom:6px">📊 แยกตาม กฟฟ. (1 เฟส / 3 เฟส) — ${sub}</div><div class="chart-box" style="height:300px"><canvas id="${cid}"></canvas></div></div>`;
+  // ===== ตารางแยกประเภทมิเตอร์เดิม ขั้น 8 (รวม 49) =====
+  const tRow=(t,color)=>{const v=step8Type[t]||{'1P':0,'3P':0}; const tot=v['1P']+v['3P']; if(!tot&&t==='ไม่ระบุ')return ''; return `<tr><td style="font-weight:700;color:${color}">${t}</td><td class=n>${v['1P']||'-'}</td><td class=n>${v['3P']||'-'}</td><td class=n><b>${fmtN(tot)}</b></td><td class=n>${t==='TOU'?'<span style="color:var(--green)">✔ มี TOU แล้ว</span>':t==='ไม่ระบุ'?'<span style="color:var(--gray)">ตรวจสอบ</span>':'<span style="color:#b07c00">ต้องสั่งมิเตอร์ใหม่</span>'}</td></tr>`;};
+  const needNew=step8Type['จานหมุน']['1P']+step8Type['จานหมุน']['3P']+step8Type['E-meter']['1P']+step8Type['E-meter']['3P'];
+  const typeTable=`<div style="font-weight:700;color:#374151;font-size:.9rem;margin:4px 0 6px">🔢 ขั้น 8 (รอทดสอบเชื่อมต่อ/COD) ทั้งหมด <b style="color:var(--pea)">${fmtN(step8Total)}</b> ราย — แยกตามประเภทมิเตอร์เดิม</div>
+    <div style="overflow-x:auto"><table style="margin-bottom:6px"><thead><tr><th>ประเภทมิเตอร์เดิม</th><th>1 เฟส</th><th>3 เฟส</th><th>รวม</th><th>ต้องสั่งมิเตอร์?</th></tr></thead><tbody>
+    ${tRow('จานหมุน','#b07c00')}${tRow('E-meter','#b07c00')}${tRow('TOU','var(--green)')}${tRow('ไม่ระบุ','var(--gray)')}
+    <tr style="background:#F4F7FC;font-weight:700"><td>รวมทั้งสิ้น</td><td class=n>${fmtN(step8Type['จานหมุน']['1P']+step8Type['E-meter']['1P']+step8Type['TOU']['1P']+step8Type['ไม่ระบุ']['1P'])}</td><td class=n>${fmtN(step8Type['จานหมุน']['3P']+step8Type['E-meter']['3P']+step8Type['TOU']['3P']+step8Type['ไม่ระบุ']['3P'])}</td><td class=n>${fmtN(step8Total)}</td><td class=n>ต้องสั่งใหม่ <b style="color:#b07c00">${fmtN(needNew)}</b></td></tr>
+    </tbody></table></div>
+    <div class="note" style="margin-bottom:10px">มิเตอร์ที่ต้องสั่งใหม่ (จานหมุน + E-meter) = <b>${fmtN(needNew)}</b> เครื่อง — ตรงกับการ์ดจัดสรรด้านล่าง · TOU เดิมไม่ต้องสั่ง</div>`;
+  const allocBtn=`<div style="text-align:center;margin:6px 0 16px"><button class="btn-3d no-print" id="btnAllocReport">📄 รายงานขอจัดสรรมิเตอร์ (ออกเอกสาร PDF)</button></div>`;
   const tabA=`<div id="mtrTabA">
     <div class="note" style="margin-bottom:8px">นับความต้องการมิเตอร์ TOU ตั้งแต่ลูกค้าลงนามสัญญา (ขั้น 3 ขึ้นไป) — ใช้วางแผนล่วงหน้า · ยอดรวมของส่วนนี้ = <b>1P ${fmtN(fore['1P'])} · 3P ${fmtN(fore['3P'])} · รวม ${fmtN(fore['1P']+fore['3P'])}</b></div>
-    ${METERS.map(m=>cardHtml(m,fore,'📈 คาดการณ์ (ยังต้องเปลี่ยน)')).join('')}${touNote}</div>`;
+    ${METERS.map(m=>cardHtml(m,fore,'📈 คาดการณ์ (ยังต้องเปลี่ยน)')).join('')}${touNote}
+    ${hubChartBox('chMtrFore','คาดการณ์ ตั้งแต่ทำสัญญา ขั้น 3+')}</div>`;
   const tabB=`<div id="mtrTabB" style="display:none">
-    <div class="note" style="margin-bottom:8px">มิเตอร์ที่พร้อมจัดสรรจริง — เฉพาะคำขอ <b>รอสับเปลี่ยน/รอ COD (ขั้น 8)</b> · ออกเอกสารจัดสรรได้ที่ปุ่ม 📝 รายงานฯ (ผมต.กบล.) · ยอดรวมของส่วนนี้ = <b>1P ${fmtN(fore8['1P'])} · 3P ${fmtN(fore8['3P'])} · รวม ${fmtN(fore8['1P']+fore8['3P'])}</b></div>
-    ${METERS.map(m=>cardHtml(m,fore8,'📦 รอจัดสรร (ขั้น 8)')).join('')}</div>`;
+    ${typeTable}${allocBtn}
+    <div class="note" style="margin-bottom:8px">การ์ดจัดสรร — เฉพาะที่ต้องสั่งมิเตอร์ใหม่ (จานหมุน/E-meter) ขั้น 8 · ยอดรวม = <b>1P ${fmtN(fore8['1P'])} · 3P ${fmtN(fore8['3P'])} · รวม ${fmtN(fore8['1P']+fore8['3P'])}</b></div>
+    ${METERS.map(m=>cardHtml(m,fore8,'📦 รอจัดสรร (ขั้น 8)')).join('')}
+    ${hubChartBox('chMtrAlloc','มิเตอร์ที่ต้องสั่งใหม่ ขั้น 8')}</div>`;
   const tabC=`<div id="mtrTabC" style="display:none">
     <div class="note" style="margin-bottom:8px">คิวสับเปลี่ยนจริง แยกตาม กฟฟ. (ขั้น 8–10) — รอสับเปลี่ยน + สับเปลี่ยนแล้ว · ยอดรวมของส่วนนี้ = <b>รอ ${fmtN(gPend)} · สับเปลี่ยนแล้ว ${fmtN(gDone)} · รวม ${fmtN(gAll)}</b></div>
     ${timeBlock}${areaTable}
     <div class="note" style="margin-top:8px">📦 รอจัดสรร = ขั้น 8 · จัดสรรแล้ว = มีวันที่จัดสรร · สับเปลี่ยนแล้ว = ขั้น 9-10</div></div>`;
   el.innerHTML = tabBar + tabA + tabB + tabC;
+  // ===== วาดกราฟราย กฟฟ. (แยก 1 เฟส/3 เฟส) =====
+  Object.values(meterCharts).forEach(c=>{try{c.destroy();}catch(e){}}); meterCharts={};
+  const drawHub=(cid,hubData)=>{
+    const cv=$('#'+cid); if(!cv||typeof Chart==='undefined')return;
+    const entries=Object.entries(hubData).sort((a,b)=>((b[1]['1P']+b[1]['3P'])-(a[1]['1P']+a[1]['3P'])));
+    if(!entries.length){ cv.parentElement.innerHTML='<div class="note" style="padding:20px;text-align:center">— ยังไม่มีข้อมูล —</div>'; return; }
+    meterCharts[cid]=new Chart(cv,{type:'bar',data:{labels:entries.map(e=>e[0]),datasets:[
+      {label:'1 เฟส (1P2W)',data:entries.map(e=>e[1]['1P']||0),backgroundColor:'#7A34A6',borderRadius:4},
+      {label:'3 เฟส (3P4W)',data:entries.map(e=>e[1]['3P']||0),backgroundColor:'#F2A93B',borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:14,font:{size:12}}}},
+        scales:{x:{ticks:{font:{size:11},maxRotation:60,minRotation:0}},y:{beginAtZero:true,ticks:{precision:0},title:{display:true,text:'เครื่อง'}}}}});
+  };
+  drawHub('chMtrFore',hubFore); drawHub('chMtrAlloc',hubAlloc);
+  const bAlloc=$('#btnAllocReport'); if(bAlloc) bAlloc.onclick=()=>openMeterModal('meter');
 }
 function mtrTab(t){
   const A=$('#mtrTabA'), B=$('#mtrTabB'), C=$('#mtrTabC'), ta=$('#mtabA'), tb=$('#mtabB'), tc=$('#mtabC');
@@ -1652,6 +1694,8 @@ function mtrTab(t){
   if(ta) ta.classList.toggle('on', t==='A');
   if(tb) tb.classList.toggle('on', t==='B');
   if(tc) tc.classList.toggle('on', t==='C');
+  // กราฟที่เพิ่งถูกแสดง (วาดตอนซ่อน ขนาดจะเพี้ยน) → resize
+  setTimeout(()=>{ if(t==='A'&&meterCharts.chMtrFore)meterCharts.chMtrFore.resize(); if(t==='B'&&meterCharts.chMtrAlloc)meterCharts.chMtrAlloc.resize(); },30);
 }
 function renderKpis(){
   const tot = rows.length;
@@ -1662,8 +1706,9 @@ function renderKpis(){
   const gridWait = rows.filter(r=>!r.gridPass && r.step!==0 && !(r.gridChk&&r.gridChk.includes('ไม่ผ่าน'))).length;
   // มิเตอร์: รอสับเปลี่ยน = ขั้น 8, สับเปลี่ยนแล้ว = ขั้น 10 (COD) แยก 1P/3P
   const mtr = {w1:0,w3:0,p1:0,p3:0,d1:0,d3:0};
-  rows.forEach(r=>{ const ph=r.meterPhase; if(ph!=='1P'&&ph!=='3P')return;
-    if(r.step===8){ ph==='1P'?mtr.w1++:mtr.w3++; }
+  const wType = {'จานหมุน':0,'E-meter':0,'TOU':0,'ไม่ระบุ':0};   // แยกประเภทมิเตอร์เดิม ของขั้น 8 (= รอทดสอบเชื่อมต่อ/COD)
+  rows.forEach(r=>{ const ph=r.meterPhase; if(ph!=='1P'&&ph!=='3P')return;  // นับทุกคำขอขั้น 8 (= สถานะ รอทดสอบเชื่อมต่อ/COD)
+    if(r.step===8){ ph==='1P'?mtr.w1++:mtr.w3++; wType[r.meterType]=(wType[r.meterType]||0)+1; }
     else if(r.step===9){ ph==='1P'?mtr.p1++:mtr.p3++; }
     if(r.step===9||r.step===10){ ph==='1P'?mtr.d1++:mtr.d3++; } });
   const meterWait = mtr.w1+mtr.w3, meterPbs = mtr.p1+mtr.p3, meterDone = mtr.d1+mtr.d3;
@@ -1688,7 +1733,7 @@ function renderKpis(){
     K('ok',     '👍', fmtN(passed)+pc(passed),                        'ผ่านการพิจารณา',     'ทำสัญญาขึ้นไป (ขั้น 3+)') +
     K('warn',   '⏱️', '<span style="font-size:1.15rem">🟢'+fmtN(g)+' 🟡'+fmtN(y)+' 🔴'+fmtN(rd)+'</span>', 'สถานะ SLA', 'ช่วงตรวจสอบ+ทำสัญญา') +
     K('danger', '⛔', fmtN(ov)+pc(ov),                                'เกิน SLA',           'ค้างเกิน 30 วัน') +
-    K('warn',   '🔧', fmtN(meterWait)+pc(meterWait),                  'รอสับเปลี่ยนมิเตอร์', '1P '+fmtN(mtr.w1)+' / 3P '+fmtN(mtr.w3)+' · ขั้น 8') +
+    K('warn',   '🔧', fmtN(meterWait)+pc(meterWait),                  'รอสับเปลี่ยนมิเตอร์', 'จานหมุน '+fmtN(wType['จานหมุน'])+' · E-meter '+fmtN(wType['E-meter'])+' · TOU '+fmtN(wType['TOU'])+' · ขั้น 8') +
     K('info',   '⏳', fmtN(meterPbs)+pc(meterPbs),                    'รอ ผบส.กด COD',      '⚠ อย่าลืมกดใน PPIM · ขั้น 9') +
     K('ok',     '🔌', fmtN(meterDone)+pc(meterDone),                  'สับเปลี่ยนแล้ว',      '1P '+fmtN(mtr.d1)+' / 3P '+fmtN(mtr.d3)+' · ขั้น 9+10') +
     K('info',   '🧾', fmtN(ca82Done)+' / '+fmtN(ca82Pop.length)+(ca82Pop.length?' <span class="pc">('+pctTxt(ca82Done/ca82Pop.length*100)+')</span>':''), 'สร้างบัญชี CA 82', 'รอสร้างอีก '+fmtN(ca82Wait)+' ราย') +
