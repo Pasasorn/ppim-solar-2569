@@ -2444,19 +2444,19 @@ function openAllocPdf(list, docNo){
    <div class="bar noprint">
      <span class="hint">✏️ คลิกที่ข้อความเพื่อแก้ไขได้โดยตรง แล้วกดพิมพ์ · ฟอนต์ TH Sarabun New (ต้องมีติดตั้งในเครื่อง)</span>
      <button class="btn" onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button>
-     <button class="logobtn" onclick="var u=prompt('วางลิงก์รูปโลโก้ PEA (URL หรือ data:image...)','');if(u){try{localStorage.setItem('pea_logo_url',u);}catch(e){}var im=document.getElementById('peaLogo');im.src=u;im.style.display='';}">🖼️ ตั้งค่าโลโก้</button>
    </div>
    <div id="paper" contenteditable="true" spellcheck="false">
    <div class="lh">
      <img id="peaLogo" src="${logoUrl}" alt="PEA" onerror="this.style.display='none'">
      <div class="org"><b>บันทึกข้อความ</b><br>ส่วนราชการ&nbsp; แผนกบริหารงานทั่วไป กบล. การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ) จ.เชียงใหม่</div>
    </div>
-   <div class="row2"><div class="fld"><b>ที่</b>&nbsp; กวว.(น1) ${docTxt}</div><div class="fld"><b>วันที่</b>&nbsp; ${today}</div></div>
+   <div class="fld"><b>ที่</b>&nbsp; กวว.(น1) ${docTxt}</div>
+   <div class="fld" style="text-align:center"><b>ลงวันที่</b>&nbsp; ${today}</div>
    <div class="fld"><b>เรื่อง</b>&nbsp; ขอจัดสรรมิเตอร์ TOU สำหรับโครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์ภาคประชาชน ปี 2569</div>
    <div class="fld"><b>เรียน</b>&nbsp; ผู้อำนวยการกองบำรุงรักษา การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ)</div>
    <hr style="border:none;border-top:1px solid #000;margin:8px 0 12px">
    <div class="intro">ตามที่การไฟฟ้าส่วนภูมิภาคดำเนินโครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์ที่ติดตั้งบนหลังคาสำหรับภาคประชาชนประเภทบ้านอยู่อาศัย ปี 2569 ซึ่งผู้เข้าร่วมโครงการที่ได้ลงนามในสัญญาซื้อขายไฟฟ้าแล้ว จะต้องดำเนินการสับเปลี่ยนเครื่องวัดหน่วยไฟฟ้าเดิม (ชนิดจานหมุน/E-meter หรือ TOU ที่มิใช่ขนาด 5(100)) เป็นมิเตอร์ TOU ขนาด 5(100) เพื่อรองรับการจ่ายไฟฟ้าเข้าระบบเชิงพาณิชย์ (COD) นั้น</div>
-   <div class="intro">กบล.(น1) ได้รวบรวมและสรุปปริมาณความต้องการมิเตอร์ TOU เพื่อขอรับการจัดสรร จำแนกตามจุดร่วมงาน/การไฟฟ้า ณ วันที่จัดทำเอกสาร ดังนี้</div>
+   <div class="intro">กวว.(น1) ได้ตรวจสอบข้อมูลการ COD และการสับเปลี่ยนมิเตอร์ ของ กฟส.(L,M) ณ วันที่ ..................... ถึงวันที่ ${today} (วันที่ดึงข้อมูลแล้วจะไม่ถูกดึงซ้ำ) พบว่ามีจำนวนสัญญาที่รอการจัดสรรมิเตอร์ จำนวน <b>${t1+t3}</b> ราย สรุปได้ดังนี้ (รายละเอียดตามเอกสารแนบ 1)</div>
    <table><thead><tr><th style="width:8%">ลำดับ</th><th>จุดร่วมงาน / การไฟฟ้า</th><th style="width:16%">1 เฟส (เครื่อง)</th><th style="width:16%">3 เฟส (เครื่อง)</th><th style="width:14%">รวม</th></tr></thead>
    <tbody>${rowsHtml}<tr class="total"><td class=n></td><td>รวมทั้งสิ้น ${hubs.length} จุดร่วมงาน</td><td class=n>${t1}</td><td class=n>${t3}</td><td class=n>${t1+t3}</td></tr></tbody></table>
    <div class="code"><b>รหัสพัสดุ:</b> มิเตอร์ TOU 1P2W 5(100)A = <b>1060070703</b> &nbsp;·&nbsp; มิเตอร์ TOU 3P4W 5(100)A = <b>1060070709</b></div>

@@ -64,6 +64,8 @@ function doPost(e) {
     if (body.action === 'ca82')     return json(doCreateCA82(body));
     if (body.action === 'files')    return json(doGetFiles(body));
     if (body.action === 'markpull') return json(doMarkPull(body));
+    if (body.action === 'allocdocs')return json(doGetAllocDocs(body));
+    if (body.action === 'editdoc')  return json(doEditAllocDoc(body));
     if (body.action === 'cod')      return json(doCod(body));
     if (body.action === 'log')      return json(doGetLog(body));
     if (body.action === 'ticker')   return json(doGetTicker());
@@ -356,8 +358,52 @@ function doMarkPull(b) {
     if (set[rq] && !String(data[r][iPull]||'').trim()) { sh.getRange(r+1, iPull+1).setValue(now); n++; }
   }
   var docNo = nextDocNo();
+  saveAllocDoc(docNo, b.emp, b.name, n, reqNos);
   logUser(b.emp, b.name, 'ผมต.กบล', '', 'ออกเอกสารจัดสรรเลขที่ ' + docNo + ' · ดึง ' + n + ' ราย');
   return { ok:true, marked:n, docNo:docNo };
+}
+
+// ===== ประวัติเอกสารจัดสรรที่ออกจากระบบแล้ว =====
+var DOC_TAB = 'บันทึกการจัดสรร';
+function allocDocSheet(){
+  var ss = SpreadsheetApp.openById(SHEET_ID);
+  var t = ss.getSheetByName(DOC_TAB);
+  if (!t) { t = ss.insertSheet(DOC_TAB);
+    t.appendRow(['เลขที่','วันที่ออก','รหัสผู้ออก','ชื่อผู้ออก','จำนวนราย','เลขที่คำขอ','สถานะ','แก้ไขล่าสุด','ผู้แก้ไข','เหตุผลแก้ไข']); }
+  return t;
+}
+function saveAllocDoc(docNo, emp, name, n, reqNos){
+  try{ allocDocSheet().appendRow([docNo, new Date(), String(emp||''), String(name||''), n, (reqNos||[]).join(','), 'ออกแล้ว', '', '', '']); }catch(e){}
+}
+function doGetAllocDocs(b){
+  var t = allocDocSheet(); var d = t.getDataRange().getValues();
+  var tz = Session.getScriptTimeZone(); var out = [];
+  for (var r=1;r<d.length;r++){
+    out.push({ docNo:d[r][0], date:(d[r][1] instanceof Date)?Utilities.formatDate(d[r][1],tz,'yyyy-MM-dd HH:mm:ss'):String(d[r][1]||''),
+      emp:String(d[r][2]||''), name:String(d[r][3]||''), count:Number(d[r][4])||0,
+      reqNos:String(d[r][5]||'').split(',').filter(function(x){return x;}),
+      status:String(d[r][6]||'ออกแล้ว'),
+      editedAt:(d[r][7] instanceof Date)?Utilities.formatDate(d[r][7],tz,'yyyy-MM-dd HH:mm:ss'):String(d[r][7]||''),
+      editedBy:String(d[r][8]||''), reason:String(d[r][9]||'') });
+  }
+  out.reverse();   // ล่าสุดก่อน
+  return { ok:true, docs:out };
+}
+function doEditAllocDoc(b){
+  if (!isCentralOrAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  if (!String(b.reason||'').trim()) return { ok:false, error:'ต้องระบุเหตุผลการแก้ไข' };
+  var t = allocDocSheet(); var d = t.getDataRange().getValues();
+  for (var r=1;r<d.length;r++){
+    if (String(d[r][0]) === String(b.docNo)) {
+      t.getRange(r+1,7).setValue('แก้ไข');
+      t.getRange(r+1,8).setValue(new Date());
+      t.getRange(r+1,9).setValue(String(b.name||b.emp||''));
+      t.getRange(r+1,10).setValue(String(b.reason||''));
+      break;
+    }
+  }
+  logUser(b.emp, b.name, 'ผมต.กบล', '', 'ขอแก้ไขเอกสารจัดสรรเลขที่ ' + b.docNo + ' · เหตุผล: ' + String(b.reason||''));
+  return { ok:true };
 }
 
 // ตรวจว่าเป็น ผซฟ. หรือ Admin (สำหรับบันทึก CA 82)
