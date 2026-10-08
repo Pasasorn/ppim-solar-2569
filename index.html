@@ -286,7 +286,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <div id="mmAllocWrap" class="hidden" style="margin:8px 0;background:#eef4fc;border:1px solid #cfe0f5;border-radius:10px;padding:10px 12px">
         <div style="font-weight:700;margin-bottom:4px">📦 จัดสรรมิเตอร์ (ผมต.กบล.น1)</div>
         <div class="note" id="mmAllocInfo" style="margin-bottom:8px"></div>
-        <button class="btn btn-primary btn-sm" id="mmExportAlloc">📥 Export รายการรอจัดสรร (ยังไม่ดึง)</button>
+        <button class="btn btn-primary btn-sm" id="mmExportAlloc">📄 ออกเอกสาร PDF (ความต้องการมิเตอร์)</button>
         <div class="mmsg" id="mmAllocMsg"></div>
       </div>
       <label>เลขที่คำขอ (เฉพาะจุดร่วมงานของท่าน · สถานะรอสับเปลี่ยน)</label><select id="mmReq"></select>
@@ -2313,19 +2313,57 @@ if($('#mmDoRegister')) $('#mmDoRegister').onclick = async ()=>{
 };
 // รายการที่ต้องจัดสรร แต่ยังไม่เคยถูกดึง (จานหมุน/E-meter · ลงนามสัญญาแล้ว · ยังไม่ดึง/จัดสรร)
 function allocFresh(){ return rows.filter(r=>r.needSwap && r.step>=3 && r.step!==0 && r.allocStatus==='ยังไม่จัดสรร'); }
+// สร้างเอกสาร PDF (เปิดหน้าพิมพ์ → บันทึกเป็น PDF) สรุปความต้องการมิเตอร์เพื่อจัดสรร
+function openAllocPdf(list){
+  const byHub={};
+  list.forEach(r=>{ const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; const o=byHub[h]=byHub[h]||{p1:0,p3:0,items:[]}; if(r.swapPhase==='3P')o.p3++; else o.p1++; o.items.push(r); });
+  const hubs=Object.keys(byHub).sort((a,b)=>(byHub[b].p1+byHub[b].p3)-(byHub[a].p1+byHub[a].p3));
+  let t1=0,t3=0; hubs.forEach(h=>{t1+=byHub[h].p1;t3+=byHub[h].p3;});
+  const today=new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
+  const esc=s=>String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const rowsHtml=hubs.map(h=>{const o=byHub[h];return `<tr><td>${esc(h)}</td><td class=n>${o.p1||'-'}</td><td class=n>${o.p3||'-'}</td><td class=n><b>${o.p1+o.p3}</b></td></tr>`;}).join('');
+  const detail=hubs.map(h=>`<div class=hd>${esc(h)} — ${byHub[h].p1+byHub[h].p3} ราย (1 เฟส ${byHub[h].p1} · 3 เฟส ${byHub[h].p3})</div>`
+      +byHub[h].items.map(r=>`<div class=it>• ${esc(r.reqNo)} · ${r.swapPhase==='3P'?'3 เฟส':'1 เฟส'} · ${esc(r.meterSize)} · ${esc(r.custName)}</div>`).join('')).join('');
+  const html=`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>สรุปความต้องการมิเตอร์เพื่อจัดสรร</title>
+  <style>
+   @page{size:A4;margin:16mm}
+   body{font-family:'Sarabun','TH Sarabun New','Tahoma',sans-serif;color:#1f2937;font-size:15px;line-height:1.55}
+   h1{font-size:19px;text-align:center;margin:0 0 3px} .sub{text-align:center;color:#555;font-size:13px;margin-bottom:14px}
+   .meta{font-size:13px;margin-bottom:8px}
+   .intro{font-size:14px;text-align:justify;text-indent:2.5em;margin-bottom:10px}
+   table{width:100%;border-collapse:collapse;margin:8px 0}
+   th,td{border:1px solid #777;padding:6px 9px;font-size:14px} th{background:#efe8f6}
+   td.n{text-align:center} tr.total td{background:#f3eefa;font-weight:bold}
+   .hd{font-weight:bold;margin:11px 0 2px;color:#5E2483;font-size:14px} .it{font-size:12.5px;padding-left:10px;color:#333}
+   .code{font-size:12.5px;color:#555;margin-top:6px}
+   .sign{margin-top:36px;text-align:center;float:right;width:48%;font-size:13.5px}
+   .attach{page-break-before:always} .atHead{font-weight:bold;font-size:16px;text-align:center;margin:0 0 12px;color:#5E2483}
+   @media print{ .noprint{display:none} }
+   .noprint{text-align:center;margin:14px 0}
+   .btn{background:#6B2C91;color:#fff;border:0;padding:9px 20px;border-radius:8px;font-size:15px;cursor:pointer;font-family:inherit}
+  </style></head><body>
+   <div class="noprint"><button class="btn" onclick="window.print()">🖨️ พิมพ์ / บันทึกเป็น PDF</button></div>
+   <h1>บันทึกสรุปปริมาณความต้องการมิเตอร์เพื่อจัดสรร</h1>
+   <div class="sub">โครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์ที่ติดตั้งบนหลังคา สำหรับภาคประชาชนประเภทบ้านอยู่อาศัย ปี 2569<br>การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ)</div>
+   <div class="meta"><b>วันที่จัดทำ:</b> ${today} &nbsp;·&nbsp; <b>ผู้จัดทำ:</b> แผนกส่งเสริมพลังงานทดแทนและอนุรักษ์พลังงาน</div>
+   <div class="intro">ตามที่การไฟฟ้าส่วนภูมิภาคดำเนินโครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์ที่ติดตั้งบนหลังคาสำหรับภาคประชาชนประเภทบ้านอยู่อาศัย ปี 2569 ซึ่งผู้เข้าร่วมโครงการที่ได้ลงนามในสัญญาซื้อขายไฟฟ้าแล้ว จะต้องดำเนินการสับเปลี่ยนเครื่องวัดหน่วยไฟฟ้าเดิม (ชนิดจานหมุน/E-meter) เป็นมิเตอร์ TOU เพื่อรองรับการจ่ายไฟฟ้าเข้าระบบเชิงพาณิชย์ (COD) นั้น</div>
+   <div class="intro">กบล.(น1) ได้รวบรวมและสรุปปริมาณความต้องการมิเตอร์ TOU เพื่อการจัดสรร จำแนกตามจุดร่วมงาน/การไฟฟ้า ณ วันที่จัดทำเอกสาร ดังนี้</div>
+   <table><thead><tr><th>จุดร่วมงาน / การไฟฟ้า</th><th>มิเตอร์ TOU 1 เฟส</th><th>มิเตอร์ TOU 3 เฟส</th><th>รวม (เครื่อง)</th></tr></thead>
+   <tbody>${rowsHtml}<tr class="total"><td>รวมทั้งสิ้น ${hubs.length} จุดร่วมงาน</td><td class=n>${t1}</td><td class=n>${t3}</td><td class=n>${t1+t3}</td></tr></tbody></table>
+   <div class="code">รหัสพัสดุ: มิเตอร์ TOU 1P2W 5(100)A = <b>1060070703</b> &nbsp;·&nbsp; มิเตอร์ TOU 3P4W 5(100)A = <b>1060070709</b></div>
+   <div style="overflow:hidden;margin-top:30px"><div class="sign">ลงชื่อ ............................................<br>( นายศุภวัฒิ กินีสี )<br>วศก.6 ผสอ.กวว.(น1)</div></div>
+   <div class="attach"><div class="atHead">เอกสารแนบ 1 — รายละเอียดคำขอ (รวม ${list.length} ราย)</div>${detail}</div>
+  </body></html>`;
+  const w=window.open('','_blank');
+  if(!w){ alert('เบราว์เซอร์บล็อกหน้าต่างใหม่ — กรุณาอนุญาต Popup แล้วลองใหม่'); return; }
+  w.document.open(); w.document.write(html); w.document.close();
+  setTimeout(()=>{ try{ w.focus(); w.print(); }catch(e){} }, 500);
+}
 if($('#mmExportAlloc')) $('#mmExportAlloc').onclick = async ()=>{
   const list = allocFresh();
   if(!list.length){ $('#mmAllocMsg').innerHTML='<span style="color:var(--gray)">ไม่มีรายการใหม่ให้ดึง (ทุกรายการถูกดึง/จัดสรรแล้ว)</span>'; return; }
-  if(!confirm('ดึงข้อมูล '+list.length+' ราย ไปจัดสรรมิเตอร์?\nรายการที่ดึงจะถูกทำเครื่องหมาย "รอจัดสรรมิเตอร์" และจะไม่ถูกดึงซ้ำ')) return;
-  // สร้างไฟล์ CSV
-  const head=['เลขที่คำขอ','กฟฟ.ที่ตรวจสอบ','ชื่อผู้ใช้ไฟฟ้า','ประเภทมิเตอร์เดิม','เฟสที่ต้องเปลี่ยน','รหัสพัสดุ TOU','CA','PEA No.','กำลังเสนอขาย(kW)','พิกัด'];
-  const codeOf=p=> p==='1P'?'1060070703':p==='3P'?'1060070709':'';
-  const lines=[head.join(',')].concat(list.map(r=>[
-    r.reqNo, `"${r.areaCheck||r.area||''}"`, `"${(r.custName||'').replace(/"/g,'""')}"`, `"${(r.meterSize||'').replace(/"/g,'""')}"`,
-    r.swapPhase==='1P'?'1 เฟส':r.swapPhase==='3P'?'3 เฟส':'', codeOf(r.swapPhase), r.ca||'', r.peaNo||'', r.kw||'', `"${(r.lat&&r.lng)?(r.lat+' '+r.lng):''}"`
-  ].join(',')));
-  const blob=new Blob(['﻿'+lines.join('\n')],{type:'text/csv;charset=utf-8'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='จัดสรรมิเตอร์-'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+  if(!confirm('ออกเอกสาร PDF สรุปความต้องการมิเตอร์ '+list.length+' ราย?\nรายการที่ดึงจะถูกทำเครื่องหมาย "รอจัดสรรมิเตอร์" และจะไม่ถูกดึงซ้ำ')) return;
+  openAllocPdf(list);   // เปิดหน้าพิมพ์ → บันทึกเป็น PDF
   // บันทึกว่าดึงแล้ว (รอจัดสรรมิเตอร์)
   $('#mmAllocMsg').textContent='กำลังบันทึกสถานะ...';
   try{
