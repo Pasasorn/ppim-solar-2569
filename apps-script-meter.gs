@@ -53,6 +53,28 @@ function getAdminSecret() {
   } catch (e) { return ADMIN_SECRET; }
 }
 
+// ===== ลายเซ็นอิเล็กทรอนิกส์ (เก็บใน Google Drive · ส่งเป็น base64 เฉพาะผู้มีสิทธิ์ ตอนออกเอกสาร) =====
+// ใส่ Drive File ID ของไฟล์ลายเซ็น (PNG โปร่งใส) ที่ tab "ตั้งค่า" ช่อง B2 — ไม่ต้อง redeploy ถ้าเปลี่ยนไฟล์
+function getSignatureFileId() {
+  try {
+    var ss = SpreadsheetApp.openById(SHEET_ID);
+    var t = ss.getSheetByName('ตั้งค่า');
+    if (!t) { t = ss.insertSheet('ตั้งค่า'); t.getRange('A1').setValue('รหัสอนุมัติ Admin'); t.getRange('B1').setValue(ADMIN_SECRET); }
+    if (!String(t.getRange('A2').getValue()||'').trim()) t.getRange('A2').setValue('ไฟล์ลายเซ็น (Drive File ID)');
+    return String(t.getRange('B2').getValue() || '').trim();
+  } catch (e) { return ''; }
+}
+function doGetSignature(b) {
+  if (!isCentralOrAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  var id = getSignatureFileId();
+  if (!id) return { ok:false, error:'ยังไม่ได้ตั้งค่าไฟล์ลายเซ็น (tab ตั้งค่า ช่อง B2)' };
+  try {
+    var f = DriveApp.getFileById(id); var blob = f.getBlob();
+    var mime = blob.getContentType() || 'image/png';
+    return { ok:true, dataUrl: 'data:' + mime + ';base64,' + Utilities.base64Encode(blob.getBytes()), name: f.getName() };
+  } catch (e) { return { ok:false, error:'อ่านไฟล์ลายเซ็นไม่ได้: ' + e }; }
+}
+
 function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents || '{}');
@@ -68,6 +90,7 @@ function doPost(e) {
     if (body.action === 'editdoc')  return json(doEditAllocDoc(body));
     if (body.action === 'allocdone')return json(doAllocDone(body));
     if (body.action === 'donedocs') return json(doGetAllocDoneDocs(body));
+    if (body.action === 'signature')return json(doGetSignature(body));
     if (body.action === 'cod')      return json(doCod(body));
     if (body.action === 'log')      return json(doGetLog(body));
     if (body.action === 'ticker')   return json(doGetTicker());
