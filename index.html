@@ -2513,11 +2513,18 @@ function openAllocPdf(list, docNo, opts){
   w.document.open(); w.document.write(html); w.document.close();
 }
 // ดึงลายเซ็นอิเล็กทรอนิกส์จาก Drive ผ่าน Apps Script (เฉพาะผู้ login ผมต.กบล./Admin) — คืน dataURL หรือ null
-let _sigCache=null;
+let _sigCache=null, _sigWarned=false;
 async function fetchSignature(){
-  if(!(mmSession&&mmSession.emp)) return null;
+  if(!(mmSession&&mmSession.emp)){ if(!_sigWarned){ _sigWarned=true; alert('ℹ️ ยังไม่ได้ login — เอกสารจะไม่มีรูปลายเซ็น (แสดงเป็นชื่อแทน)\nถ้าต้องการลายเซ็น ให้ login เป็น ผมต.กบล./Admin ก่อน'); } return null; }
   if(_sigCache) return _sigCache;
-  try{ const r=await meterApi({action:'signature', emp:mmSession.emp, pw:mmSession.pw}); if(r&&r.ok&&r.dataUrl){ _sigCache=r.dataUrl; return _sigCache; } }catch(e){}
+  let why='';
+  try{ const r=await meterApi({action:'signature', emp:mmSession.emp, pw:mmSession.pw});
+    if(r&&r.ok&&r.dataUrl){ _sigCache=r.dataUrl; return _sigCache; }
+    why=(r&&r.error)||'ไม่ทราบสาเหตุ';
+    if(why==='unknown action') why='Apps Script ยังเป็นเวอร์ชันเก่า — ต้อง redeploy เป็น New version';
+    else if(why==='forbidden') why='บัญชีนี้ไม่ใช่ ผมต.กบล./Admin';
+  }catch(e){ why='เชื่อมต่อไม่สำเร็จ: '+e.message; }
+  if(!_sigWarned){ _sigWarned=true; alert('⚠️ ดึงลายเซ็นไม่ได้: '+why+'\nเอกสารจะแสดงชื่อแทนลายเซ็น'); }
   return null;
 }
 // กดปุ่มในส่วนที่ 2 → ออกเอกสารตัวอย่าง PDF ทันที (แก้ข้อความได้) · ถ้า login แล้วจะออกเลขที่จริง+บันทึกการดึง
