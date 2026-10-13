@@ -64,15 +64,34 @@ function getSignatureFileId() {
     return String(t.getRange('B2').getValue() || '').trim();
   } catch (e) { return ''; }
 }
+// โฟลเดอร์ Drive ที่เก็บลายเซ็น (ค่าเริ่มต้น) — ระบบจะเลือกไฟล์รูปในโฟลเดอร์นี้อัตโนมัติ (ชอบชื่อที่มี sign/ลายเซ็น/ศุภวัฒิ)
+var SIGN_FOLDER_ID = '1WagmOQfevwh1ETHFb91m-8L4xFLDgkhL';
+function findSignatureFile() {
+  var id = getSignatureFileId();                       // ถ้าใส่ File ID ไว้ที่ B2 ใช้ไฟล์นั้นก่อน
+  if (id) { try { return DriveApp.getFileById(id); } catch (e) {} }
+  var folder = DriveApp.getFolderById(SIGN_FOLDER_ID);
+  var it = folder.getFiles(), best = null, bestScore = -1;
+  while (it.hasNext()) {
+    var f = it.next(), m = String(f.getMimeType()||'').toLowerCase(), n = String(f.getName()||'').toLowerCase();
+    if (m.indexOf('image/') !== 0) continue;
+    var s = 0; if (n.indexOf('sign')>=0 || n.indexOf('ลายเซ็น')>=0 || n.indexOf('ศุภวัฒิ')>=0) s += 10; if (m.indexOf('png')>=0) s += 2;
+    if (s > bestScore) { bestScore = s; best = f; }
+  }
+  return best;
+}
 function doGetSignature(b) {
   if (!isCentralOrAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
-  var id = getSignatureFileId();
-  if (!id) return { ok:false, error:'ยังไม่ได้ตั้งค่าไฟล์ลายเซ็น (tab ตั้งค่า ช่อง B2)' };
   try {
-    var f = DriveApp.getFileById(id); var blob = f.getBlob();
-    var mime = blob.getContentType() || 'image/png';
+    var f = findSignatureFile();
+    if (!f) return { ok:false, error:'ไม่พบไฟล์รูปลายเซ็นในโฟลเดอร์ (อัปโหลด PNG โปร่งใสลงโฟลเดอร์ลายเซ็นก่อน)' };
+    var blob = f.getBlob(); var mime = blob.getContentType() || 'image/png';
     return { ok:true, dataUrl: 'data:' + mime + ';base64,' + Utilities.base64Encode(blob.getBytes()), name: f.getName() };
   } catch (e) { return { ok:false, error:'อ่านไฟล์ลายเซ็นไม่ได้: ' + e }; }
+}
+// 🔧 ทดสอบ: เลือกฟังก์ชันนี้แล้วกด Run → ดู Execution log ว่าเจอไฟล์ลายเซ็นไหม
+function testSignature() {
+  var f = findSignatureFile();
+  Logger.log(f ? ('✅ เจอไฟล์ลายเซ็น: ' + f.getName() + ' (' + f.getMimeType() + ')') : '❌ ไม่พบไฟล์รูปในโฟลเดอร์ลายเซ็น');
 }
 
 function doPost(e) {

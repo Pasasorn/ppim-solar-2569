@@ -2456,6 +2456,9 @@ function openAllocPdf(list, docNo, opts){
    .note{margin:10px 0;text-indent:2.5em}
    .code{font-size:14.5pt;margin-top:8px}
    .sign{margin-top:40px;float:right;text-align:center;width:52%;line-height:1.7}
+   .sigwrap{position:relative;display:inline-block;height:64px;line-height:0;margin-bottom:2px}
+   .sigwrap img{max-height:64px;max-width:230px;display:block}
+   .sigwm{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-14deg);white-space:nowrap;font-size:8.5pt;line-height:1;color:rgba(94,36,131,.55);letter-spacing:.3px;pointer-events:none;font-family:'Sarabun',Tahoma,sans-serif}
    .attach{page-break-before:always} .atHead{font-weight:bold;font-size:17pt;text-align:center;margin:0 0 4px} .atSub{text-align:center;font-size:14pt;margin-bottom:10px;color:#333}
    table.attbl{font-size:14pt} table.attbl th,table.attbl td{padding:3px 7px}
    table.attbl td.mt{white-space:nowrap;font-size:11pt}
@@ -2497,7 +2500,7 @@ function openAllocPdf(list, docNo, opts){
    <tbody>${rowsHtml}<tr class="total"><td class=n></td><td>รวมทั้งสิ้น ${hubs.length} จุดร่วมงาน</td><td class=n>${t1}</td><td class=n>${t3}</td><td class=n>${t1+t3}</td></tr></tbody></table>
    <div class="code"><b>รหัสพัสดุ:</b> มิเตอร์ TOU 1P2W 5(100)A = <b>1060070703</b> &nbsp;·&nbsp; มิเตอร์ TOU 3P4W 5(100)A = <b>1060070709</b></div>
    <div class="intro">จึงเรียนมาเพื่อโปรดพิจารณาจัดสรรมิเตอร์ TOU จำนวน <b>${t1+t3}</b> เครื่อง ตามรายละเอียดเอกสารแนบ 1 ต่อไป</div>
-   <div style="overflow:hidden"><div class="sign">${opts.signature?`<div style="height:60px;display:flex;align-items:flex-end;justify-content:center"><img src="${opts.signature}" alt="ลายเซ็น" style="max-height:60px;max-width:220px" contenteditable="false"></div>`:'ลงชื่อ&nbsp; นายศุภวัฒิ กินีสี'}<br>( นายศุภวัฒิ กินีสี )<br>วิศวกร ระดับ 6 ผสอ.กวว.(น1)</div></div>
+   <div style="overflow:hidden"><div class="sign">${opts.signature?`<div class="sigwrap" contenteditable="false"><img src="${opts.signature}" alt="ลายเซ็น"><div class="sigwm">ลงนามอิเล็กทรอนิกส์ · กวว.(น1) ${docTxt} · ${today}</div></div>`:'ลงชื่อ&nbsp; นายศุภวัฒิ กินีสี'}<br>( นายศุภวัฒิ กินีสี )<br>วิศวกร ระดับ 6 ผสอ.กวว.(น1)</div></div>
    <div class="attach"><div class="atHead">เอกสารแนบ 1</div><div class="atSub">รายการมิเตอร์ที่ต้องขอรับการจัดสรร แยกตามจุดร่วมงาน/การไฟฟ้า (รวม ${list.length} ราย)</div>
    <table class="attbl"><thead><tr><th style="width:8%">ลำดับ</th><th style="width:22%">เลขที่คำขอ (PPIM)</th><th>ประเภทมิเตอร์เดิม</th><th style="width:11%">1 เฟส</th><th style="width:11%">3 เฟส</th></tr></thead>
    <tbody>${attachRows}<tr class="total"><td colspan=3>รวม</td><td class=n>${t1}</td><td class=n>${t3}</td></tr></tbody></table></div>
