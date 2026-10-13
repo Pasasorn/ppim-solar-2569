@@ -107,6 +107,7 @@ function doPost(e) {
     if (body.action === 'markpull') return json(doMarkPull(body));
     if (body.action === 'allocdocs')return json(doGetAllocDocs(body));
     if (body.action === 'editdoc')  return json(doEditAllocDoc(body));
+    if (body.action === 'canceldoc')return json(doCancelAllocDoc(body));
     if (body.action === 'allocdone')return json(doAllocDone(body));
     if (body.action === 'donedocs') return json(doGetAllocDoneDocs(body));
     if (body.action === 'signature')return json(doGetSignature(body));
@@ -448,6 +449,33 @@ function doEditAllocDoc(b){
   }
   logUser(b.emp, b.name, 'ผมต.กบล', '', 'ขอแก้ไขเอกสารจัดสรรเลขที่ ' + b.docNo + ' · เหตุผล: ' + String(b.reason||''));
   return { ok:true };
+}
+
+// ยกเลิกเอกสารขอจัดสรร: คืนรายการที่ยังไม่จัดสรรกลับเป็น "ยังไม่ดึง" (ล้างวันที่ดึง) + ตั้งสถานะเอกสาร = ยกเลิก
+function doCancelAllocDoc(b){
+  if (!isCentralOrAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  if (!String(b.reason||'').trim()) return { ok:false, error:'ต้องระบุเหตุผลการยกเลิก' };
+  var t = allocDocSheet(); var d = t.getDataRange().getValues(); var reqNos = null, rowIdx = -1;
+  for (var r=1;r<d.length;r++){ if (String(d[r][0]) === String(b.docNo)) { reqNos = String(d[r][5]||'').split(',').filter(function(x){return x;}); rowIdx = r; break; } }
+  if (rowIdx < 0) return { ok:false, error:'ไม่พบเอกสารเลขที่ ' + b.docNo };
+  if (String(d[rowIdx][6]||'') === 'ยกเลิก') return { ok:false, error:'เอกสารนี้ถูกยกเลิกไปแล้ว' };
+  var sh = sheet(MAIN_TAB); var data = sh.getDataRange().getValues(), h = data[0];
+  var iReq = colIndex(h,'เลขที่คำขอ'), iPull = colIndex(h,COL_ALLOC_PULL), iAlloc = colIndex(h,COL_ALLOC_DATE);
+  var set = {}; reqNos.forEach(function(x){ set[String(x).trim()] = true; });
+  var n = 0, skipped = 0;
+  if (iReq >= 0 && iPull >= 0) {
+    for (var r2=1;r2<data.length;r2++){
+      var rq = String(data[r2][iReq]).trim(); if (!set[rq]) continue;
+      if (iAlloc >= 0 && String(data[r2][iAlloc]||'').trim()) { skipped++; continue; }   // จัดสรรแล้ว → ไม่คืน
+      if (String(data[r2][iPull]||'').trim()) { sh.getRange(r2+1, iPull+1).clearContent(); n++; }
+    }
+  }
+  t.getRange(rowIdx+1,7).setValue('ยกเลิก');
+  t.getRange(rowIdx+1,8).setValue(new Date());
+  t.getRange(rowIdx+1,9).setValue(String(b.name||b.emp||''));
+  t.getRange(rowIdx+1,10).setValue('ยกเลิก: ' + String(b.reason||''));
+  logUser(b.emp, b.name, 'ผมต.กบล', '', 'ยกเลิกเอกสารจัดสรรเลขที่ ' + b.docNo + ' · คืน ' + n + ' ราย (ข้าม ' + skipped + ' ที่จัดสรรแล้ว) · เหตุผล: ' + String(b.reason||''));
+  return { ok:true, reverted:n, skipped:skipped };
 }
 
 // ===== รายงานผลการจัดสรรมิเตอร์ (จัดสรรเสร็จแล้ว) =====

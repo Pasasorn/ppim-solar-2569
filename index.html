@@ -2570,13 +2570,14 @@ async function renderAllocDocs(){
         <td>${fmtD(d.date)}</td>
         <td>${esc(d.name||d.emp||'-')}</td>
         <td style="text-align:center">${fmtN(d.count)}</td>
-        <td style="text-align:center">${d.status==='แก้ไข'?('<span style="color:#b07c00" title="แก้ไขโดย '+esc(d.editedBy)+' · '+esc(d.reason)+'">✏️ แก้ไขแล้ว</span>'):'<span style="color:var(--green)">ออกแล้ว</span>'}</td>
+        <td style="text-align:center">${d.status==='ยกเลิก'?('<span style="color:var(--danger);font-weight:700" title="'+esc(d.editedBy)+' · '+esc(d.reason)+'">🚫 ยกเลิกแล้ว</span>'):d.status==='แก้ไข'?('<span style="color:#b07c00" title="แก้ไขโดย '+esc(d.editedBy)+' · '+esc(d.reason)+'">✏️ แก้ไขแล้ว</span>'):'<span style="color:var(--green)">ออกแล้ว</span>'}</td>
         <td style="white-space:nowrap">
           <button class="btn btn-sm" style="background:#6B2C91;color:#fff;border:0;padding:4px 10px;border-radius:6px;cursor:pointer" onclick="viewAllocDoc('${esc(d.docNo)}')">👁 ดู</button>
-          <button class="btn btn-sm" style="background:#fff;color:#b07c00;border:1px solid #e3c000;padding:4px 10px;border-radius:6px;cursor:pointer" onclick="editAllocDoc('${esc(d.docNo)}')">✏️ แก้ไข</button>
+          ${d.status==='ยกเลิก'?'':`<button class="btn btn-sm" style="background:#fff;color:#b07c00;border:1px solid #e3c000;padding:4px 10px;border-radius:6px;cursor:pointer" onclick="editAllocDoc('${esc(d.docNo)}')">✏️ แก้ไข</button>
+          <button class="btn btn-sm" style="background:#fff;color:var(--danger);border:1px solid #e8a0a0;padding:4px 10px;border-radius:6px;cursor:pointer" onclick="cancelAllocDoc('${esc(d.docNo)}')">🚫 ยกเลิก</button>`}
         </td></tr>`).join('')}
       </tbody></table></div>
-      <div class="note" style="margin-top:6px">👁 ดู = เปิดอ่าน/พิมพ์ซ้ำ (แก้ไม่ได้) · ✏️ แก้ไข = ต้องยืนยันรหัสพนักงาน ชื่อ-สกุล และเหตุผล (บันทึก log)</div>`;
+      <div class="note" style="margin-top:6px">👁 ดู = เปิดอ่าน/พิมพ์ซ้ำ · ✏️ แก้ไข = แก้ข้อความแล้วพิมพ์ใหม่ · 🚫 ยกเลิก = คืนรายการที่ยังไม่จัดสรรกลับเป็น "ยังไม่ดึง" ให้ออกเอกสารใหม่ได้ — ทั้งสองต้องยืนยันรหัสพนักงาน + เหตุผล (บันทึก log)</div>`;
   }catch(e){ box.innerHTML='<div class="note">โหลดประวัติไม่สำเร็จ: '+e.message+'</div>'; }
 }
 function allocDocList(docNo){ const d=allocDocs.find(x=>String(x.docNo)===String(docNo)); if(!d)return null;
@@ -2591,6 +2592,17 @@ async function editAllocDoc(docNo){
   try{ const r=await meterApi({action:'editdoc', emp, pw, name, docNo, reason});
     if(r&&r.ok){ const signature=await fetchSignature({emp,pw}); openAllocPdf(list, docNo, {readOnly:false, signature}); renderAllocDocs(); }
     else alert('แก้ไขไม่สำเร็จ: '+((r&&r.error)==='forbidden'?'ไม่มีสิทธิ์ (เฉพาะ ผมต.กบล./Admin)':((r&&r.error)||'')));
+  }catch(e){ alert('เชื่อมต่อไม่สำเร็จ: '+e.message); }
+}
+// ยกเลิกเอกสารขอจัดสรร → คืนรายการที่ยังไม่จัดสรรกลับเป็น "ยังไม่ดึง" (ต้องยืนยันตัวตน + เหตุผล)
+async function cancelAllocDoc(docNo){
+  const d=allocDocs.find(x=>String(x.docNo)===String(docNo)); if(!d){ alert('ไม่พบเอกสาร'); return; }
+  if(!confirm('ยกเลิกเอกสารเลขที่ กวว.(น1) '+String(docNo).padStart(3,'0')+'/'+(new Date().getFullYear()+543)+' ('+fmtN(d.count)+' ราย)?\n\n• รายการที่ยังไม่จัดสรร จะกลับเป็น "ยังไม่ดึง" และถูกดึงใหม่ในเอกสารครั้งถัดไป\n• รายการที่จัดสรรแล้วจะไม่ถูกคืน\n• เลขที่เอกสารนี้จะถูกบันทึกว่า "ยกเลิก" (ไม่นำกลับมาใช้)')) return;
+  const c=getAllocCreds(); if(!c) return;
+  const reason=prompt('เหตุผลการยกเลิกเอกสารเลขที่ '+docNo+':'); if(!reason||!reason.trim()){ alert('ต้องระบุเหตุผล'); return; }
+  try{ const r=await meterApi({action:'canceldoc', emp:c.emp, pw:c.pw, name:c.name, docNo, reason});
+    if(r&&r.ok){ alert('✅ ยกเลิกแล้ว — คืนรายการ '+fmtN(r.reverted)+' ราย'+(r.skipped?(' (ข้าม '+fmtN(r.skipped)+' ที่จัดสรรแล้ว)'):'')); await loadDashboardData(); renderAllocDocs(); }
+    else alert('ยกเลิกไม่สำเร็จ: '+((r&&r.error)==='forbidden'?'ไม่มีสิทธิ์ (เฉพาะ ผมต.กบล./Admin)':(r&&r.error)==='unknown action'?'Apps Script ยังเป็นเวอร์ชันเก่า ต้อง redeploy':((r&&r.error)||'')));
   }catch(e){ alert('เชื่อมต่อไม่สำเร็จ: '+e.message); }
 }
 // ===== รายงานผลการจัดสรรมิเตอร์ (ลิงก์จากเลขที่รายงานขอจัดสรร) =====
