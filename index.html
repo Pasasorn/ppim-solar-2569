@@ -2514,11 +2514,20 @@ function openAllocPdf(list, docNo, opts){
 }
 // ดึงลายเซ็นอิเล็กทรอนิกส์จาก Drive ผ่าน Apps Script (เฉพาะผู้ login ผมต.กบล./Admin) — คืน dataURL หรือ null
 let _sigCache=null, _sigWarned=false;
-async function fetchSignature(){
-  if(!(mmSession&&mmSession.emp)){ if(!_sigWarned){ _sigWarned=true; alert('ℹ️ ยังไม่ได้ login — เอกสารจะไม่มีรูปลายเซ็น (แสดงเป็นชื่อแทน)\nถ้าต้องการลายเซ็น ให้ login เป็น ผมต.กบล./Admin ก่อน'); } return null; }
+// ขอรหัสผู้ใช้สำหรับงานจัดสรร: ใช้ session ที่ login ไว้ ถ้าไม่มีให้กรอก (ระบบจะตรวจสิทธิ์ฝั่ง server อีกชั้น)
+function getAllocCreds(){
+  if(mmSession&&mmSession.emp) return {emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name||mmSession.emp};
+  const emp=prompt('🔐 ยืนยันตัวตน ผมต.กบล./Admin\nรหัสพนักงาน:'); if(!emp) return null;
+  const pw=prompt('รหัสผ่าน:'); if(!pw) return null;
+  const name=prompt('ชื่อ-สกุล:')||emp;
+  return {emp:emp.trim(), pw, name:name.trim()};
+}
+async function fetchSignature(c){
+  c = c || ((mmSession&&mmSession.emp) ? {emp:mmSession.emp, pw:mmSession.pw} : null);
+  if(!c) return null;
   if(_sigCache) return _sigCache;
   let why='';
-  try{ const r=await meterApi({action:'signature', emp:mmSession.emp, pw:mmSession.pw});
+  try{ const r=await meterApi({action:'signature', emp:c.emp, pw:c.pw});
     if(r&&r.ok&&r.dataUrl){ _sigCache=r.dataUrl; return _sigCache; }
     why=(r&&r.error)||'ไม่ทราบสาเหตุ';
     if(why==='unknown action') why='Apps Script ยังเป็นเวอร์ชันเก่า — ต้อง redeploy เป็น New version';
@@ -2527,19 +2536,20 @@ async function fetchSignature(){
   if(!_sigWarned){ _sigWarned=true; alert('⚠️ ดึงลายเซ็นไม่ได้: '+why+'\nเอกสารจะแสดงชื่อแทนลายเซ็น'); }
   return null;
 }
-// กดปุ่มในส่วนที่ 2 → ออกเอกสารตัวอย่าง PDF ทันที (แก้ข้อความได้) · ถ้า login แล้วจะออกเลขที่จริง+บันทึกการดึง
+// กดปุ่มในส่วนที่ 2 → ต้องยืนยันตัวตน ผมต.กบล./Admin ก่อน (server ตรวจสิทธิ์) → ออกเลขที่จริง + ทำเครื่องหมาย + เปิด PDF
 async function exportAllocReport(){
   const list = allocFresh();
   if(!list.length){ alert('ไม่มีรายการใหม่ให้จัดสรร — ทุกคำขอขั้น 8 ถูกดึง/จัดสรรแล้ว'); return; }
+  const c=getAllocCreds(); if(!c) return;
+  if(!confirm('ออกเอกสารขอจัดสรรมิเตอร์ '+list.length+' ราย?\nระบบจะออกเลขที่เอกสารอัตโนมัติ และทำเครื่องหมาย "รอจัดสรรมิเตอร์" (ไม่ถูกดึงซ้ำ)')) return;
   let docNo=null;
-  if(mmSession && mmSession.emp){   // login เป็น ผมต.กบล./Admin แล้ว → ออกเลขที่จริง + ทำเครื่องหมาย "รอจัดสรรมิเตอร์"
-    if(!confirm('ออกเอกสารขอจัดสรรมิเตอร์ '+list.length+' ราย?\nระบบจะออกเลขที่เอกสารอัตโนมัติ และทำเครื่องหมาย "รอจัดสรรมิเตอร์" (ไม่ถูกดึงซ้ำ)')) return;
-    try{ const r=await meterApi({action:'markpull', emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name, reqNos:list.map(x=>x.reqNo)});
-      if(r&&r.ok){ docNo=r.docNo; } else alert('ออกเลขที่อัตโนมัติไม่สำเร็จ ('+((r&&r.error)||'')+') — จะออกเป็นเอกสารร่าง (แก้เลขที่เองได้)'); }catch(e){ alert('เชื่อมต่อไม่สำเร็จ — จะออกเป็นเอกสารร่าง'); }
-  }
-  const signature=await fetchSignature();
+  try{ const r=await meterApi({action:'markpull', emp:c.emp, pw:c.pw, name:c.name, reqNos:list.map(x=>x.reqNo)});
+    if(r&&r.ok){ docNo=r.docNo; }
+    else { const e=(r&&r.error)||''; alert('❌ ออกเอกสารไม่ได้: '+(e==='forbidden'?'ไม่มีสิทธิ์ — เฉพาะ ผมต.กบล./Admin เท่านั้น (ตรวจรหัสพนักงาน/รหัสผ่าน)':e==='unknown action'?'Apps Script ยังเป็นเวอร์ชันเก่า ต้อง redeploy':e)); return; }
+  }catch(e){ alert('❌ เชื่อมต่อไม่สำเร็จ: '+e.message); return; }
+  const signature=await fetchSignature(c);
   openAllocPdf(list, docNo, {autoPrint:true, signature});
-  if(docNo){ await loadDashboardData(); renderAllocDocs(); }   // รีเฟรชสถานะ + ประวัติหลังบันทึกการดึง
+  await loadDashboardData(); renderAllocDocs();   // รีเฟรชสถานะ + ประวัติหลังบันทึกการดึง
 }
 // ===== ประวัติเอกสารจัดสรรที่ออกจากระบบแล้ว (ดูได้ · แก้ไขต้องยืนยันตัวตน) =====
 let allocDocs = [];
@@ -2579,7 +2589,7 @@ async function editAllocDoc(docNo){
   const name=(mmSession&&mmSession.name)||prompt('ชื่อ-สกุล:'); if(!name)return;
   const reason=prompt('เหตุผลที่ต้องแก้ไขเอกสารเลขที่ '+docNo+':'); if(!reason||!reason.trim()){ alert('ต้องระบุเหตุผลการแก้ไข'); return; }
   try{ const r=await meterApi({action:'editdoc', emp, pw, name, docNo, reason});
-    if(r&&r.ok){ const signature=await fetchSignature(); openAllocPdf(list, docNo, {readOnly:false, signature}); renderAllocDocs(); }
+    if(r&&r.ok){ const signature=await fetchSignature({emp,pw}); openAllocPdf(list, docNo, {readOnly:false, signature}); renderAllocDocs(); }
     else alert('แก้ไขไม่สำเร็จ: '+((r&&r.error)==='forbidden'?'ไม่มีสิทธิ์ (เฉพาะ ผมต.กบล./Admin)':((r&&r.error)||'')));
   }catch(e){ alert('เชื่อมต่อไม่สำเร็จ: '+e.message); }
 }
@@ -2634,13 +2644,10 @@ async function submitAllocDone(){
   if(!reqNos.length){ $('#adMsg').innerHTML='<span style="color:var(--danger)">กรุณาเลือกอย่างน้อย 1 รายการ</span>'; return; }
   const resultNo=$('#adResultNo').value.trim(); if(!resultNo){ $('#adMsg').innerHTML='<span style="color:var(--danger)">กรุณากรอกเลขที่บันทึกผลการจัดสรร</span>'; return; }
   const note=$('#adNote').value.trim();
-  // ยืนยันตัวตน ผมต.กบล./Admin (ถ้ายังไม่ได้ login ให้กรอก)
-  const emp=(mmSession&&mmSession.emp)||prompt('รหัสพนักงาน (ผมต.กบล./Admin):'); if(!emp)return;
-  const pw=(mmSession&&mmSession.pw)||prompt('รหัสผ่าน:'); if(!pw)return;
-  const name=(mmSession&&mmSession.name)||prompt('ชื่อ-สกุล:')||emp;
+  const c=getAllocCreds(); if(!c) return;   // ยืนยันตัวตน ผมต.กบล./Admin
   $('#adMsg').textContent='กำลังบันทึก...';
   try{
-    const r=await meterApi({action:'allocdone', emp, pw, name, reqNos, resultNo, refNo:docNo, note});
+    const r=await meterApi({action:'allocdone', emp:c.emp, pw:c.pw, name:c.name, reqNos, resultNo, refNo:docNo, note});
     if(r&&r.ok){ $('#adMsg').innerHTML='<span style="color:var(--green)">✅ บันทึกผลแล้ว '+fmtN(r.done)+' ราย — กำลังโหลดใหม่</span>'; await loadDashboardData(); renderAllocDocs(); setTimeout(()=>{ const ov=$('#allocDoneBg'); if(ov) ov.style.display='none'; },900); }
     else $('#adMsg').innerHTML='<span style="color:var(--danger)">บันทึกไม่สำเร็จ: '+((r&&r.error)==='forbidden'?'ไม่มีสิทธิ์ (เฉพาะ ผมต.กบล./Admin)':((r&&r.error)||''))+'</span>';
   }catch(e){ $('#adMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่สำเร็จ: '+e.message+'</span>'; }
