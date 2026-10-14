@@ -2424,9 +2424,9 @@ function openAllocPdf(list, docNo, opts){
   const today=new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
   const nowTime=new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
   const esc=s=>String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
-  // ในเอกสาร PDF: กฟอ. → กฟส. · ยกเว้นระดับจังหวัด (เชียงใหม่/เชียงใหม่ 2/ลำพูน/ลำปาง/แม่ฮ่องสอน/พะเยา) → กฟจ.
+  // ในเอกสาร PDF: กฟอ. → กฟส. · ชื่อระดับจังหวัด (เชียงใหม่/เชียงใหม่ 2/เชียงราย/ลำพูน/ลำปาง/แม่ฮ่องสอน/พะเยา) → กฟจ. เสมอ ไม่ว่าต้นทางจะเป็น กฟส./กฟอ./กฟย.
   const peaName=s=>String(s||'').replace(/กฟอ\./g,'กฟส.')
-    .replace(/กฟ[สอ]\.\s*(เชียงใหม่\s*2|เชียงใหม่|ลำพูน|ลำปาง|แม่ฮ่องสอน|พะเยา)(?![ก-๙])/g,(m,p)=>'กฟจ.'+p.replace(/\s*2$/,' 2'));
+    .replace(/กฟ[สอย]\.\s*(เชียงใหม่\s*2|เชียงใหม่|เชียงราย|ลำพูน|ลำปาง|แม่ฮ่องสอน|พะเยา)(?![ก-๙])/g,(m,p)=>'กฟจ.'+p.replace(/\s*2$/,' 2'));
   const rowsHtml=hubs.map((h,i)=>{const o=byHub[h];return `<tr><td class=n>${i+1}</td><td>${esc(peaName(h))}</td><td class=n>${o.p1||'-'}</td><td class=n>${o.p3||'-'}</td><td class=n><b>${o.p1+o.p3}</b></td></tr>`;}).join('');
   // เอกสารแนบ 1: ตารางรายคำขอ แยกตาม กฟฟ. มี subtotal แต่ละ กฟฟ. (1 เฟส/3 เฟส/รวม)
   let run=0;
