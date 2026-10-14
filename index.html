@@ -911,6 +911,7 @@ function buildRowsFrom(rawArr, map){
     const o = {
       i, reqNo:clean(get('reqNo')), area:clean(get('area'))||clean(get('areaCheck'))||'ไม่ระบุ',
       areaCheck: clean(get('areaCheck')),
+      respOffice: (typeof headers!=='undefined' && headers[51]) ? clean(r[headers[51]]) : '',   // คอลัมน์ AZ = กฟส./กฟย. ที่รับผิดชอบ (อ่านตามตำแหน่ง: A=0 … AZ=51)
       hub: (hubV==='#N/A'||hubV.toLowerCase()==='x') ? '' : hubV,
       gridChk: clean(get('gridChk')),
       tr: clean(get('tr')), kva: clean(get('kva')), trOwner: clean(get('trOwner')),
@@ -2428,9 +2429,12 @@ function openAllocPdf(list, docNo, opts){
   // เอกสารแนบ 1: ตารางรายคำขอ แยกตาม กฟฟ. มี subtotal แต่ละ กฟฟ. (1 เฟส/3 เฟส/รวม)
   let run=0;
   const attachRows=hubs.map(h=>{const o=byHub[h];
-    const its=o.items.slice().sort((a,b)=>(a.swapPhase==='3P'?1:0)-(b.swapPhase==='3P'?1:0));
-    const body=its.map(r=>{run++;const is3=r.swapPhase==='3P';return `<tr><td class=n>${run}</td><td class=n>${esc(r.reqNo)}</td><td class=mt>${esc(r.meterModel||r.meterSize)}</td><td class=n>${is3?'-':'1'}</td><td class=n>${is3?'1':'-'}</td></tr>`;}).join('');
-    return `<tr class="grp"><td colspan=5>▍ ${esc(peaName(h))}</td></tr>${body}<tr class="sub"><td colspan=3>รวม</td><td class=n>${o.p1}</td><td class=n>${o.p3}</td></tr>`;}).join('');
+    // กฟส./กฟย. ที่รับผิดชอบในจุดรวมงานนี้ (คอลัมน์ J) — เรียงรายการตาม กฟส./กฟย. แล้วตามเฟส
+    const offices=[...new Set(o.items.map(r=>peaName(r.respOffice||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
+    const its=o.items.slice().sort((a,b)=>(peaName(a.respOffice||'').localeCompare(peaName(b.respOffice||''),'th'))||((a.swapPhase==='3P'?1:0)-(b.swapPhase==='3P'?1:0)));
+    const body=its.map(r=>{run++;const is3=r.swapPhase==='3P';return `<tr><td class=n>${run}</td><td class=n>${esc(r.reqNo)}</td><td class=mt>${esc(peaName(r.respOffice)||'-')}</td><td class=mt>${esc(r.meterModel||r.meterSize)}</td><td class=n>${is3?'-':'1'}</td><td class=n>${is3?'1':'-'}</td></tr>`;}).join('');
+    const offTxt=offices.length?` <span style="font-weight:normal;font-size:13pt;color:#444">— รับผิดชอบโดย ${esc(offices.join(', '))}</span>`:'';
+    return `<tr class="grp"><td colspan=6>▍ ${esc(peaName(h))}${offTxt}</td></tr>${body}<tr class="sub"><td colspan=4>รวม</td><td class=n>${o.p1}</td><td class=n>${o.p3}</td></tr>`;}).join('');
   const docYear = new Date().getFullYear()+543;                       // ปี พ.ศ. อัตโนมัติ (2569 → ปีถัดไปเปลี่ยนเอง)
   const docTxt = String(docNo||1).padStart(3,'0')+'/'+docYear;        // เริ่ม 001 ถ้ายังไม่มีเลขจริง
   let logoUrl; try{ logoUrl = new URL('pea-logo.png', location.href).href; }catch(e){ logoUrl = 'pea-logo.png'; }
@@ -2461,7 +2465,7 @@ function openAllocPdf(list, docNo, opts){
    .sigwm{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-14deg);white-space:nowrap;font-size:8.5pt;line-height:1;color:rgba(94,36,131,.55);letter-spacing:.3px;pointer-events:none;font-family:'Sarabun',Tahoma,sans-serif}
    .attach{page-break-before:always} .atHead{font-weight:bold;font-size:17pt;text-align:center;margin:0 0 4px} .atSub{text-align:center;font-size:14pt;margin-bottom:10px;color:#333}
    table.attbl{font-size:14pt} table.attbl th,table.attbl td{padding:3px 7px}
-   table.attbl td.mt{white-space:nowrap;font-size:11pt}
+   table.attbl td.mt{white-space:nowrap;font-size:10.5pt}
    [contenteditable="true"]:focus{outline:2px dashed #b89bd6;outline-offset:2px;background:#faf7ff}
    /* ตารางครอบเอกสาร: thead/tfoot จะถูกพิมพ์ซ้ำทุกหน้า (หัว-ท้ายกระดาษ) */
    .pgtbl{width:100%;border-collapse:collapse;margin:0;font-size:inherit}
@@ -2502,8 +2506,8 @@ function openAllocPdf(list, docNo, opts){
    <div class="intro">จึงเรียนมาเพื่อโปรดพิจารณาจัดสรรมิเตอร์ TOU จำนวน <b>${t1+t3}</b> เครื่อง ตามรายละเอียดเอกสารแนบ 1 ต่อไป</div>
    <div style="overflow:hidden"><div class="sign">${opts.signature?`<div class="sigwrap" contenteditable="false"><img src="${opts.signature}" alt="ลายเซ็น"><div class="sigwm">ลงนามอิเล็กทรอนิกส์ · กวว.(น1) ${docTxt} · ${today}</div></div>`:'ลงชื่อ&nbsp; นายศุภวัฒิ กินีสี'}<br>( นายศุภวัฒิ กินีสี )<br>วิศวกร ระดับ 6 ผสอ.กวว.(น1)</div></div>
    <div class="attach"><div class="atHead">เอกสารแนบ 1</div><div class="atSub">รายการมิเตอร์ที่ต้องขอรับการจัดสรร แยกตามจุดร่วมงาน/การไฟฟ้า (รวม ${list.length} ราย)</div>
-   <table class="attbl"><thead><tr><th style="width:8%">ลำดับ</th><th style="width:22%">เลขที่คำขอ (PPIM)</th><th>ประเภทมิเตอร์เดิม</th><th style="width:11%">1 เฟส</th><th style="width:11%">3 เฟส</th></tr></thead>
-   <tbody>${attachRows}<tr class="total"><td colspan=3>รวม</td><td class=n>${t1}</td><td class=n>${t3}</td></tr></tbody></table></div>
+   <table class="attbl"><thead><tr><th style="width:7%">ลำดับ</th><th style="width:20%">เลขที่คำขอ (PPIM)</th><th style="width:17%">กฟส./กฟย. รับผิดชอบ</th><th>ประเภทมิเตอร์เดิม</th><th style="width:9%">1 เฟส</th><th style="width:9%">3 เฟส</th></tr></thead>
+   <tbody>${attachRows}<tr class="total"><td colspan=4>รวม</td><td class=n>${t1}</td><td class=n>${t3}</td></tr></tbody></table></div>
    </div>
    </td></tr></tbody></table>
    ${opts.autoPrint?`<script>(function(){function p(){try{window.focus();window.print();}catch(e){}}var done=false;function go(){if(done)return;done=true;p();}if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){setTimeout(go,300);});}setTimeout(go,1600);})();<\/script>`:''}
