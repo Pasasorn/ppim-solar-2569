@@ -2519,7 +2519,7 @@ function openAllocPdf(list, docNo, opts){
   w.document.open(); w.document.write(html); w.document.close();
 }
 // ดึงลายเซ็นอิเล็กทรอนิกส์จาก Drive ผ่าน Apps Script (เฉพาะผู้ login ผมต.กบล./Admin) — คืน dataURL หรือ null
-let _sigCache=null, _sigWarned=false;
+let _sigCache=null, _sigWarned=false, _sigError='';
 // ขอรหัสผู้ใช้สำหรับงานจัดสรร: ใช้ session ที่ login ไว้ ถ้าไม่มีให้กรอก (ระบบจะตรวจสิทธิ์ฝั่ง server อีกชั้น)
 function getAllocCreds(){
   if(mmSession&&mmSession.emp) return {emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name||mmSession.emp};
