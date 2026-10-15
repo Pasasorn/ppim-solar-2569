@@ -177,6 +177,9 @@ tr:hover td{background:#F4F7FC}
 .btn-3d:active{transform:translateY(4px);box-shadow:0 1px 0 #C27F00,0 2px 6px rgba(0,0,0,.3)}
 @keyframes btnPulse{0%,100%{box-shadow:0 5px 0 #C27F00,0 9px 18px rgba(0,0,0,.30)}50%{box-shadow:0 5px 0 #C27F00,0 9px 24px rgba(255,200,0,.65)}}
 @media (prefers-reduced-motion: reduce){.btn-3d{animation:none}}
+.mmdoc{border:1px solid var(--border);border-radius:10px;padding:8px 10px;margin-top:8px;background:#fbfaff}
+.mmdoc-t{font-size:.86rem;line-height:1.4;margin-bottom:6px;color:#2a2f3a}
+.mmdoc input[type=file]{font-size:.85rem}
 .btn-3d.green{background:linear-gradient(180deg,#B9F0C9,#5FcF86);color:#1c6b3a;box-shadow:0 5px 0 #2f9558,0 9px 18px rgba(0,0,0,.25);text-shadow:0 1px 0 rgba(255,255,255,.5);animation:none}
 .btn-3d.green:active{box-shadow:0 1px 0 #2f9558,0 2px 6px rgba(0,0,0,.3)}
 .mtab{display:inline-block;padding:8px 16px;border:none;background:#ede6f4;color:#6b5a86;font-weight:700;border-radius:10px 10px 0 0;cursor:pointer;font-size:.92rem;margin-right:4px}
@@ -309,9 +312,13 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       </div>
       <label id="mmCodLabel">วันที่ COD (สับเปลี่ยนจริง) — 📅 กดเลือกจากปฏิทิน</label><input id="mmCod" type="date">
       <div id="mmSwapPhotos">
-        <label>รูปถ่ายการสับเปลี่ยน (แนบได้ไม่เกิน 5 รูป)</label>
-        <input id="mmPhotos" type="file" accept="image/*" multiple>
-        <div id="mmPhotoPrev" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;align-items:center"></div>
+        <label style="margin-top:8px">📎 เอกสารแนบการสับเปลี่ยน (แนบให้ครบทั้ง 3 รายการ)</label>
+        <div class="mmdoc"><div class="mmdoc-t"><b>1.</b> แบบฟอร์มตรวจสอบการขอขนานเครื่องกำเนิดไฟฟ้า Solar PV Rooftop สำหรับภาคประชาชน ประเภทบ้านอยู่อาศัย ปี 2569 <span class="note">(PDF หรือรูป)</span></div>
+          <input class="mmDocIn" data-slot="1" type="file" accept="image/*,.pdf,application/pdf"><div class="mmDocPrev" data-slot="1"></div></div>
+        <div class="mmdoc"><div class="mmdoc-t"><b>2.</b> แบบฟอร์มการอ่าน TOU มิเตอร์ ผลิตภัณฑ์ PRECISE รุ่น PT100 (Import - Export) <span class="note">(PDF หรือรูป)</span></div>
+          <input class="mmDocIn" data-slot="2" type="file" accept="image/*,.pdf,application/pdf"><div class="mmDocPrev" data-slot="2"></div></div>
+        <div class="mmdoc"><div class="mmdoc-t"><b>3.</b> รูปถ่ายมิเตอร์ ที่เห็น PEA No. ชัดเจน <span class="note">(รูปภาพ)</span></div>
+          <input class="mmDocIn" data-slot="3" type="file" accept="image/*"><div class="mmDocPrev" data-slot="3"></div></div>
       </div>
       <div id="mmPbsNote" class="hidden note" style="margin-top:10px;background:#eef4ff;border-left:4px solid #2c66ad;padding:8px 10px;border-radius:6px">✅ สำหรับ ผบส.: ตรวจเอกสาร/อัปโหลดขึ้น PPIM แล้วเลือกวัน COD จริง → กดยืนยัน สถานะจะเปลี่ยนเป็น “แจ้งผล COD เรียบร้อย”</div>
       <div class="mmsg" id="mmReportMsg"></div>
@@ -1544,7 +1551,13 @@ async function loadFilesInto(sel, reqNo, opts){
     let fs=r.files||[];
     if(opts.onlyPhotos) fs=fs.filter(f=>!isPersonalDoc(f.name));   // หน้ามิเตอร์: ไม่แสดงบัตร ปชช./ภพ.20
     if(!fs.length){ el.innerHTML='<span style="color:var(--gray)">— ไม่พบ'+(opts.onlyPhotos?'รูปสับเปลี่ยน':'เอกสารแนบ')+'ของคำขอนี้ —</span>'; return; }
-    const docLabel=nm=>{ const u=nm.toUpperCase(); if(/_ID|บัตร/i.test(nm)) return '🪪 สำเนาบัตรประชาชน'; if(/VAT20|VAT_?20|ภพ/i.test(u)||/ภพ/.test(nm)) return '🧾 สำเนา ภพ.20'; return '📷 '+nm; };
+    const docLabel=nm=>{ const u=nm.toUpperCase();
+      if(/_ID|บัตร/i.test(nm)) return '🪪 สำเนาบัตรประชาชน';
+      if(/VAT20|VAT_?20|ภพ/i.test(u)||/ภพ/.test(nm)) return '🧾 สำเนา ภพ.20';
+      if(/_1_แบบฟอร์มตรวจสอบ/.test(nm)) return '📋 1. แบบฟอร์มตรวจสอบการขอขนานฯ Solar PV Rooftop ปี 2569';
+      if(/_2_แบบฟอร์มอ่าน/.test(nm)) return '📋 2. แบบฟอร์มการอ่าน TOU มิเตอร์ PRECISE PT100 (Import-Export)';
+      if(/_3_รูปมิเตอร์/.test(nm)) return '📷 3. รูปถ่ายมิเตอร์ (เห็น PEA No.)';
+      return '📷 '+nm; };
     el.innerHTML=fs.map(f=>{
       const lbl=docLabel(f.name);
       const dl = f.data
@@ -2209,7 +2222,7 @@ function mmShowReport(){
     : '<option value="">'+(seeAll?'— ไม่มีงานรอสับเปลี่ยน —':'— ไม่มีงานรอสับเปลี่ยนในจุดร่วมงานของท่าน —')+'</option>';
   $('#mmCod').value = new Date().toISOString().slice(0,10);
   $('#mmReportMsg').textContent='';
-  mmPhotos = []; if(typeof mmRenderPhotos==='function') mmRenderPhotos();
+  mmDocs={1:null,2:null,3:null}; if(typeof mmRenderPhotos==='function') mmRenderPhotos();
   // ผซฟ. = ดูอย่างเดียว → ซ่อนช่องกรอก/แนบรูป/ปุ่มบันทึก
   const ro = isViewer;
   const sf=$('#mmSwapFields'), sp=$('#mmSwapPhotos'), dr=$('#mmDoReport'), cl=$('#mmCodLabel'), cd=$('#mmCod');
@@ -2271,15 +2284,23 @@ function mmFillDetail(){
 if($('#mmReq')) $('#mmReq').onchange = mmFillDetail;
 
 // ===== แนบรูป (ย่อขนาดในเครื่องก่อนส่ง) สูงสุด 5 รูป =====
-let mmPhotos = [];
+// เอกสารแนบ 3 ช่อง: {1:{data,name,isPdf},2:...,3:...} — ส่ง backend เป็น photos:[{tag,data}]
+const MM_DOC_TAGS={1:'1_แบบฟอร์มตรวจสอบขอขนาน',2:'2_แบบฟอร์มอ่านTOU_PT100',3:'3_รูปมิเตอร์PEANo'};
+let mmDocs={1:null,2:null,3:null};
+let mmPhotos=[];   // (คงไว้เพื่อ compat) = รายการที่จะส่ง สร้างจาก mmDocs ตอนกดบันทึก
+function mmDocsToPayload(){ return [1,2,3].filter(k=>mmDocs[k]).map(k=>({tag:MM_DOC_TAGS[k], data:mmDocs[k].data})); }
 function mmRenderPhotos(){
-  const p=$('#mmPhotoPrev'); if(!p) return;
-  p.innerHTML = mmPhotos.map((src,i)=>`<div style="position:relative">
-      <img src="${src}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">
-      <button data-i="${i}" class="mmDelPhoto" title="ลบ" style="position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-size:11px;line-height:1">✕</button>
-    </div>`).join('') + (mmPhotos.length?`<span class="note">${mmPhotos.length}/5</span>`:'');
-  p.querySelectorAll('.mmDelPhoto').forEach(b=>b.onclick=()=>{ mmPhotos.splice(+b.dataset.i,1); mmRenderPhotos(); });
+  document.querySelectorAll('.mmDocPrev').forEach(p=>{
+    const k=+p.dataset.slot, d=mmDocs[k];
+    if(!d){ p.innerHTML=''; return; }
+    p.innerHTML=`<div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+      ${d.isPdf?'<span style="font-size:1.6rem">📄</span>':`<img src="${d.data}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;border:1px solid var(--border)">`}
+      <span class="note" style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">✅ ${d.name}</span>
+      <button data-slot="${k}" class="mmDelDoc" style="background:var(--danger);color:#fff;border:none;border-radius:6px;padding:3px 9px;cursor:pointer;font-size:.8rem">ลบ</button></div>`;
+  });
+  document.querySelectorAll('.mmDelDoc').forEach(b=>b.onclick=()=>{ mmDocs[+b.dataset.slot]=null; mmRenderPhotos(); });
 }
+function mmReadFileAsDataUrl(file){ return new Promise(res=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=()=>res(null); r.readAsDataURL(file); }); }
 function mmResizeImg(file){
   return new Promise(res=>{
     const img=new Image();
@@ -2291,13 +2312,16 @@ function mmResizeImg(file){
     img.onerror=()=>res(null); img.src=URL.createObjectURL(file);
   });
 }
-if($('#mmPhotos')) $('#mmPhotos').onchange = async (e)=>{
-  const files=[...e.target.files];
-  for(const f of files){ if(mmPhotos.length>=5) break; const d=await mmResizeImg(f); if(d) mmPhotos.push(d); }
-  if(mmPhotos.length>5) mmPhotos=mmPhotos.slice(0,5);
-  e.target.value=''; mmRenderPhotos();
-  if(mmPhotos.length>=5) $('#mmReportMsg').textContent='แนบครบ 5 รูปแล้ว';
-};
+document.querySelectorAll('.mmDocIn').forEach(inp=>inp.onchange=async (e)=>{
+  const k=+e.target.dataset.slot, f=e.target.files&&e.target.files[0]; if(!f) return;
+  const isPdf=/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name);
+  if(isPdf && k===3){ alert('ข้อ 3 ต้องเป็นรูปภาพเท่านั้น'); e.target.value=''; return; }
+  if(isPdf && f.size>6*1024*1024){ alert('ไฟล์ PDF ใหญ่เกิน 6 MB กรุณาลดขนาดก่อนแนบ'); e.target.value=''; return; }
+  let data=null;
+  if(isPdf) data=await mmReadFileAsDataUrl(f); else data=await mmResizeImg(f);
+  if(!data){ alert('อ่านไฟล์ไม่สำเร็จ'); e.target.value=''; return; }
+  mmDocs[k]={data, name:f.name, isPdf}; e.target.value=''; mmRenderPhotos();
+});
 function openMeterModal(gate){
   if(gate) mmGate = gate;
   if(!METER_API_URL){
@@ -2713,14 +2737,18 @@ if($('#mmDoReport')) $('#mmDoReport').onclick = async ()=>{
   const meterNo=$('#mmMeterNo').value.trim(), reading=$('#mmReading').value.trim();
   if(!reqNo){ $('#mmReportMsg').textContent='ไม่มีคำขอให้รายงาน'; return; }
   if(!meterNo||!codDate){ $('#mmReportMsg').innerHTML='<span style="color:var(--danger)">กรอกหมายเลขมิเตอร์และวันที่ COD</span>'; return; }
+  const missing=[1,2,3].filter(k=>!mmDocs[k]);
+  if(missing.length && !$('#mmSwapPhotos').classList.contains('hidden')){
+    if(!confirm('ยังไม่ได้แนบเอกสารข้อ '+missing.join(', ')+'\nต้องการบันทึกโดยไม่แนบให้ครบหรือไม่?')) return;
+  }
   $('#mmReportMsg').textContent='กำลังบันทึก...';
   const sel = rows.find(x=>x.reqNo===reqNo) || {};
   const phase = sel.meterPhase==='1P'?'1P2W':sel.meterPhase==='3P'?'3P4W':'';
   try{
-    const r = await meterApi({action:'report', emp:mmSession.emp, name:mmSession.name, reqNo, meterNo, reading, codDate, phase, ca:sel.ca||'', peaNo:sel.peaNo||'', photos:mmPhotos});
+    const r = await meterApi({action:'report', emp:mmSession.emp, name:mmSession.name, reqNo, meterNo, reading, codDate, phase, ca:sel.ca||'', peaNo:sel.peaNo||'', photos:mmDocsToPayload()});
     if(r && r.ok){
       $('#mmReportMsg').innerHTML='<span style="color:var(--green)">✅ บันทึกสำเร็จ! สถานะเปลี่ยนเป็น “รอ ผบส.กรอกข้อมูล COD ในระบบ PPIM”</span>';
-      $('#mmReading').value=''; mmPhotos=[]; mmRenderPhotos();
+      $('#mmReading').value=''; mmDocs={1:null,2:null,3:null}; mmRenderPhotos();
       setTimeout(()=>loadDashboardData(), 1500);
     } else $('#mmReportMsg').innerHTML='<span style="color:var(--danger)">บันทึกไม่สำเร็จ: '+((r&&r.error)||'ไม่พบคำขอ')+'</span>';
   }catch(e){ $('#mmReportMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }

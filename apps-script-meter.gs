@@ -613,15 +613,20 @@ function doRevert(b) {
 }
 
 // อัปโหลด base64 dataURL เข้าโฟลเดอร์ Drive "PPIM_Meter_Photos" (สร้างให้อัตโนมัติ) คืน array ลิงก์
+// รองรับ 2 รูปแบบ: string dataURL (รูปแบบเดิม) หรือ {tag, data} (เอกสารแนบ 3 ช่อง) · รับทั้งรูปและ PDF
 function savePhotos(photos, reqNo) {
   var links = [];
   if (!photos || !photos.length) return links;
   var folder = DriveApp.getFolderById(PHOTO_FOLDER_ID);   // โฟลเดอร์ที่กำหนด
   for (var i=0; i<photos.length && i<5; i++) {
-    var m = String(photos[i]).match(/^data:(image\/\w+);base64,(.+)$/);
+    var item = (typeof photos[i] === 'string') ? { data: photos[i], tag: '' } : (photos[i] || {});
+    var m = String(item.data || '').match(/^data:([\w\/\-\.+]+);base64,(.+)$/);
     if (!m) continue;
-    // ตั้งชื่อไฟล์ตามเลขคำขอ: PPIMxxxxx_1, _2, ... ตามจำนวนรูป
-    var blob = Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], reqNo+'_'+(i+1)+'.jpg');
+    var mime = m[1].toLowerCase();
+    var ext = mime === 'application/pdf' ? '.pdf' : (mime.indexOf('png') >= 0 ? '.png' : '.jpg');
+    // ชื่อไฟล์: PPIMxxxxx_<tag>.ext เช่น PPIM1A600025_1_แบบฟอร์มตรวจสอบขอขนาน.pdf (ไม่มี tag → _1,_2,...)
+    var name = reqNo + '_' + (item.tag ? String(item.tag) : String(i+1)) + ext;
+    var blob = Utilities.newBlob(Utilities.base64Decode(m[2]), mime, name);
     var file = folder.createFile(blob);
     try { file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch(e){}
     links.push(file.getUrl());
