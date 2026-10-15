@@ -2506,7 +2506,7 @@ function openAllocPdf(list, docNo, opts){
    <tbody>${rowsHtml}<tr class="total"><td class=n></td><td>รวมทั้งสิ้น ${hubs.length} จุดร่วมงาน</td><td class=n>${t1}</td><td class=n>${t3}</td><td class=n>${t1+t3}</td></tr></tbody></table>
    <div class="code"><b>รหัสพัสดุ:</b> มิเตอร์ TOU 1P2W 5(100)A = <b>1060070703</b> &nbsp;·&nbsp; มิเตอร์ TOU 3P4W 5(100)A = <b>1060070709</b></div>
    <div class="intro">จึงเรียนมาเพื่อโปรดพิจารณาจัดสรรมิเตอร์ TOU จำนวน <b>${t1+t3}</b> เครื่อง ตามรายละเอียดเอกสารแนบ 1 ต่อไป</div>
-   <div style="overflow:hidden"><div class="sign">${opts.signature?`<div class="sigwrap" contenteditable="false"><img src="${opts.signature}" alt="ลายเซ็น"><div class="sigwm">ลงนามอิเล็กทรอนิกส์ · กวว.(น1) ${docTxt} · ${today}</div></div>`:'ลงชื่อ&nbsp; นายศุภวัฒิ กินีสี'}<br>( นายศุภวัฒิ กินีสี )<br>วิศวกร ระดับ 6 ผสอ.กวว.(น1)</div></div>
+   <div style="overflow:hidden"><div class="sign">${opts.signature?`<div class="sigwrap" contenteditable="false"><img src="${opts.signature}" alt="ลายเซ็น"><div class="sigwm">ลงนามอิเล็กทรอนิกส์ · กวว.(น1) ${docTxt} · ${today}</div></div>`:'ลงชื่อ&nbsp; นายศุภวัฒิ กินีสี'}<br>( นายศุภวัฒิ กินีสี )<br>วิศวกร ระดับ 6 ผสอ.กวว.(น1)${opts.signature?'':`<div class="noprint" style="font-size:11px;color:#b00020;line-height:1.3;margin-top:6px;font-family:Sarabun,Tahoma,sans-serif">⚠ ไม่แสดงรูปลายเซ็น: ${esc(_sigError||'ไม่ทราบสาเหตุ')}<br><span style="color:#777">(ข้อความนี้ไม่พิมพ์ออกมา)</span></div>`}</div></div>
    <div class="attach"><div class="atHead">เอกสารแนบ 1</div><div class="atSub">รายการมิเตอร์ที่ต้องขอรับการจัดสรร แยกตามจุดร่วมงาน/การไฟฟ้า (รวม ${list.length} ราย)</div>
    <table class="attbl"><thead><tr><th style="width:7%">ลำดับ</th><th style="width:20%">เลขที่คำขอ (PPIM)</th><th style="width:17%">กฟส./กฟย. รับผิดชอบ</th><th>ประเภทมิเตอร์เดิม</th><th style="width:9%">1 เฟส</th><th style="width:9%">3 เฟส</th></tr></thead>
    <tbody>${attachRows}<tr class="total"><td colspan=4>รวม</td><td class=n>${t1}</td><td class=n>${t3}</td></tr></tbody></table></div>
@@ -2530,15 +2530,16 @@ function getAllocCreds(){
 }
 async function fetchSignature(c){
   c = c || ((mmSession&&mmSession.emp) ? {emp:mmSession.emp, pw:mmSession.pw} : null);
-  if(!c) return null;
+  if(!c){ _sigError='ยังไม่ได้ยืนยันตัวตน ผมต.กบล./Admin (login ก่อนแล้วเปิดใหม่)'; return null; }
   if(_sigCache) return _sigCache;
   let why='';
   try{ const r=await meterApi({action:'signature', emp:c.emp, pw:c.pw});
-    if(r&&r.ok&&r.dataUrl){ _sigCache=r.dataUrl; return _sigCache; }
+    if(r&&r.ok&&r.dataUrl){ _sigCache=r.dataUrl; _sigError=''; return _sigCache; }
     why=(r&&r.error)||'ไม่ทราบสาเหตุ';
     if(why==='unknown action') why='Apps Script ยังเป็นเวอร์ชันเก่า — ต้อง redeploy เป็น New version';
-    else if(why==='forbidden') why='บัญชีนี้ไม่ใช่ ผมต.กบล./Admin';
+    else if(why==='forbidden') why='บัญชีนี้ไม่ใช่ ผมต.กบล./Admin หรือรหัสผิด';
   }catch(e){ why='เชื่อมต่อไม่สำเร็จ: '+e.message; }
+  _sigError=why;
   if(!_sigWarned){ _sigWarned=true; alert('⚠️ ดึงลายเซ็นไม่ได้: '+why+'\nเอกสารจะแสดงชื่อแทนลายเซ็น'); }
   return null;
 }
@@ -2588,7 +2589,14 @@ async function renderAllocDocs(){
 }
 function allocDocList(docNo){ const d=allocDocs.find(x=>String(x.docNo)===String(docNo)); if(!d)return null;
   const set={}; (d.reqNos||[]).forEach(x=>set[String(x).trim()]=1); return rows.filter(r=>set[String(r.reqNo).trim()]); }
-async function viewAllocDoc(docNo){ const list=allocDocList(docNo); if(!list||!list.length){ alert('ไม่พบรายการของเอกสารนี้'); return; } const signature=await fetchSignature(); openAllocPdf(list, docNo, {readOnly:true, signature}); }
+async function viewAllocDoc(docNo){
+  const list=allocDocList(docNo); if(!list||!list.length){ alert('ไม่พบรายการของเอกสารนี้'); return; }
+  let c=null;
+  if(mmSession&&mmSession.emp) c={emp:mmSession.emp,pw:mmSession.pw};
+  else if(confirm('ต้องการแสดงรูปลายเซ็นในเอกสารด้วยหรือไม่?\n(ต้องยืนยันตัวตน ผมต.กบล./Admin — กด "ยกเลิก" เพื่อเปิดดูแบบไม่มีลายเซ็น)')) c=getAllocCreds();
+  const signature=c?await fetchSignature(c):null;
+  openAllocPdf(list, docNo, {readOnly:true, signature});
+}
 async function editAllocDoc(docNo){
   const list=allocDocList(docNo); if(!list){ alert('ไม่พบรายการของเอกสารนี้'); return; }
   const emp=(mmSession&&mmSession.emp)||prompt('รหัสพนักงาน:'); if(!emp)return;
