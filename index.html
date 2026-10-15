@@ -305,10 +305,8 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <div id="mmDetail" style="margin-top:10px"></div>
       <div id="mmFilesWrap" class="hidden" style="margin-top:10px"><div style="font-weight:700;margin-bottom:6px">📷 รูปการสับเปลี่ยนมิเตอร์ (ดาวน์โหลดได้)</div><div id="mmFiles" class="note"></div></div>
       <div id="mmSwapFields">
-        <div class="row2">
-          <div><label>หมายเลขมิเตอร์ (= PEA No.)</label><input id="mmMeterNo" placeholder="ดึงจาก PEA No. อัตโนมัติ"></div>
-          <div><label>เลขอ่านหน่วย ณ วัน COD</label><input id="mmReading" inputmode="decimal" placeholder="หน่วย"></div>
-        </div>
+        <label>หมายเลขมิเตอร์ (= PEA No.)</label><input id="mmMeterNo" placeholder="ดึงจาก PEA No. อัตโนมัติ">
+        <input id="mmReading" type="hidden" value="">
       </div>
       <label id="mmCodLabel">วันที่ COD (สับเปลี่ยนจริง) — 📅 กดเลือกจากปฏิทิน</label><input id="mmCod" type="date">
       <div id="mmSwapPhotos">
