@@ -911,8 +911,17 @@ $('#btnApplyMap').onclick = ()=>{
 // รองรับ: "550W x 10", "10 แผง x 550 Wp", "จำนวน 10 แผง ขนาด 550 W", "10x550", "JA 580Wp 9 แผง" ฯลฯ
 function escHtml(s){ return String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
 function parsePanels(txt){
-  const s=String(txt||'').replace(/,/g,'').replace(/[×*]/g,'x');
-  if(!s.trim()) return {count:null,wp:null,kwp:null,ok:false,raw:''};
+  const raw=String(txt||'');
+  if(!raw.trim()) return {count:null,wp:null,kwp:null,ok:false,raw:''};
+  const isWp=v=>v>=250&&v<=800;
+  // 0) รูปแบบ CSV ของชีต: ชนิด,ยี่ห้อ,รุ่น,จำนวน,Wp  เช่น "Mono,Aiko,A670-MDE72Mw,10,670" → 2 ตัวเลขท้ายสุด
+  if(raw.includes(',')){
+    const nums=raw.split(',').map(t=>t.trim()).filter(t=>/^\d+(?:\.\d+)?$/.test(t)).map(Number);
+    if(nums.length>=2){ const a=nums[nums.length-2], b=nums[nums.length-1]; let count=null,wp=null;
+      if(isWp(b)&&!isWp(a)){wp=b;count=a;} else if(isWp(a)&&!isWp(b)){wp=a;count=b;} else if(isWp(b)){wp=b;count=a;}
+      if(count!=null&&wp!=null&&count>0) return {count,wp,kwp:+(count*wp/1000).toFixed(2),ok:true,raw}; }
+  }
+  const s=raw.replace(/,/g,' ').replace(/[×*]/g,'x');
   let count=null, wp=null;
   // 1) จำนวนแผง: ตัวเลขที่ตามด้วย แผง/panel/pcs/ชุด
   let m=s.match(/(\d+(?:\.\d+)?)\s*(?:แผง|panels?|pcs|ชุด|แผ่น)/i); if(m) count=+m[1];
@@ -944,7 +953,7 @@ function buildRowsFrom(rawArr, map){
       respOffice: (typeof headers!=='undefined' && headers[51]) ? clean(r[headers[51]]) : '',   // คอลัมน์ AZ = กฟส./กฟย. ที่รับผิดชอบ (อ่านตามตำแหน่ง: A=0 … AZ=51)
       panelRaw:   (typeof headers!=='undefined' && headers[17]) ? clean(r[headers[17]]) : '',   // คอลัมน์ R = ข้อมูลแผงโซลาร์ (ข้อความอิสระ)
       contractNo: (typeof headers!=='undefined' && headers[27]) ? clean(r[headers[27]]) : '',   // คอลัมน์ AB = เลขที่สัญญา
-      kwp:        (typeof headers!=='undefined' && headers[44]) ? clean(r[headers[44]]) : '',   // คอลัมน์ AS = kWp
+      kwp:        (typeof headers!=='undefined' && headers[49]) ? clean(r[headers[49]]) : '',   // คอลัมน์ AX = kWp (A=0 … AX=49)
       hub: (hubV==='#N/A'||hubV.toLowerCase()==='x') ? '' : hubV,
       gridChk: clean(get('gridChk')),
       tr: clean(get('tr')), kva: clean(get('kva')), trOwner: clean(get('trOwner')),
