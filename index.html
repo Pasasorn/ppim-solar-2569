@@ -907,6 +907,31 @@ $('#btnApplyMap').onclick = ()=>{
 };
 
 /* ================= PROCESS ================= */
+// แยกข้อมูลแผงโซลาร์จากข้อความอิสระ (คอลัมน์ R) → {count:จำนวนแผง, wp:วัตต์ต่อแผง, kwp, ok}
+// รองรับ: "550W x 10", "10 แผง x 550 Wp", "จำนวน 10 แผง ขนาด 550 W", "10x550", "JA 580Wp 9 แผง" ฯลฯ
+function escHtml(s){ return String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+function parsePanels(txt){
+  const s=String(txt||'').replace(/,/g,'').replace(/[×*]/g,'x');
+  if(!s.trim()) return {count:null,wp:null,kwp:null,ok:false,raw:''};
+  let count=null, wp=null;
+  // 1) จำนวนแผง: ตัวเลขที่ตามด้วย แผง/panel/pcs/ชุด
+  let m=s.match(/(\d+(?:\.\d+)?)\s*(?:แผง|panels?|pcs|ชุด|แผ่น)/i); if(m) count=+m[1];
+  // 2) วัตต์ต่อแผง: ตัวเลขที่ตามด้วย W/Wp/วัตต์ (ไม่ใช่ kW)
+  m=s.match(/(\d{3,4}(?:\.\d+)?)\s*(?:wp|w|วัตต์)(?![a-z])/i); if(m && !/k\s*$/i.test(s.slice(0,m.index))) wp=+m[1];
+  // 3) รูปแบบ A x B (ยอมให้มีหน่วย W/Wp/แผง คั่นได้) → ตัวที่อยู่ช่วง 250-800 = Wp อีกตัว = จำนวน
+  m=s.match(/(\d+(?:\.\d+)?)\s*(?:wp|w|วัตต์|แผง)?\s*x\s*(\d+(?:\.\d+)?)/i);
+  if(m){ const a=+m[1], b=+m[2];
+    const isWp=v=>v>=250&&v<=800;
+    if(wp==null){ if(isWp(a)&&!isWp(b)) wp=a; else if(isWp(b)&&!isWp(a)) wp=b; }
+    if(count==null){ if(wp===a) count=b; else if(wp===b) count=a; else if(a<=200&&isWp(b)){count=a;wp=b;} else if(b<=200&&isWp(a)){count=b;wp=a;} }
+  }
+  // 4) ถ้ายังไม่รู้จำนวน: หาคำว่า จำนวน N
+  if(count==null){ m=s.match(/จำนวน\s*(\d+)/); if(m) count=+m[1]; }
+  // 5) ถ้ายังไม่รู้ Wp: ตัวเลข 3-4 หลักในช่วง 250-800 ที่ไม่ได้ติด kW
+  if(wp==null){ const nums=[...s.matchAll(/(\d{3,4})(?!\s*k)/gi)].map(x=>+x[1]).filter(v=>v>=250&&v<=800); if(nums.length===1) wp=nums[0]; }
+  const kwp=(count!=null&&wp!=null)?+(count*wp/1000).toFixed(2):null;
+  return {count,wp,kwp,ok:count!=null&&wp!=null,raw:String(txt||'')};
+}
 function buildRowsFrom(rawArr, map){
   const today = new Date(); today.setHours(0,0,0,0);
   return rawArr.map((r,i)=>{
@@ -917,6 +942,9 @@ function buildRowsFrom(rawArr, map){
       i, reqNo:clean(get('reqNo')), area:clean(get('area'))||clean(get('areaCheck'))||'ไม่ระบุ',
       areaCheck: clean(get('areaCheck')),
       respOffice: (typeof headers!=='undefined' && headers[51]) ? clean(r[headers[51]]) : '',   // คอลัมน์ AZ = กฟส./กฟย. ที่รับผิดชอบ (อ่านตามตำแหน่ง: A=0 … AZ=51)
+      panelRaw:   (typeof headers!=='undefined' && headers[17]) ? clean(r[headers[17]]) : '',   // คอลัมน์ R = ข้อมูลแผงโซลาร์ (ข้อความอิสระ)
+      contractNo: (typeof headers!=='undefined' && headers[27]) ? clean(r[headers[27]]) : '',   // คอลัมน์ AB = เลขที่สัญญา
+      kwp:        (typeof headers!=='undefined' && headers[44]) ? clean(r[headers[44]]) : '',   // คอลัมน์ AS = kWp
       hub: (hubV==='#N/A'||hubV.toLowerCase()==='x') ? '' : hubV,
       gridChk: clean(get('gridChk')),
       tr: clean(get('tr')), kva: clean(get('kva')), trOwner: clean(get('trOwner')),
@@ -1500,7 +1528,11 @@ async function renderCaDetail(reqNo){
   const r=rows.find(x=>x.reqNo===reqNo); if(!r){ el.innerHTML='<div class="note">ไม่พบคำขอ</div>'; return; }
   const created=r.caCreated;
   const curNo=r.ca82NoSys||r.ca82No||'';
-  const F=[['เลขที่คำขอ',r.reqNo],['ชื่อผู้ใช้ไฟฟ้า',r.custName],['เบอร์โทรศัพท์',r.custPhone],['สถานะคำขอ',r.statusTxt],['กฟฟ.ที่ตรวจสอบ',r.areaCheck||r.area],['CA ลูกค้า',r.ca],['หมายเลข CA 82 (ชีต)',r.ca82No],['PEA No.',r.peaNo],['ชนิดมิเตอร์',r.meterPhase==='1P'?'1 เฟส (1P2W)':r.meterPhase==='3P'?'3 เฟส (3P4W)':(r.meterPhase||'-')],['กำลังการผลิต (kW)',r.prodKw],['ที่ตั้งโครงการ',r.projLoc],['พิกัด',(r.lat&&r.lng)?(r.lat+', '+r.lng):'-']];
+  const F=[['เลขที่คำขอ',r.reqNo],['ชื่อผู้ใช้ไฟฟ้า',r.custName],['เบอร์โทรศัพท์',r.custPhone],['เลขที่สัญญา',r.contractNo],['kWp',r.kwp],
+    ['แผงโซลาร์',(()=>{ const p=parsePanels(r.panelRaw); if(!p.raw) return '-';
+        if(p.ok){ const mism=(r.kwp&&Math.abs(parseFloat(r.kwp)-p.kwp)>0.05)?' <span style="color:var(--danger)" title="ไม่ตรงกับ kWp ในชีต">⚠ ต่างจาก kWp</span>':''; return `<b>${p.count} แผง</b> × <b>${p.wp} Wp</b> = <b>${p.kwp} kWp</b>${mism}<br><span class="note">${escHtml(p.raw)}</span>`; }
+        return `${escHtml(p.raw)} <span style="color:#b07c00">(แยกจำนวน/ขนาดไม่ได้ — ตรวจสอบ)</span>`; })()],
+    ['สถานะคำขอ',r.statusTxt],['กฟฟ.ที่ตรวจสอบ',r.areaCheck||r.area],['CA ลูกค้า',r.ca],['หมายเลข CA 82 (ชีต)',r.ca82No],['PEA No.',r.peaNo],['ชนิดมิเตอร์',r.meterPhase==='1P'?'1 เฟส (1P2W)':r.meterPhase==='3P'?'3 เฟส (3P4W)':(r.meterPhase||'-')],['กำลังการผลิต (kW)',r.prodKw],['ที่ตั้งโครงการ',r.projLoc],['พิกัด',(r.lat&&r.lng)?(r.lat+', '+r.lng):'-']];
   const info=F.map(([k,v])=>`<div><b>${k}:</b> ${v||'-'}</div>`).join('')
     + `<div style="margin-top:6px;display:inline-block;background:#fff3b0;border:1px solid #e3c000;border-radius:8px;padding:5px 12px;font-weight:800;color:#6b5500">⚡ ปริมาณเสนอขาย: ${r.kw||'-'} kW</div>`;
   const mapBtn=(r.lat&&r.lng)?`<a href="https://www.google.com/maps?q=${encodeURIComponent(r.lat+','+r.lng)}" target="_blank" rel="noopener" style="color:#fff;background:var(--danger);padding:5px 10px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;margin-top:6px">📍 เปิดแผนที่</a>`:'';
