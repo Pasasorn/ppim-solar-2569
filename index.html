@@ -916,7 +916,8 @@ function parsePanels(txt){
   const isWp=v=>v>=250&&v<=800;
   // 0) รูปแบบ CSV ของชีต: ชนิด,ยี่ห้อ,รุ่น,จำนวน,Wp  เช่น "Mono,Aiko,A670-MDE72Mw,10,670" → 2 ตัวเลขท้ายสุด
   if(raw.includes(',')){
-    const nums=raw.split(',').map(t=>t.trim()).filter(t=>/^\d+(?:\.\d+)?$/.test(t)).map(Number);
+    // token อาจมีหน่วยต่อท้าย เช่น "670 (Wp)" / "670Wp" / "10 แผง" → ดึงเฉพาะตัวเลขนำหน้า
+    const nums=raw.split(',').map(t=>t.trim()).map(t=>{ const m=t.match(/^(\d+(?:\.\d+)?)\s*(?:\(?\s*(?:wp|w|วัตต์|แผง)\s*\)?)?$/i); return m?+m[1]:null; }).filter(v=>v!=null);
     if(nums.length>=2){ const a=nums[nums.length-2], b=nums[nums.length-1]; let count=null,wp=null;
       if(isWp(b)&&!isWp(a)){wp=b;count=a;} else if(isWp(a)&&!isWp(b)){wp=a;count=b;} else if(isWp(b)){wp=b;count=a;}
       if(count!=null&&wp!=null&&count>0) return {count,wp,kwp:+(count*wp/1000).toFixed(2),ok:true,raw}; }
@@ -1543,7 +1544,11 @@ async function renderCaDetail(reqNo){
         return `${escHtml(p.raw)} <span style="color:#b07c00">(แยกจำนวน/ขนาดไม่ได้ — ตรวจสอบ)</span>`; })()],
     ['สถานะคำขอ',r.statusTxt],['กฟฟ.ที่ตรวจสอบ',r.areaCheck||r.area],['CA ลูกค้า',r.ca],['หมายเลข CA 82 (ชีต)',r.ca82No],['PEA No.',r.peaNo],['ชนิดมิเตอร์',r.meterPhase==='1P'?'1 เฟส (1P2W)':r.meterPhase==='3P'?'3 เฟส (3P4W)':(r.meterPhase||'-')],['กำลังการผลิต (kW)',r.prodKw],['ที่ตั้งโครงการ',r.projLoc],['พิกัด',(r.lat&&r.lng)?(r.lat+', '+r.lng):'-']];
   const info=F.map(([k,v])=>`<div><b>${k}:</b> ${v||'-'}</div>`).join('')
-    + `<div style="margin-top:6px;display:inline-block;background:#fff3b0;border:1px solid #e3c000;border-radius:8px;padding:5px 12px;font-weight:800;color:#6b5500">⚡ ปริมาณเสนอขาย: ${r.kw||'-'} kW</div>`;
+    + (()=>{ const p=parsePanels(r.panelRaw); const peak=p.ok?p.kwp:(parseFloat(r.kwp)||null);
+        const peakTxt=peak!=null?`${peak} kWp${p.ok?` (${p.count} แผง × ${p.wp} Wp)`:''}`:'-';
+        return `<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap">
+          <div style="display:inline-block;background:#fff3b0;border:1px solid #e3c000;border-radius:8px;padding:5px 12px;font-weight:800;color:#6b5500">⚡ ปริมาณเสนอขาย: ${r.kw||'-'} kW</div>
+          <div style="display:inline-block;background:#e6f6ea;border:1px solid #7fc98f;border-radius:8px;padding:5px 12px;font-weight:800;color:#1f6b36">☀️ ติดตั้ง (Peak): ${peakTxt}</div></div>`; })();
   const mapBtn=(r.lat&&r.lng)?`<a href="https://www.google.com/maps?q=${encodeURIComponent(r.lat+','+r.lng)}" target="_blank" rel="noopener" style="color:#fff;background:var(--danger);padding:5px 10px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;margin-top:6px">📍 เปิดแผนที่</a>`:'';
   el.innerHTML=`
     <div style="background:#F4F7FC;border:1px solid var(--border);border-radius:10px;padding:12px;line-height:1.8;font-size:.9rem">
