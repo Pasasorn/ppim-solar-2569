@@ -957,7 +957,7 @@ function buildRowsFrom(rawArr, map){
       contractNo: (typeof headers!=='undefined' && headers[27]) ? clean(r[headers[27]]) : '',   // คอลัมน์ AB = เลขที่สัญญา
       kwp:        (typeof headers!=='undefined' && headers[49]) ? clean(r[headers[49]]) : '',   // คอลัมน์ AX = kWp (A=0 … AX=49)
       hub: (hubV==='#N/A'||hubV.toLowerCase()==='x') ? '' : hubV,
-      gridChk: clean(get('gridChk')),
+      gridChk: ((typeof headers!=='undefined' && headers[12]) ? clean(r[headers[12]]) : '') || clean(get('gridChk')),   // คอลัมน์ M = ผลตรวจ Grid Capacity (อ่านตามตำแหน่งก่อน · ไม่มีค่าค่อยใช้ชื่อหัวคอลัมน์)
       tr: clean(get('tr')), kva: clean(get('kva')), trOwner: clean(get('trOwner')),
       meterV: clean(get('meterV')), phaseNo: clean(get('phaseNo')),
       ca: clean(get('ca')), peaNo: clean(get('peaNo')), lat: clean(get('lat')), lng: clean(get('lng')),
@@ -1837,8 +1837,7 @@ function renderKpis(){
     K('info',   '🧾', fmtN(ca82Done)+' / '+fmtN(ca82Pop.length)+(ca82Pop.length?' <span class="pc">('+pctTxt(ca82Done/ca82Pop.length*100)+')</span>':''), 'สร้างบัญชี CA 82', 'รอสร้างอีก '+fmtN(ca82Wait)+' ราย') +
     K('ok',     '🏁', fmtN(cod)+pc(cod),                              'COD แล้ว',           'เชื่อมต่อเข้าระบบ') +
     K('danger', '🔌', fmtN(gridFail)+pc(gridFail),                    'ไม่ผ่าน Grid Capacity', 'ตรวจ Grid Capacity ไม่ผ่าน') +
-    K('danger', '🛠️', fmtN(techFail)+pc(techFail),                    'ไม่ผ่านตรวจสอบเทคนิค', 'สถานะคำขอ ไม่ผ่าน/ปฏิเสธ') +
-    K('danger', '❌', fmtN(cancelled)+pc(cancelled),                  'ยกเลิก/คืนคำขอ',     'ลูกค้ายกเลิก/สิ้นผล/คืนคำขอ');
+    K('danger', '❌', fmtN(cancelled+techFail)+pc(cancelled+techFail),'ยกเลิก/ไม่ผ่าน',     'ยกเลิก/ไม่ผ่าน/คืนคำขอ (ไม่รวมตก Grid)');
 }
 
 function renderPipeline(){
