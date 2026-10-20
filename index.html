@@ -1789,6 +1789,17 @@ function renderKpis(){
   const passed = rows.filter(r=>r.step>=3&&r.step!==0).length;
   const cod = rows.filter(r=>r.step===10).length;
   const rej = rows.filter(r=>r.step===0).length;
+  // แยก "ไม่ผ่าน" เป็น 2 กลุ่ม: Grid Capacity (จากคอลัมน์ตรวจ Grid) vs เทคนิค (สถานะคำขอ ไม่ผ่าน/ปฏิเสธ แต่ Grid ไม่ได้ตก) · ที่เหลือ = ยกเลิก/คืนคำขอ
+  const isGridFail = r=>!!(r.gridChk&&r.gridChk.includes('ไม่ผ่าน'));
+  const isTechFail = r=>r.step===0 && !isGridFail(r) && /ไม่ผ่าน|ปฏิเสธ/.test(r.statusTxt||'');
+  const gridFail = rows.filter(isGridFail).length;
+  const techFail = rows.filter(isTechFail).length;
+  const cancelled = rows.filter(r=>r.step===0 && !isGridFail(r) && !isTechFail(r)).length;
+  // สถานะการจัดสรรมิเตอร์ (นับจากคำขอขั้น 8 ขึ้นไป)
+  const allocPop = rows.filter(r=>r.step>=8);
+  const allocDone = allocPop.filter(r=>r.allocStatus==='จัดสรรแล้ว').length;
+  const allocWait = allocPop.filter(r=>r.allocStatus==='รอจัดสรรมิเตอร์').length;
+  const allocNone = allocPop.length - allocDone - allocWait;
   const gridWait = rows.filter(r=>!r.gridPass && r.step!==0 && !(r.gridChk&&r.gridChk.includes('ไม่ผ่าน'))).length;
   // มิเตอร์: รอสับเปลี่ยน = ขั้น 8, สับเปลี่ยนแล้ว = ขั้น 10 (COD) แยก 1P/3P
   const mtr = {w1:0,w3:0,p1:0,p3:0,d1:0,d3:0};
@@ -1820,11 +1831,14 @@ function renderKpis(){
     K('warn',   '⏱️', '<span style="font-size:1.15rem">🟢'+fmtN(g)+' 🟡'+fmtN(y)+' 🔴'+fmtN(rd)+'</span>', 'สถานะ SLA', 'ช่วงตรวจสอบ+ทำสัญญา') +
     K('danger', '⛔', fmtN(ov)+pc(ov),                                'เกิน SLA',           'ค้างเกิน 30 วัน') +
     K('warn',   '🔧', fmtN(meterWait)+pc(meterWait),                  'รอสับเปลี่ยนมิเตอร์', '1P '+fmtN(mtr.w1)+' / 3P '+fmtN(mtr.w3)+' · จัดสรรทุกขนาด · ขั้น 8') +
+    K('info',   '📦', fmtN(allocDone)+' / '+fmtN(allocPop.length)+(allocPop.length?' <span class="pc">('+pctTxt(allocDone/allocPop.length*100)+')</span>':''), 'จัดสรรมิเตอร์แล้ว', '⏳ รอจัดสรร '+fmtN(allocWait)+' · ยังไม่ดึง '+fmtN(allocNone)+' · ขั้น 8+') +
     K('info',   '⏳', fmtN(meterPbs)+pc(meterPbs),                    'รอ ผบส.กด COD',      '⚠ อย่าลืมกดใน PPIM · ขั้น 9') +
     K('ok',     '🔌', fmtN(meterDone)+pc(meterDone),                  'สับเปลี่ยนแล้ว',      '1P '+fmtN(mtr.d1)+' / 3P '+fmtN(mtr.d3)+' · ขั้น 9+10') +
     K('info',   '🧾', fmtN(ca82Done)+' / '+fmtN(ca82Pop.length)+(ca82Pop.length?' <span class="pc">('+pctTxt(ca82Done/ca82Pop.length*100)+')</span>':''), 'สร้างบัญชี CA 82', 'รอสร้างอีก '+fmtN(ca82Wait)+' ราย') +
     K('ok',     '🏁', fmtN(cod)+pc(cod),                              'COD แล้ว',           'เชื่อมต่อเข้าระบบ') +
-    K('danger', '❌', fmtN(rej)+pc(rej),                              'ยกเลิก/ไม่ผ่าน',     'คำขอที่สิ้นสุด');
+    K('danger', '🔌', fmtN(gridFail)+pc(gridFail),                    'ไม่ผ่าน Grid Capacity', 'ตรวจ Grid Capacity ไม่ผ่าน') +
+    K('danger', '🛠️', fmtN(techFail)+pc(techFail),                    'ไม่ผ่านตรวจสอบเทคนิค', 'สถานะคำขอ ไม่ผ่าน/ปฏิเสธ') +
+    K('danger', '❌', fmtN(cancelled)+pc(cancelled),                  'ยกเลิก/คืนคำขอ',     'ลูกค้ายกเลิก/สิ้นผล/คืนคำขอ');
 }
 
 function renderPipeline(){
