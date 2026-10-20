@@ -104,6 +104,8 @@ body{padding-left:236px}
 .kpi{background:#f7f2fb;border-radius:18px;padding:15px 15px 14px;box-shadow:0 4px 14px rgba(107,44,145,.07);border:1px solid #0000000d;text-align:left;transition:.18s}
 .kpi:hover{box-shadow:0 10px 24px rgba(107,44,145,.15);transform:translateY(-3px)}
 .kpi .ic{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:13px;font-size:1.4rem;line-height:1;background:#fff;color:var(--pea);margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
+.kpi .kh{display:flex;align-items:center;gap:8px;margin-bottom:10px} .kpi .kh .ic{margin-bottom:0}
+.kpi .dept{font-size:.7rem;font-weight:800;color:var(--pea);background:#fff;border:1px solid #e3d9f0;border-radius:999px;padding:3px 9px;white-space:nowrap;letter-spacing:.2px}
 .kpi .v{font-size:1.7rem;font-weight:800;color:var(--pea);line-height:1.1}
 .kpi .v .pc{font-size:.82rem;font-weight:700;opacity:.75}
 .kpi .l{font-size:.82rem;color:#4a4f58;margin-top:4px;font-weight:700;line-height:1.3}
@@ -1791,8 +1793,11 @@ function renderKpis(){
   const rej = rows.filter(r=>r.step===0).length;
   // แยก "ไม่ผ่าน" เป็น 2 กลุ่ม: Grid Capacity (จากคอลัมน์ตรวจ Grid) vs เทคนิค (สถานะคำขอ ไม่ผ่าน/ปฏิเสธ แต่ Grid ไม่ได้ตก) · ที่เหลือ = ยกเลิก/คืนคำขอ
   const isGridFail = r=>!!(r.gridChk&&r.gridChk.includes('ไม่ผ่าน'));
-  const isTechFail = r=>r.step===0 && !isGridFail(r) && /ไม่ผ่าน|ปฏิเสธ/.test(r.statusTxt||'');
+  const isTechFail = r=>r.step===0 && !isGridFail(r) && /ไม่ผ่าน|ปฏิเสธ|ไม่อนุมัติ/.test(r.statusTxt||'');
   const gridFail = rows.filter(isGridFail).length;
+  // สรุปค่าที่พบจริงในคอลัมน์ M (ไว้ตรวจว่าใช้คำไหนบ้าง)
+  const gridVals={}; rows.forEach(r=>{ const v=(r.gridChk||'').trim(); if(v) gridVals[v]=(gridVals[v]||0)+1; });
+  const gridValsTxt=Object.entries(gridVals).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,n])=>'"'+k.slice(0,18)+'" '+fmtN(n)).join(' · ')||'(คอลัมน์ M ว่างทั้งหมด)';
   const techFail = rows.filter(isTechFail).length;
   const cancelled = rows.filter(r=>r.step===0 && !isGridFail(r) && !isTechFail(r)).length;
   // สถานะการจัดสรรมิเตอร์ (นับจากคำขอขั้น 8 ขึ้นไป)
@@ -1826,18 +1831,18 @@ function renderKpis(){
     K('',       '📋', fmtN(tot),                                      'คำขอทั้งหมด',        'ทุกคำขอในระบบ') +
     K('info',   '⚡', fmtN(kwSum),                                    'กำลังไฟรวม (kW)',    '= '+fmtN(kwSum/1000)+' MW') +
     K('ok',     '✅', fmtN(gridPassN)+pc(gridPassN),                  'ผ่านตรวจ Grid',      'ตรวจ Grid Capacity ผ่าน') +
-    K('info',   '🔎', fmtN(gridWait)+pc(gridWait),                    'รอตรวจ Grid',        'ยังไม่พิจารณา Grid') +
+    K('info',   '🔎', fmtN(gridWait)+pc(gridWait),                    'รอตรวจ Grid',        'ยังไม่พิจารณา Grid',                 'ผสอ.กวว.') +
     K('ok',     '👍', fmtN(passed)+pc(passed),                        'ผ่านการพิจารณา',     'ทำสัญญาขึ้นไป (ขั้น 3+)') +
     K('warn',   '⏱️', '<span style="font-size:1.15rem">🟢'+fmtN(g)+' 🟡'+fmtN(y)+' 🔴'+fmtN(rd)+'</span>', 'สถานะ SLA', 'ช่วงตรวจสอบ+ทำสัญญา') +
     K('danger', '⛔', fmtN(ov)+pc(ov),                                'เกิน SLA',           'ค้างเกิน 30 วัน') +
-    K('warn',   '🔧', fmtN(meterWait)+pc(meterWait),                  'รอสับเปลี่ยนมิเตอร์', '1P '+fmtN(mtr.w1)+' / 3P '+fmtN(mtr.w3)+' · จัดสรรทุกขนาด · ขั้น 8') +
-    K('info',   '📦', '<span style="font-size:1.1rem;white-space:nowrap"><span style="color:#8b919c">⬜'+fmtN(allocNone)+'</span> <span style="color:#B07C00">⏳'+fmtN(allocWait)+'</span> <span style="color:#1f9d57">✅'+fmtN(allocDone)+'</span></span>', 'สถานะจัดสรรมิเตอร์', 'ยังไม่ดึง · รอจัดสรร · จัดสรรแล้ว'+(allocPop.length?' · '+pctTxt(allocDone/allocPop.length*100)+' ของ '+fmtN(allocPop.length)+' ราย':'')) +
-    K('info',   '⏳', fmtN(meterPbs)+pc(meterPbs),                    'รอ ผบส.กด COD',      '⚠ อย่าลืมกดใน PPIM · ขั้น 9') +
-    K('ok',     '🔌', fmtN(meterDone)+pc(meterDone),                  'สับเปลี่ยนแล้ว',      '1P '+fmtN(mtr.d1)+' / 3P '+fmtN(mtr.d3)+' · ขั้น 9+10') +
-    K('info',   '🧾', fmtN(ca82Done)+' / '+fmtN(ca82Pop.length)+(ca82Pop.length?' <span class="pc">('+pctTxt(ca82Done/ca82Pop.length*100)+')</span>':''), 'สร้างบัญชี CA 82', 'รอสร้างอีก '+fmtN(ca82Wait)+' ราย') +
-    K('ok',     '🏁', fmtN(cod)+pc(cod),                              'COD แล้ว',           'เชื่อมต่อเข้าระบบ') +
-    K('danger', '🔌', fmtN(gridFail)+pc(gridFail),                    'ไม่ผ่าน Grid Capacity', 'ตรวจ Grid Capacity ไม่ผ่าน') +
-    K('danger', '❌', fmtN(cancelled+techFail)+pc(cancelled+techFail),'ยกเลิก/ไม่ผ่าน',     'ยกเลิก/ไม่ผ่าน/คืนคำขอ (ไม่รวมตก Grid)');
+    K('warn',   '🔧', fmtN(meterWait)+pc(meterWait),                  'รอสับเปลี่ยนมิเตอร์', '1P '+fmtN(mtr.w1)+' / 3P '+fmtN(mtr.w3)+' · จัดสรรทุกขนาด · ขั้น 8', 'ผมม.') +
+    K('info',   '📦', '<span style="font-size:1.1rem;white-space:nowrap"><span style="color:#8b919c">⬜'+fmtN(allocNone)+'</span> <span style="color:#B07C00">⏳'+fmtN(allocWait)+'</span> <span style="color:#1f9d57">✅'+fmtN(allocDone)+'</span></span>', 'สถานะจัดสรรมิเตอร์', 'ยังไม่ดึง · รอจัดสรร · จัดสรรแล้ว'+(allocPop.length?' · '+pctTxt(allocDone/allocPop.length*100)+' ของ '+fmtN(allocPop.length)+' ราย':''), 'ผมต.กบล.') +
+    K('info',   '⏳', fmtN(meterPbs)+pc(meterPbs),                    'รอ ผบส.กด COD',      '⚠ อย่าลืมกดใน PPIM · ขั้น 9',        'ผบส.') +
+    K('ok',     '🔌', fmtN(meterDone)+pc(meterDone),                  'สับเปลี่ยนแล้ว',      '1P '+fmtN(mtr.d1)+' / 3P '+fmtN(mtr.d3)+' · ขั้น 9+10', 'ผมม.') +
+    K('info',   '🧾', fmtN(ca82Done)+' / '+fmtN(ca82Pop.length)+(ca82Pop.length?' <span class="pc">('+pctTxt(ca82Done/ca82Pop.length*100)+')</span>':''), 'สร้างบัญชี CA 82', 'รอสร้างอีก '+fmtN(ca82Wait)+' ราย', 'ผซฟ.กบฟ.') +
+    K('ok',     '🏁', fmtN(cod)+pc(cod),                              'COD แล้ว',           'เชื่อมต่อเข้าระบบ',                  'ผบส.') +
+    K('danger', '🔌', fmtN(gridFail)+pc(gridFail),                    'ไม่ผ่าน Grid Capacity', 'คอลัมน์ M: '+gridValsTxt) +
+    K('danger', '❌', '<span style="font-size:1.05rem;white-space:nowrap;line-height:1.5"><span style="color:#8b5a00">🚫 '+fmtN(cancelled)+' <span class="pc">('+pctTxt(tot?cancelled/tot*100:0)+')</span></span><br><span style="color:var(--danger)">⛔ '+fmtN(techFail)+' <span class="pc">('+pctTxt(tot?techFail/tot*100:0)+')</span></span></span>', 'ยกเลิก / ไม่ผ่านตรวจสอบ', '🚫 ยกเลิก/คืนคำขอ · ⛔ ไม่ผ่านตรวจสอบ · รวม '+fmtN(cancelled+techFail)+' ('+pctTxt(tot?(cancelled+techFail)/tot*100:0)+') ไม่รวมตก Grid');
 }
 
 function renderPipeline(){
