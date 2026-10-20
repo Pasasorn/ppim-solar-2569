@@ -959,7 +959,7 @@ function buildRowsFrom(rawArr, map){
       contractNo: (typeof headers!=='undefined' && headers[27]) ? clean(r[headers[27]]) : '',   // คอลัมน์ AB = เลขที่สัญญา
       kwp:        (typeof headers!=='undefined' && headers[49]) ? clean(r[headers[49]]) : '',   // คอลัมน์ AX = kWp (A=0 … AX=49)
       hub: (hubV==='#N/A'||hubV.toLowerCase()==='x') ? '' : hubV,
-      gridChk: ((typeof headers!=='undefined' && headers[12]) ? clean(r[headers[12]]) : '') || clean(get('gridChk')),   // คอลัมน์ M = ผลตรวจ Grid Capacity (อ่านตามตำแหน่งก่อน · ไม่มีค่าค่อยใช้ชื่อหัวคอลัมน์)
+      gridChk: clean(get('gridChk')),   // ผลตรวจ Grid Capacity — ผูกตามชื่อหัวคอลัมน์ (คอลัมน์ M เป็นระดับแรงดัน ไม่ใช่ผลตรวจ Grid)
       tr: clean(get('tr')), kva: clean(get('kva')), trOwner: clean(get('trOwner')),
       meterV: clean(get('meterV')), phaseNo: clean(get('phaseNo')),
       ca: clean(get('ca')), peaNo: clean(get('peaNo')), lat: clean(get('lat')), lng: clean(get('lng')),
@@ -1614,6 +1614,10 @@ async function loadFilesInto(sel, reqNo, opts){
                     : (f.data && f.mime==='application/pdf') ? `<iframe src="${f.data}" style="width:100%;height:420px;border:1px solid var(--border);border-radius:8px"></iframe>` : '';
       return `<div style="margin-bottom:10px"><div class="note"><b>${lbl}</b> · ${f.name}</div>${preview}<div>${dl}</div></div>`;
     }).join('');
+    // หน้า CA 82: ถ้ามีแต่เอกสารลูกค้า ไม่มีเอกสารสับเปลี่ยนจาก ผมต. → แจ้งชัดเจน
+    if(!opts.onlyPhotos && !fs.some(f=>!isPersonalDoc(f.name))){
+      el.innerHTML += '<div class="note" style="margin-top:6px;background:#fdf6e3;border-left:4px solid var(--warn);padding:7px 10px;border-radius:6px">⚠ ยังไม่มีเอกสารการสับเปลี่ยนมิเตอร์จาก ผมต. (แบบฟอร์มขอขนาน / แบบฟอร์มอ่าน TOU / รูปมิเตอร์) — จะมีเมื่อ ผมต. กดรายงานสับเปลี่ยนพร้อมแนบไฟล์ใน dashboard</div>';
+    }
   }catch(e){ el.innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
 }
 const loadCaFiles = reqNo => loadFilesInto('#ca82Files', reqNo);
@@ -1795,9 +1799,6 @@ function renderKpis(){
   const isGridFail = r=>!!(r.gridChk&&r.gridChk.includes('ไม่ผ่าน'));
   const isTechFail = r=>r.step===0 && !isGridFail(r) && /ไม่ผ่าน|ปฏิเสธ|ไม่อนุมัติ/.test(r.statusTxt||'');
   const gridFail = rows.filter(isGridFail).length;
-  // สรุปค่าที่พบจริงในคอลัมน์ M (ไว้ตรวจว่าใช้คำไหนบ้าง)
-  const gridVals={}; rows.forEach(r=>{ const v=(r.gridChk||'').trim(); if(v) gridVals[v]=(gridVals[v]||0)+1; });
-  const gridValsTxt=Object.entries(gridVals).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([k,n])=>'"'+k.slice(0,18)+'" '+fmtN(n)).join(' · ')||'(คอลัมน์ M ว่างทั้งหมด)';
   const techFail = rows.filter(isTechFail).length;
   const cancelled = rows.filter(r=>r.step===0 && !isGridFail(r) && !isTechFail(r)).length;
   // สถานะการจัดสรรมิเตอร์ (นับจากคำขอขั้น 8 ขึ้นไป)
@@ -1841,7 +1842,6 @@ function renderKpis(){
     K('ok',     '🔌', fmtN(meterDone)+pc(meterDone),                  'สับเปลี่ยนแล้ว',      '1P '+fmtN(mtr.d1)+' / 3P '+fmtN(mtr.d3)+' · ขั้น 9+10', 'ผมม.') +
     K('info',   '🧾', fmtN(ca82Done)+' / '+fmtN(ca82Pop.length)+(ca82Pop.length?' <span class="pc">('+pctTxt(ca82Done/ca82Pop.length*100)+')</span>':''), 'สร้างบัญชี CA 82', 'รอสร้างอีก '+fmtN(ca82Wait)+' ราย', 'ผซฟ.กบฟ.') +
     K('ok',     '🏁', fmtN(cod)+pc(cod),                              'COD แล้ว',           'เชื่อมต่อเข้าระบบ',                  'ผบส.') +
-    K('danger', '🔌', fmtN(gridFail)+pc(gridFail),                    'ไม่ผ่าน Grid Capacity', 'คอลัมน์ M: '+gridValsTxt) +
     K('danger', '❌', '<span style="font-size:1.05rem;white-space:nowrap;line-height:1.5"><span style="color:#8b5a00">🚫 '+fmtN(cancelled)+' <span class="pc">('+pctTxt(tot?cancelled/tot*100:0)+')</span></span><br><span style="color:var(--danger)">⛔ '+fmtN(techFail)+' <span class="pc">('+pctTxt(tot?techFail/tot*100:0)+')</span></span></span>', 'ยกเลิก / ไม่ผ่านตรวจสอบ', '🚫 ยกเลิก/คืนคำขอ · ⛔ ไม่ผ่านตรวจสอบ · รวม '+fmtN(cancelled+techFail)+' ('+pctTxt(tot?(cancelled+techFail)/tot*100:0)+') ไม่รวมตก Grid');
 }
 
