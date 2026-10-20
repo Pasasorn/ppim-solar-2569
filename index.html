@@ -1821,7 +1821,7 @@ function renderKpis(){
   const ca82Pop = rows.filter(r=>r.step>=8);
   const ca82Done = ca82Pop.filter(r=>r.caCreated).length, ca82Wait = ca82Pop.length - ca82Done;
   const pc = n => tot ? ' <span class="pc">('+pctTxt(n/tot*100)+')</span>' : '';
-  const K = (cls,ic,v,l,d)=>`<div class="kpi ${cls}"><div class="ic">${ic}</div><div class="v">${v}</div><div class="l">${l}</div><div class="d">${d}</div></div>`;
+  const K = (cls,ic,v,l,d,dept)=>`<div class="kpi ${cls}"><div class="kh"><div class="ic">${ic}</div>${dept?`<span class="dept" title="หน่วยงานรับผิดชอบ">${dept}</span>`:''}</div><div class="v">${v}</div><div class="l">${l}</div><div class="d">${d}</div></div>`;
   $('#kpis').innerHTML =
     K('',       '📋', fmtN(tot),                                      'คำขอทั้งหมด',        'ทุกคำขอในระบบ') +
     K('info',   '⚡', fmtN(kwSum),                                    'กำลังไฟรวม (kW)',    '= '+fmtN(kwSum/1000)+' MW') +
