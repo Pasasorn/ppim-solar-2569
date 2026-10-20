@@ -1831,7 +1831,7 @@ function renderKpis(){
     K('warn',   '⏱️', '<span style="font-size:1.15rem">🟢'+fmtN(g)+' 🟡'+fmtN(y)+' 🔴'+fmtN(rd)+'</span>', 'สถานะ SLA', 'ช่วงตรวจสอบ+ทำสัญญา') +
     K('danger', '⛔', fmtN(ov)+pc(ov),                                'เกิน SLA',           'ค้างเกิน 30 วัน') +
     K('warn',   '🔧', fmtN(meterWait)+pc(meterWait),                  'รอสับเปลี่ยนมิเตอร์', '1P '+fmtN(mtr.w1)+' / 3P '+fmtN(mtr.w3)+' · จัดสรรทุกขนาด · ขั้น 8') +
-    K('info',   '📦', fmtN(allocDone)+' / '+fmtN(allocPop.length)+(allocPop.length?' <span class="pc">('+pctTxt(allocDone/allocPop.length*100)+')</span>':''), 'จัดสรรมิเตอร์แล้ว', '⏳ รอจัดสรร '+fmtN(allocWait)+' · ยังไม่ดึง '+fmtN(allocNone)+' · ขั้น 8+') +
+    K('info',   '📦', '<span style="font-size:1.1rem;white-space:nowrap"><span style="color:#8b919c">⬜'+fmtN(allocNone)+'</span> <span style="color:#B07C00">⏳'+fmtN(allocWait)+'</span> <span style="color:#1f9d57">✅'+fmtN(allocDone)+'</span></span>', 'สถานะจัดสรรมิเตอร์', 'ยังไม่ดึง · รอจัดสรร · จัดสรรแล้ว'+(allocPop.length?' · '+pctTxt(allocDone/allocPop.length*100)+' ของ '+fmtN(allocPop.length)+' ราย':'')) +
     K('info',   '⏳', fmtN(meterPbs)+pc(meterPbs),                    'รอ ผบส.กด COD',      '⚠ อย่าลืมกดใน PPIM · ขั้น 9') +
     K('ok',     '🔌', fmtN(meterDone)+pc(meterDone),                  'สับเปลี่ยนแล้ว',      '1P '+fmtN(mtr.d1)+' / 3P '+fmtN(mtr.d3)+' · ขั้น 9+10') +
     K('info',   '🧾', fmtN(ca82Done)+' / '+fmtN(ca82Pop.length)+(ca82Pop.length?' <span class="pc">('+pctTxt(ca82Done/ca82Pop.length*100)+')</span>':''), 'สร้างบัญชี CA 82', 'รอสร้างอีก '+fmtN(ca82Wait)+' ราย') +
