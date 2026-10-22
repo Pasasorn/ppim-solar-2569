@@ -398,6 +398,8 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     <div class="card" id="sec-pipeline" data-view="pipeline">
       <h2>สถานะขั้นตอนการดำเนินงาน โครงการโซลาร์ภาคประชาชน ปี 2569</h2>
       <div class="pipeline" id="pipeline"></div>
+      <div class="note" style="margin-top:8px">👆 คลิกขั้นตอนเพื่อดูการกระจายตาม กฟฟ. และรายการ PPIM ของขั้นนั้น</div>
+      <div id="stepDetail" style="margin-top:12px"></div>
     </div>
 
     <!-- SLA + HUB OVERVIEW -->
@@ -1065,7 +1067,7 @@ function process(){
 }
 
 /* ================= RENDER ================= */
-function renderAll(){ renderKpis(); renderOvSla(); renderMeters(); renderCA(); renderExec(); renderWeekly(); renderPipeline(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); renderSidenav(); }
+function renderAll(){ renderKpis(); renderOvSla(); renderMeters(); renderCA(); renderExec(); renderWeekly(); renderPipeline(); if(typeof renderStepDetail==='function') renderStepDetail(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); renderSidenav(); }
 
 /* ================= ตัวเลขบนแถบเมนู ================= */
 function renderSidenav(){
@@ -1868,8 +1870,51 @@ function renderPipeline(){
 function clickStep(id){
   stepFilter = (stepFilter===id) ? null : id;
   $('#fStep').value = stepFilter==null ? '' : stepFilter;
-  page=1; renderPipeline(); renderTable();
-  if(stepFilter!=null) setTimeout(()=>$('#tbl').scrollIntoView({behavior:'smooth',block:'center'}),100);
+  page=1; renderPipeline(); renderTable(); renderStepDetail();
+}
+// แผงรายละเอียดขั้นตอนที่เลือก: กราฟแยก กฟฟ. (จำนวน + %) และรายการ PPIM
+let stepChart=null;
+function renderStepDetail(){
+  const box=$('#stepDetail'); if(!box) return;
+  if(stepChart){ try{stepChart.destroy();}catch(e){} stepChart=null; }
+  if(stepFilter==null){ box.innerHTML=''; return; }
+  const list = rows.filter(r=> stepFilter==='un' ? r.step===null : r.step===stepFilter);
+  const nm = stepFilter==='un' ? 'ไม่ทราบสถานะ' : stepName(stepFilter);
+  const tot=list.length, all=rows.length;
+  if(!tot){ box.innerHTML=`<div class="note">— ไม่มีคำขอในขั้น "${nm}" —</div>`; return; }
+  // แยกตาม กฟฟ.
+  const byH={}; list.forEach(r=>{ const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; byH[h]=(byH[h]||0)+1; });
+  const ent=Object.entries(byH).sort((a,b)=>b[1]-a[1]);
+  const esc=escHtml;
+  const rowsHtml=list.slice().sort((a,b)=>String(reqHub(a)||a.area).localeCompare(String(reqHub(b)||b.area),'th')).map(r=>`<tr>
+      <td><b>${esc(r.reqNo)}</b></td><td>${esc(reqHub(r)||r.areaCheck||r.area||'-')}</td><td>${esc(r.custName||'-')}</td>
+      <td style="text-align:right">${r.kw||'-'}</td><td class="note">${esc(r.statusTxt||'-')}</td></tr>`).join('');
+  box.innerHTML=`
+    <div style="background:#f7f2fb;border:1px solid var(--border);border-radius:12px;padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div style="font-weight:800;color:var(--pea);font-size:1rem">📍 ขั้น ${stepFilter==='un'?'?':stepFilter} · ${esc(nm)} — <span style="font-size:1.2rem">${fmtN(tot)}</span> ราย <span class="note">(${pctTxt(all?tot/all*100:0)} ของทั้งหมด ${fmtN(all)})</span> · ${fmtN(ent.length)} กฟฟ.</div>
+        <button class="btn btn-outline btn-sm" onclick="clickStep(stepFilter)">✕ ปิด</button>
+      </div>
+      <div class="chart-box" style="height:${Math.max(220, Math.min(420, ent.length*30+80))}px;margin-top:8px"><canvas id="chStepHub"></canvas></div>
+      <div style="overflow-x:auto;margin-top:10px"><table style="font-size:.88rem">
+        <thead><tr><th>กฟฟ.</th><th style="text-align:right">จำนวน</th><th style="text-align:right">% ของขั้นนี้</th></tr></thead>
+        <tbody>${ent.map(([h,n])=>`<tr><td>${esc(h)}</td><td style="text-align:right"><b>${fmtN(n)}</b></td><td style="text-align:right">${pctTxt(n/tot*100)}</td></tr>`).join('')}
+        <tr style="background:#F4F7FC;font-weight:700"><td>รวม</td><td style="text-align:right">${fmtN(tot)}</td><td style="text-align:right">100%</td></tr></tbody></table></div>
+      <details style="margin-top:10px"><summary style="cursor:pointer;font-weight:700;color:var(--pea)">📋 รายการ PPIM ในขั้นนี้ (${fmtN(tot)} ราย)</summary>
+        <div style="overflow:auto;max-height:420px;margin-top:8px"><table style="font-size:.85rem">
+          <thead><tr><th>เลขที่คำขอ</th><th>กฟฟ.</th><th>ชื่อผู้ใช้ไฟฟ้า</th><th style="text-align:right">kW</th><th>สถานะ PPIM</th></tr></thead>
+          <tbody>${rowsHtml}</tbody></table></div></details>
+    </div>`;
+  const cv=$('#chStepHub'); if(cv && typeof Chart!=='undefined'){
+    const labels=ent.map(e=>e[0]), data=ent.map(e=>e[1]);
+    const pctLbl={ id:'pctLbl', afterDatasetsDraw(c){ const ctx=c.ctx; c.getDatasetMeta(0).data.forEach((bar,i)=>{ ctx.save(); ctx.font='bold 11px Sarabun, Segoe UI, Tahoma'; ctx.fillStyle='#3B2064'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(fmtN(data[i])+' ('+pctTxt(data[i]/tot*100)+')', bar.x+6, bar.y); ctx.restore(); }); } };
+    stepChart=new Chart(cv,{type:'bar',data:{labels,datasets:[{label:'จำนวนคำขอ',data,backgroundColor:'#7A34A6',borderRadius:4}]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:90}},
+        plugins:{legend:{display:false},tooltip:{callbacks:{label:it=>fmtN(it.raw)+' ราย ('+pctTxt(it.raw/tot*100)+')'}}},
+        scales:{x:{beginAtZero:true,ticks:{precision:0}},y:{ticks:{font:{size:11}}}}},
+      plugins:[pctLbl]});
+  }
+  setTimeout(()=>box.scrollIntoView({behavior:'smooth',block:'nearest'}),80);
 }
 
 const BAND_ICON = {green:'🟢',yellow:'🟡',red:'🔴',over:'⛔'};
