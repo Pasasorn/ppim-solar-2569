@@ -915,6 +915,13 @@ $('#btnApplyMap').onclick = ()=>{
 // แยกข้อมูลแผงโซลาร์จากข้อความอิสระ (คอลัมน์ R) → {count:จำนวนแผง, wp:วัตต์ต่อแผง, kwp, ok}
 // รองรับ: "550W x 10", "10 แผง x 550 Wp", "จำนวน 10 แผง ขนาด 550 W", "10x550", "JA 580Wp 9 แผง" ฯลฯ
 function escHtml(s){ return String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])); }
+// PDPA: ปิดบังชื่อ-นามสกุลในหน้าที่ดูได้โดยไม่ login (คงคำนำหน้า + ตัวแรกของแต่ละคำ) · login เป็นเจ้าหน้าที่แล้วจึงเห็นเต็ม
+function maskName(s){
+  s=String(s||'').trim(); if(!s) return '-';
+  if(typeof mmSession!=='undefined' && mmSession && mmSession.emp) return s;
+  return s.split(/\s+/).map(w=>{ const m=w.match(/^(นางสาว|นาย|นาง|น\.ส\.|ด\.ช\.|ด\.ญ\.|บริษัท|บจก\.|หจก\.|ห้างหุ้นส่วน)/); const p=m?m[0]:''; const rest=w.slice(p.length);
+    return p+(rest?rest.charAt(0)+'***':''); }).join(' ');
+}
 function parsePanels(txt){
   const raw=String(txt||'');
   if(!raw.trim()) return {count:null,wp:null,kwp:null,ok:false,raw:''};
@@ -1887,7 +1894,7 @@ function renderStepDetail(){
   const ent=Object.entries(byH).sort((a,b)=>b[1]-a[1]);
   const esc=escHtml;
   const rowsHtml=list.slice().sort((a,b)=>String(reqHub(a)||a.area).localeCompare(String(reqHub(b)||b.area),'th')).map(r=>`<tr>
-      <td><b>${esc(r.reqNo)}</b></td><td>${esc(reqHub(r)||r.areaCheck||r.area||'-')}</td><td>${esc(r.custName||'-')}</td>
+      <td><b>${esc(r.reqNo)}</b></td><td>${esc(reqHub(r)||r.areaCheck||r.area||'-')}</td><td>${esc(maskName(r.custName))}</td>
       <td style="text-align:right">${r.kw||'-'}</td><td class="note">${esc(r.statusTxt||'-')}</td></tr>`).join('');
   box.innerHTML=`
     <div style="background:#f7f2fb;border:1px solid var(--border);border-radius:12px;padding:12px 14px">
@@ -1902,7 +1909,7 @@ function renderStepDetail(){
         <tr style="background:#F4F7FC;font-weight:700"><td>รวม</td><td style="text-align:right">${fmtN(tot)}</td><td style="text-align:right">100%</td></tr></tbody></table></div>
       <details style="margin-top:10px"><summary style="cursor:pointer;font-weight:700;color:var(--pea)">📋 รายการ PPIM ในขั้นนี้ (${fmtN(tot)} ราย)</summary>
         <div style="overflow:auto;max-height:420px;margin-top:8px"><table style="font-size:.85rem">
-          <thead><tr><th>เลขที่คำขอ</th><th>กฟฟ.</th><th>ชื่อผู้ใช้ไฟฟ้า</th><th style="text-align:right">kW</th><th>สถานะ PPIM</th></tr></thead>
+          <thead><tr><th>เลขที่คำขอ</th><th>กฟฟ.</th><th>ชื่อผู้ใช้ไฟฟ้า${(mmSession&&mmSession.emp)?'':' <span class="note" title="ปิดบังตาม PDPA — login เจ้าหน้าที่เพื่อดูเต็ม">🔒</span>'}</th><th style="text-align:right">kW</th><th>สถานะ PPIM</th></tr></thead>
           <tbody>${rowsHtml}</tbody></table></div></details>
     </div>`;
   const cv=$('#chStepHub'); if(cv && typeof Chart!=='undefined'){
