@@ -1972,9 +1972,13 @@ function drawKpiChart(){
   if(!E.length) return;
   charts.kpi = new Chart($('#kpiChart'),{type:'bar',
     data:{labels:E.map(e=>e[0]),datasets:[{label:unit,data:E.map(e=>e[1]),backgroundColor:'#7A34A6',hoverBackgroundColor:'#54206F',borderRadius:4,maxBarThickness:36}]},
-    options:{responsive:true,maintainAspectRatio:false,
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmtN(c.raw)+' '+unit+(total?' ('+pctTxt(c.raw/total*100)+')':'')}}},
-      scales:{x:{grid:{display:false},ticks:{font:{size:12},autoSkip:false,maxRotation:60,minRotation:0}},y:{beginAtZero:true,ticks:{precision:S.kw?undefined:0},grid:{color:'#eee'},title:{display:true,text:unit}}}}});   // ชื่อ กฟฟ. แกน x · จำนวนแกน y
+      scales:{x:{grid:{display:false},ticks:{font:{size:12},autoSkip:false,maxRotation:60,minRotation:0}},y:{beginAtZero:true,ticks:{precision:S.kw?undefined:0},grid:{color:'#eee'},title:{display:true,text:unit}}}},
+    plugins:[{id:'barValues',afterDatasetsDraw(ch){   // ตัวเลขจำนวนเหนือแท่งกราฟ
+      const {ctx}=ch; ctx.save(); ctx.font='700 12px sans-serif'; ctx.fillStyle='#3b3f46'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+      ch.getDatasetMeta(0).data.forEach((bar,i)=>ctx.fillText(fmtN(ch.data.datasets[0].data[i]), bar.x, bar.y-4));
+      ctx.restore(); }}]});   // ชื่อ กฟฟ. แกน x · จำนวนแกน y
 }
 
 // ชื่อขั้นตอนสำหรับแสดงในแถบ Pipeline (รูปแบบตาม mockup)
