@@ -1917,7 +1917,9 @@ function renderKpis(){
   const pc = n => tot ? ' <span class="pc">('+pctTxt(n/tot*100)+')</span>' : '';
   // กดการ์ด → กราฟแยกจุดรวมงาน เรียงจากน้อยไปมาก (ชุดข้อมูลของแต่ละการ์ด)
   KPI_SETS = {
-    'คำขอทั้งหมด':            {t:'คำขอทั้งหมด', f:r=>true, steps:true},   // มีปุ่มเลือกสถานะ (ขั้น)
+    'คำขอทั้งหมด':            {t:'คำขอทั้งหมด', f:r=>true, steps:true,   // มีปุ่มเลือกสถานะ (ขั้น)
+                               stackAll:{key:r=>r.step==null?'un':r.step===0?'rej':r.step>=3?'pass':'review',
+                                 parts:[['pass','✅ ผ่านการพิจารณา (ขั้น 3–10)','#22A45D'],['review','🔎 ระหว่างตรวจสอบ (ขั้น 1–2)','#4DA3E8'],['rej','❌ ไม่ผ่าน / ยกเลิก','#D64545'],['un','ไม่ทราบสถานะ','#9AA0A6']]}},
     'กำลังไฟรวม (kW)':        {t:'กำลังไฟรวม (kW) — ไม่รวมยกเลิก', f:r=>r.step!==0, kw:true},
     'ผ่านตรวจ Grid':          {t:'ผ่านตรวจ Grid', f:r=>r.gridPass},
     'รอตรวจ Grid':            {t:'รอตรวจ Grid', f:r=>!r.gridPass && r.step!==0 && !(r.gridChk&&r.gridChk.includes('ไม่ผ่าน'))},
@@ -1977,8 +1979,9 @@ function drawKpiChart(){
     const cur=opts.find(o=>o[0]===kpiStep); if(!cur) kpiStep='all'; else if(kpiStep!=='all') stepName=cur[1];
     chips.innerHTML=opts.map(o=>`<button class="btn btn-sm ${o[0]===kpiStep?'btn-primary':'btn-outline'}" style="padding:4px 10px;font-size:.78rem" onclick="kpiPickStep(${typeof o[0]==='number'?o[0]:`'${o[0]}'`})">${o[1]} <b>${fmtN(o[2])}</b></button>`).join('');
   } else { chips.innerHTML=''; kpiStep='all'; }
+  const ST = S.stack || (S.steps && kpiStep==='all' ? S.stackAll : null);   // แท่งซ้อนสี (การ์ดคำขอทั้งหมด: เฉพาะปุ่ม "ทั้งหมด")
   const g={}, gp={}; rows.filter(r=>S.f(r)&&stepOk(r)).forEach(r=>{ const h=reqHub(r)||'ไม่ระบุจุดรวมงาน'; g[h]=(g[h]||0)+(S.kw?(r.kw||0):1);
-    if(S.stack){ const k=S.stack.key(r); (gp[h]=gp[h]||{})[k]=(gp[h][k]||0)+1; } });
+    if(ST){ const k=ST.key(r); (gp[h]=gp[h]||{})[k]=(gp[h][k]||0)+1; } });
   const E=Object.entries(g).map(([h,v])=>[h,S.kw?Math.round(v*10)/10:v]).sort((a,b)=>a[1]-b[1]||a[0].localeCompare(b[0],'th'));   // น้อย → มาก
   const total=E.reduce((s,e)=>s+e[1],0), unit=S.kw?'kW':'งาน';
   $('#kpiChartTitle').textContent='📊 '+S.t+(stepName?' · '+stepName:'')+' — แยกจุดรวมงาน';
@@ -1986,14 +1989,14 @@ function drawKpiChart(){
   const wrap=$('#kpiChartWrap'); wrap.style.height='420px';
   if(!E.length) return;
   charts.kpi = new Chart($('#kpiChart'),{type:'bar',
-    data:{labels:E.map(e=>e[0]),datasets: S.stack
-      ? S.stack.parts.map(([k,l,c])=>({label:l,data:E.map(e=>(gp[e[0]]||{})[k]||0),backgroundColor:c,borderColor:'#fff',borderWidth:{top:2},maxBarThickness:36}))
+    data:{labels:E.map(e=>e[0]),datasets: ST
+      ? ST.parts.map(([k,l,c])=>({label:l,data:E.map(e=>(gp[e[0]]||{})[k]||0),backgroundColor:c,borderColor:'#fff',borderWidth:{top:2},maxBarThickness:36})).filter(d=>d.data.some(v=>v))   // ซ่อนกลุ่มที่ไม่มีงาน
       : [{label:unit,data:E.map(e=>e[1]),backgroundColor:'#7A34A6',hoverBackgroundColor:'#54206F',borderRadius:4,maxBarThickness:36}]},
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},
-      plugins:{legend:{display:!!S.stack,position:'top',labels:{boxWidth:14,font:{size:12}}},
-        tooltip:{mode:S.stack?'index':'nearest',callbacks:{label:c=>' '+(S.stack?c.dataset.label+': ':'')+fmtN(c.raw)+' '+unit+(S.stack?'':(total?' ('+pctTxt(c.raw/total*100)+')':'')),
-          footer:S.stack?(items=>'รวม '+fmtN(E[items[0].dataIndex][1])+' '+unit):undefined}}},
-      scales:{x:{stacked:!!S.stack,grid:{display:false},ticks:{font:{size:12},autoSkip:false,maxRotation:60,minRotation:0}},y:{stacked:!!S.stack,beginAtZero:true,ticks:{precision:S.kw?undefined:0},grid:{color:'#eee'},title:{display:true,text:unit}}}},
+      plugins:{legend:{display:!!ST,position:'top',labels:{boxWidth:14,font:{size:12}}},
+        tooltip:{mode:ST?'index':'nearest',callbacks:{label:c=>' '+(ST?c.dataset.label+': ':'')+fmtN(c.raw)+' '+unit+(ST?'':(total?' ('+pctTxt(c.raw/total*100)+')':'')),
+          footer:ST?(items=>'รวม '+fmtN(E[items[0].dataIndex][1])+' '+unit):undefined}}},
+      scales:{x:{stacked:!!ST,grid:{display:false},ticks:{font:{size:12},autoSkip:false,maxRotation:60,minRotation:0}},y:{stacked:!!ST,beginAtZero:true,ticks:{precision:S.kw?undefined:0},grid:{color:'#eee'},title:{display:true,text:unit}}}},
     plugins:[{id:'barValues',afterDatasetsDraw(ch){   // ตัวเลขจำนวนเหนือแท่งกราฟ
       const {ctx}=ch; ctx.save(); ctx.font='700 12px sans-serif'; ctx.fillStyle='#3b3f46'; ctx.textAlign='center'; ctx.textBaseline='bottom';
       ch.getDatasetMeta(0).data.forEach((bar,i)=>ctx.fillText(fmtN(E[i][1]), bar.x, ch.scales.y.getPixelForValue(E[i][1])-4));   // ยอดรวมเหนือแท่ง (แท่งซ้อนก็ใช้ยอดรวม)
