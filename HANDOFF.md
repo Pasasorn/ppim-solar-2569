@@ -94,7 +94,7 @@ git add index.html apps-script-meter.gs && git commit -m "..." && git push
 - **classifyStatus()** แปลงข้อความ "สถานะคำขอ" PPIM → ขั้น 0-10 (keyword, ลำดับสำคัญ) · มี override: มี `swapStatus` ระบบ → อย่างน้อยขั้น 9 · "ทดสอบเชื่อมต่อเรียบร้อย" = 9 ไม่ใช่ 10 · "เริ่ม COD เรียบร้อยแล้ว" = 10
 
 ### 5.2 สำหรับผู้จัดการ CEO (`exec`)
-- SLA แยก 7 CEO (`CEO_LIST`: 6 จังหวัด + **เชียงใหม่ 2** แยกจากเชียงใหม่ = กฟจ.เชียงใหม่ 2 + กฟส.ดอยสะเก็ด · map กฟฟ.→CEO ด้วย `CEO_DISTRICTS`/`hubCEO()`), ตาราง CEO×ช่วง SLA, การ์ดราย CEO + กฟฟ. ในสังกัด, เส้นตาย COD, สรุปเป้าหมาย/funnel เดิม
+- SLA แยก 6 CEO (`CEO_LIST`, map กฟฟ.→จังหวัดด้วย `CEO_DISTRICTS`/`hubCEO()`), ตาราง CEO×ช่วง SLA, การ์ดราย CEO + กฟฟ. ในสังกัด, เส้นตาย COD, สรุปเป้าหมาย/funnel เดิม
 
 ### 5.3 สำหรับผู้จัดการ (`mgr`)
 - จัดอันดับ กฟฟ.: **คะแนน = 60×(ในเกณฑ์/งาน) + 40×(เขียว/งาน)** · ตัวกรองช่วง SLA + CEO · <5 งานไม่จัดอันดับ
@@ -147,7 +147,6 @@ node -e "const fs=require('fs');const h=fs.readFileSync('index.html','utf8');con
 - [ ] ถ้าต้องการ SLA รายขั้น (5/5/5/3/3 วัน ตาม mockup) ต้องมีวันที่เริ่มแต่ละขั้นในชีต แล้วปรับ `computeSla`
 - [ ] เก็บ PDF ต้นฉบับที่พิมพ์จริงลง Drive (ตอนนี้ "ดู" = สร้างใหม่จากข้อมูลปัจจุบัน)
 - [ ] รหัสผ่านพนักงานเก็บ plain text — ควร hash
-- [ ] ทบทวน `CEO_DISTRICTS` ให้ครบทุก กฟส./กฟย. ใน กฟน.1 — แยก CEO เชียงใหม่ 2 แล้ว · เหลือตรวจรายการที่ไม่เข้า CEO ใน Console:
-  `(()=>{const c={};rows.forEach(r=>{if(!rowCEO(r)){const n=[reqHub(r),r.areaCheck,r.area,r.respOffice].filter(Boolean).join(' | ')||'(ว่าง)';c[n]=(c[n]||0)+1;}});return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(x=>x[1]+' × '+x[0]).join('\n')||'ครบ';})()`
+- [ ] ทบทวน `CEO_DISTRICTS` ให้ครบทุก กฟส./กฟย. ใน กฟน.1
 - [x] ย้ายคอลัมน์ที่อ่านตามตำแหน่ง (R/AB/AX/AZ) ไปผูกตามชื่อหัวคอลัมน์ (มีสำรองตำแหน่งเดิม) · ชื่อหัวจริง: `แผงพลังงานแสงอาทิตย์` · `เลขที่สัญญา` · `kWp` · `กฟฟ.` (ตรงทั้งคำเท่านั้น — `kwExact`)
   ตรวจใน Console: `['panelRaw','contractNo','kwp','respOffice'].map(k=>k+' → '+(mapping[k]||'ใช้ตำแหน่งเดิม')).join('\n')`
