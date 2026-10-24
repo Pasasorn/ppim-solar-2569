@@ -118,7 +118,32 @@ body{padding-left:236px}
 .kpi.danger{background:#fdf0f0}  .kpi.danger .ic{color:var(--danger)} .kpi.danger .v{color:var(--danger)}
 .kpi.info{background:#eef4fc}    .kpi.info .ic{color:var(--info)} .kpi.info .v{color:var(--info)}
 /* pipeline */
-.pipeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}
+.pipeline{display:block}
+.ptrack{display:flex;gap:0;overflow-x:auto;padding:4px 0 10px;scrollbar-width:thin}
+.pstep{flex:0 0 150px;min-height:168px;background:#fff;border:1px solid #e4dcf0;padding:12px 18px 12px 14px;cursor:pointer;position:relative;margin-right:-10px;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,0 100%,14px 50%);transition:.15s;color:#1f2937}
+.pstep:first-child{clip-path:polygon(0 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,0 100%);border-radius:10px 0 0 10px}
+.pstep:hover{background:#f7f2fb}
+.pstep.active{background:linear-gradient(180deg,#7A34A6,#5E2483);color:#fff;border-color:transparent}
+.pstep .pn{font-size:.7rem;color:#6b7280;font-weight:600}
+.pstep.active .pn{color:#e5d6f5}
+.pstep .pt{font-size:.82rem;font-weight:700;line-height:1.25;min-height:2.5em;margin:2px 0 6px}
+.pstep .pc{font-size:1.65rem;font-weight:900;line-height:1.1}
+.pstep .pk{font-size:.75rem;color:#6b7280;margin:2px 0 8px}
+.pstep.active .pk{color:#e5d6f5}
+.pstep .pchips{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.pstep .chip{font-size:.68rem;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.pstep .chip.sla{background:#fff6d5;color:#8a5a00;border:1px solid #f0c86a}
+.pstep .chip.none{background:transparent;color:#777;border:1px dashed #bbb}
+.pstep .chip.over{background:#fde3e3;color:#b42323}
+.pstep.active .chip.sla{background:#fff;border-color:#fff}
+.pstep.active .chip.none{color:#eee;border-color:#ddd}
+.mkc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
+.mkc b{font-size:1.35rem;font-weight:900;color:#1f2937;line-height:1.1} .mkc span{font-size:.68rem;color:#6b7280}
+.mkdot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+.ptot{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.ptot .pill{background:#fff;border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-size:.88rem}
+.ptot .pill.rej{cursor:pointer;color:#b42323} .ptot .pill.active{background:var(--pea);color:#fff;border-color:var(--pea)}
+.ptot .pill[onclick]{cursor:pointer}
 .step{background:#fff;border:1.5px solid #B9C6E0;border-radius:8px;padding:10px 8px;text-align:center;cursor:pointer;transition:.15s;position:relative}
 .step:hover{border-color:var(--navy)}
 .step.active{background:var(--navy);color:#fff;border-color:var(--navy)}
@@ -411,13 +436,12 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     <!-- การตลาด (รอข้อมูลผู้รับงาน/ผู้ติดตั้ง) -->
     <div class="card" id="sec-mkt" data-view="mkt">
       <h2>📣 การตลาด · ผู้รับงานและผู้ติดตั้ง</h2>
-      <div class="note" style="background:#fdf6e3;border-left:4px solid var(--warn);padding:10px 12px;border-radius:8px">🚧 หน้านี้รอข้อมูล 2 คอลัมน์ในชีต PPIM: <b>ผู้รับงาน (PEA / Vendor)</b> และ <b>ผู้ติดตั้ง</b> — เมื่อเพิ่มคอลัมน์แล้วแจ้งชื่อหัวคอลัมน์ ระบบจะแสดงสัดส่วน PEA/Vendor, ภาระงานราย Vendor, และการเตือนเมื่อ Vendor รายเดียวรับงานเกิน 30%</div>
+      <div id="mktBox"></div>
     </div>
 
     <div class="card" id="sec-pipeline" data-view="overview">
-      <h2>สถานะขั้นตอนการดำเนินงาน โครงการโซลาร์ภาคประชาชน ปี 2569</h2>
+      <h2 style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px"><span>สถานะงานทั้งหมดใน Pipeline</span><span class="note" style="font-weight:400">คลิกขั้นตอนเพื่อดูแยกตาม กฟฟ. และรายการคำขอ</span></h2>
       <div class="pipeline" id="pipeline"></div>
-      <div class="note" style="margin-top:8px">👆 คลิกขั้นตอนเพื่อดูการกระจายตาม กฟฟ. และรายการ PPIM ของขั้นนั้น</div>
       <div id="stepDetail" style="margin-top:12px"></div>
     </div>
 
@@ -594,6 +618,8 @@ const FIELDS = [
   {key:'custName', label:'ชื่อผู้ใช้ไฟฟ้า', kw:['ชื่อผู้ใช้ไฟฟ้า']},
   {key:'projLoc', label:'ที่ตั้งโครงการ', kw:['ที่ตั้งโครงการ']},
   {key:'prodKw', label:'กำลังการผลิต (kW)', kw:['กำลังการผลิต']},
+  {key:'receiver', label:'ผู้รับงาน (PEA/Vendor)', kw:['ผู้รับงาน','รับงานโดย','หน่วยรับงาน']},
+  {key:'installer', label:'ผู้ติดตั้ง', kw:['ผู้ติดตั้ง','ติดตั้งโดย','บริษัทติดตั้ง','ผู้รับเหมา']},
   {key:'custPhone', label:'เบอร์โทรศัพท์', kw:['เบอร์โทรศัพท์ ผู้ใช้ไฟฟ้า','เบอร์โทรศัพท์ผู้ใช้ไฟฟ้า','เบอร์โทรศัพท์','หมายเลขโทรศัพท์','เบอร์โทร','โทรศัพท์','เบอร์ติดต่อ']},
   {key:'caStatus', label:'สถานะการสร้างบัญชี CA', kw:['สถานะการสร้างบัญชี','สถานะสร้างบัญชีแสดงสัญญา','สร้างบัญชีแสดงสัญญา','บัญชีแสดงสัญญา','สถานะบัญชี']}
 ];
@@ -984,6 +1010,7 @@ function buildRowsFrom(rawArr, map){
       areaCheck: clean(get('areaCheck')),
       respOffice: (typeof headers!=='undefined' && headers[51]) ? clean(r[headers[51]]) : '',   // คอลัมน์ AZ = กฟส./กฟย. ที่รับผิดชอบ (อ่านตามตำแหน่ง: A=0 … AZ=51)
       panelRaw:   (typeof headers!=='undefined' && headers[17]) ? clean(r[headers[17]]) : '',   // คอลัมน์ R = ข้อมูลแผงโซลาร์ (ข้อความอิสระ)
+      receiver: clean(get('receiver')), installer: clean(get('installer')),                         // การตลาด: ผู้รับงาน (PEA/Vendor) · ผู้ติดตั้ง
       contractNo: (typeof headers!=='undefined' && headers[27]) ? clean(r[headers[27]]) : '',   // คอลัมน์ AB = เลขที่สัญญา
       kwp:        (typeof headers!=='undefined' && headers[49]) ? clean(r[headers[49]]) : '',   // คอลัมน์ AX = kWp (A=0 … AX=49)
       hub: (hubV==='#N/A'||hubV.toLowerCase()==='x') ? '' : hubV,
@@ -1093,7 +1120,7 @@ function process(){
 }
 
 /* ================= RENDER ================= */
-function renderAll(){ renderKpis(); renderOvSla(); renderMeters(); renderCA(); renderExec(); if(typeof renderCEO==='function') renderCEO(); if(typeof renderMgr==='function') renderMgr(); renderWeekly(); renderPipeline(); if(typeof renderStepDetail==='function') renderStepDetail(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); renderSidenav(); }
+function renderAll(){ renderKpis(); renderOvSla(); renderMeters(); renderCA(); renderExec(); if(typeof renderCEO==='function') renderCEO(); if(typeof renderMgr==='function') renderMgr(); if(typeof renderMkt==='function') renderMkt(); renderWeekly(); renderPipeline(); if(typeof renderStepDetail==='function') renderStepDetail(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); renderSidenav(); }
 
 /* ================= ตัวเลขบนแถบเมนู ================= */
 function renderSidenav(){
@@ -1873,24 +1900,33 @@ function renderKpis(){
     K('danger', '❌', '<span style="font-size:1.05rem;white-space:nowrap;line-height:1.5"><span style="color:#8b5a00">🚫 '+fmtN(cancelled)+' <span class="pc">('+pctTxt(tot?cancelled/tot*100:0)+')</span></span><br><span style="color:var(--danger)">⛔ '+fmtN(techFail)+' <span class="pc">('+pctTxt(tot?techFail/tot*100:0)+')</span></span></span>', 'ยกเลิก / ไม่ผ่านตรวจสอบ', '🚫 ยกเลิก/คืนคำขอ · ⛔ ไม่ผ่านตรวจสอบ · รวม '+fmtN(cancelled+techFail)+' ('+pctTxt(tot?(cancelled+techFail)/tot*100:0)+') ไม่รวมตก Grid');
 }
 
+// ชื่อขั้นตอนสำหรับแสดงในแถบ Pipeline (รูปแบบตาม mockup)
+const STEP_DISP={1:'รอตรวจสอบคำขอ',2:'รออนุมัติผลการพิจารณา',3:'รอทำสัญญา/ชำระเงิน',4:'รอยื่นคำขอเชื่อมต่อ',5:'รอแก้ไขคำขอเชื่อมต่อ',6:'รอตรวจคำขอเชื่อมต่อ',7:'รออนุมัติเชื่อมต่อ',8:'รอสับเปลี่ยนมิเตอร์/COD',9:'รอแจ้งผล COD',10:'เริ่ม COD'};
+const STEP_SLA={1:'SLA 30 วัน',2:'SLA 30 วัน',3:'SLA 30 วัน'};   // ใช้ SLA เดิม: ช่วงตรวจสอบ (ขั้น 1-2) และทำสัญญา (ขั้น 3)
 function renderPipeline(){
-  const p = $('#pipeline'); p.innerHTML='';
-  for(const st of STEPS){
-    const c = rows.filter(r=>r.step===st.id).length;
-    const d = document.createElement('div');
-    d.className = 'step'+(st.id===0?' rejected':'')+(stepFilter===st.id?' active':'');
-    d.innerHTML = `<div class="num">${st.id===0?'✕':st.id}</div><div class="sc">${fmtN(c)}</div><div class="sn">${st.name}</div>`;
-    d.onclick = ()=>{ clickStep(st.id); };
-    p.appendChild(d);
+  const p = $('#pipeline'); if(!p) return;
+  const cards=[];
+  for(const st of STEPS){ if(st.id===0) continue;
+    const L = rows.filter(r=>r.step===st.id);
+    const kw = L.reduce((s,r)=>s+(r.kw||0),0);
+    const over = L.filter(r=>r.sla&&r.sla.band==='over').length;
+    const sla = STEP_SLA[st.id];
+    cards.push(`<div class="pstep${stepFilter===st.id?' active':''}" onclick="clickStep(${st.id})">
+      <div class="pn">ขั้นที่ ${st.id}</div>
+      <div class="pt">${STEP_DISP[st.id]||st.name}</div>
+      <div class="pc">${fmtN(L.length)}</div>
+      <div class="pk">${fmtN(Math.round(kw*10)/10)} kW</div>
+      <div class="pchips">${sla?`<span class="chip sla">${sla}</span>`:'<span class="chip none">ไม่กำหนด SLA</span>'}${over?`<span class="chip over">${fmtN(over)} เกิน SLA</span>`:''}</div>
+    </div>`);
   }
-  const un = rows.filter(r=>r.step===null).length;
-  if(un){
-    const d = document.createElement('div');
-    d.className='step'+(stepFilter==='un'?' active':'');
-    d.innerHTML = `<div class="num">?</div><div class="sc">${fmtN(un)}</div><div class="sn">ไม่ทราบสถานะ</div>`;
-    d.onclick = ()=>{ clickStep('un'); };
-    p.appendChild(d);
-  }
+  const tot=rows.length, kwAll=rows.filter(r=>r.step!==0).reduce((s,r)=>s+(r.kw||0),0);
+  const rej=rows.filter(r=>r.step===0).length, un=rows.filter(r=>r.step===null).length;
+  p.innerHTML = `<div class="ptrack">${cards.join('')}</div>
+    <div class="ptot">
+      <span class="pill">ทั้งหมด <b>${fmtN(tot)}</b> คำขอ · <b>${fmtN(Math.round(kwAll))}</b> kW</span>
+      <span class="pill rej${stepFilter===0?' active':''}" onclick="clickStep(0)">ยกเลิก / ไม่ผ่าน <b>${fmtN(rej)}</b></span>
+      ${un?`<span class="pill${stepFilter==='un'?' active':''}" onclick="clickStep('un')">ไม่ทราบสถานะ <b>${fmtN(un)}</b></span>`:''}
+    </div>`;
 }
 // คลิกสถานะ → กรองตาราง + ตั้ง dropdown + เลื่อนไปที่ตาราง
 function clickStep(id){
@@ -2406,6 +2442,99 @@ function renderMgr(){
       ตัวอย่าง: งาน 20 รายการ เขียว 14 · เหลือง 4 · แดง 2 → 60 × 18/20 + 40 × 14/20 = 54 + 28 = <b>82 คะแนน</b><br>
       อันดับเรียงตามคะแนน ถ้าเท่ากันเรียงตามจำนวนงานมากกว่า · การไฟฟ้าที่มีงานน้อยกว่า 5 รายการไม่จัดอันดับ · ไฮไลต์สีเขียว = 3 อันดับแรก · นับเฉพาะงานที่ยังอยู่ในขั้นที่กำหนด SLA · ไม่รวมงานยกเลิก
     </div>`;
+}
+// ===== การตลาด: ผู้รับงาน (PEA/Vendor) และผู้ติดตั้ง =====
+// ถ้าชีตยังไม่มีคอลัมน์ "ผู้รับงาน"/"ผู้ติดตั้ง" → ใช้ข้อมูลตัวอย่าง (mock) แบบคงที่ต่อคำขอ เพื่อให้เห็นรูปแบบหน้าจอก่อน
+const MKT_VENDORS=['บริษัท A (นามสมมุติ)','บริษัท B (นามสมมุติ)','บริษัท C (นามสมมุติ)','หจก. D (นามสมมุติ)','หจก. E (นามสมมุติ)'];
+const MKT_COLORS=['#B07C00','#2F7FD1','#22A45D','#C2447A','#8B7355','#6B2C91'];
+let mktScope='open', mktCEO='', mktCharts={};
+function mktHash(s){ let h=0; for(const ch of String(s||'')) h=(h*31+ch.charCodeAt(0))>>>0; return h; }
+function mktInfo(r){   // คืน {receiver:'PEA'|'Vendor', installer:'PEA'|ชื่อ vendor, mock:bool}
+  const hasReal = !!(mapping && (mapping.receiver||mapping.installer));
+  if(hasReal){
+    const rc=(r.receiver||'').trim(), ins=(r.installer||'').trim();
+    const isPea = /pea|กฟภ|การไฟฟ้า/i.test(rc) || (!rc && (!ins || /pea|กฟภ|การไฟฟ้า/i.test(ins)));
+    return {receiver:isPea?'PEA':'Vendor', installer:(!ins||/pea|กฟภ|การไฟฟ้า/i.test(ins))?'PEA':ins, mock:false};
+  }
+  const h=mktHash(r.reqNo);
+  const receiver = (h%100)<56?'PEA':'Vendor';
+  let installer;
+  if(receiver==='PEA') installer = ((h>>8)%100)<60 ? 'PEA' : MKT_VENDORS[(h>>16)%MKT_VENDORS.length];
+  else installer = MKT_VENDORS[(h>>12)%MKT_VENDORS.length];
+  return {receiver,installer,mock:true};
+}
+function renderMkt(){
+  const box=$('#mktBox'); if(!box) return;
+  Object.values(mktCharts).forEach(c=>{try{c.destroy();}catch(e){}}); mktCharts={};
+  const esc=escHtml;
+  let L=rows.filter(r=>r.step!==0 && r.step!==null);
+  if(mktScope==='open') L=L.filter(r=>r.step<10);
+  if(mktCEO) L=L.filter(r=>rowCEO(r)===mktCEO);
+  const inf=L.map(r=>({r,...mktInfo(r)}));
+  const isMock = inf.length ? inf[0].mock : !(mapping&&(mapping.receiver||mapping.installer));
+  const kwOf=a=>Math.round(a.reduce((s,x)=>s+(x.r.kw||0),0)*10)/10;
+  const peaRecv=inf.filter(x=>x.receiver==='PEA'), venRecv=inf.filter(x=>x.receiver==='Vendor');
+  const peaSelf=peaRecv.filter(x=>x.installer==='PEA'), peaToVen=peaRecv.filter(x=>x.installer!=='PEA');
+  const byV=name=>{ const m={}; name.forEach(x=>{ (m[x.installer]=m[x.installer]||[]).push(x); }); return Object.entries(m).sort((a,b)=>b[1].length-a[1].length); };
+  const peaToVenBy=byV(peaToVen), venRecvBy=byV(venRecv);
+  // ภาระงานรวมราย Vendor (รับเอง + PEA ให้ทำ)
+  const allVen=inf.filter(x=>x.installer!=='PEA'); const venAll=byV(allVen); const venTot=allVen.length;
+  const top=venAll[0];
+  const topShare=top&&venTot?top[1].length/venTot*100:0;
+  const overOf=a=>a.filter(x=>x.r.sla&&x.r.sla.band==='over').length;
+  const pct=(n,d)=>d?Math.round(n/d*100)+'%':'-';
+  const today=new Date().toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'});
+  const chip=(v,l,on,fn)=>`<button class="mtab${on?' on':''}" style="border-radius:999px;margin:0 4px 6px 0;padding:6px 14px" onclick="${fn}">${l}</button>`;
+  const legend=(arr,total,colorIdx)=>arr.map(([n,a],i)=>`<div style="display:flex;align-items:center;gap:8px;font-size:.85rem;padding:3px 0"><span style="width:10px;height:10px;border-radius:3px;background:${MKT_COLORS[(colorIdx?colorIdx(n):i)%MKT_COLORS.length]};flex:none"></span><span style="flex:1">${esc(n)}</span><b>${fmtN(a.length)}</b><span class="note">งาน · ${pct(a.length,total)}</span></div>`).join('');
+  const vIdx=n=>Math.max(0,MKT_VENDORS.indexOf(n)>=0?MKT_VENDORS.indexOf(n):venAll.findIndex(v=>v[0]===n));
+  box.innerHTML=`
+    ${isMock?`<div class="note" style="background:#fdf6e3;border-left:4px solid var(--warn);padding:8px 12px;border-radius:8px;margin-bottom:10px">🧪 <b>ข้อมูลตัวอย่าง (Mockup)</b> — ชีตยังไม่มีคอลัมน์ "ผู้รับงาน (PEA/Vendor)" และ "ผู้ติดตั้ง" ระบบจึงสุ่มค่าคงที่ต่อคำขอเพื่อแสดงรูปแบบหน้าจอ · เมื่อเพิ่ม 2 คอลัมน์นี้ในชีตแล้ว หน้านี้จะใช้ข้อมูลจริงอัตโนมัติ</div>`:''}
+    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:baseline">
+      <div class="note">${fmtN(inf.length)} งาน · ${fmtN(kwOf(inf))} kW · ${mktCEO?'CEO '+esc(mktCEO):'ทุก CEO'} · ไม่รวมงานยกเลิก</div>
+      <span class="note" style="background:#fff6d5;border-radius:999px;padding:3px 10px">ข้อมูล ณ ${today}</span>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:8px 0 10px">
+      ${chip('open','งานค้างในมือ (ยังไม่ COD)',mktScope==='open',"mktScope='open';renderMkt()")}${chip('all','งานทั้งหมด (รวม COD แล้ว)',mktScope==='all',"mktScope='all';renderMkt()")}
+      <select onchange="mktCEO=this.value;renderMkt()" style="padding:6px 10px;border-radius:999px;border:1px solid var(--border)"><option value="">ทุก CEO</option>${CEO_LIST.map(c=>`<option value="${c}" ${mktCEO===c?'selected':''}>CEO ${c}</option>`).join('')}</select>
+    </div>
+    ${top?`<div style="background:${topShare>30?'#fdecec':'#eef9f1'};border:1px solid ${topShare>30?'#e8a0a0':'#bfe6cc'};border-radius:12px;padding:10px 14px;display:flex;gap:12px;align-items:flex-start;margin-bottom:12px">
+      <div style="width:30px;height:30px;border-radius:50%;background:${topShare>30?'var(--danger)':'var(--green)'};color:#fff;display:flex;align-items:center;justify-content:center;font-weight:900;flex:none">${topShare>30?'!':'✓'}</div>
+      <div><b>Vendor ที่รับงานสูงสุด: ${esc(top[0])}</b> · ${fmtN(top[1].length)} งาน (${pct(top[1].length,venTot)} ของงานที่ Vendor ติดตั้ง) · ${fmtN(kwOf(top[1]))} kW · เกิน SLA ${fmtN(overOf(top[1]))} งาน<br><span class="note">${topShare>30?'เกินเกณฑ์เตือน 30% ควรพิจารณากระจายงานให้ Vendor รายอื่น เพื่อป้องกันงานล้นมือหรือทำไม่ทัน':'ยังไม่เกินเกณฑ์เตือน 30% — การกระจายงานอยู่ในระดับเหมาะสม'}</span></div></div>`:''}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px">
+      <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px">
+        <div style="font-weight:800;margin-bottom:6px">1. ผู้รับงาน PEA. กับ Vendor</div>
+        <div style="display:flex;align-items:center;gap:14px"><div style="width:130px;height:130px;position:relative"><canvas id="mk1"></canvas><div class="mkc"><b>${pct(peaRecv.length,inf.length)}</b><span>PEA. รับงาน</span></div></div>
+          <div style="flex:1"><div style="display:flex;justify-content:space-between;font-size:.9rem"><span><span class="mkdot" style="background:#5E2483"></span>PEA.</span><span><b>${fmtN(peaRecv.length)}</b> <span class="note">งาน · ${pct(peaRecv.length,inf.length)}</span></span></div>
+          <div style="display:flex;justify-content:space-between;font-size:.9rem"><span><span class="mkdot" style="background:#B07C00"></span>Vendor</span><span><b>${fmtN(venRecv.length)}</b> <span class="note">งาน · ${pct(venRecv.length,inf.length)}</span></span></div></div></div>
+        <div class="note" style="margin-top:8px">kW: PEA. ${fmtN(kwOf(peaRecv))} · Vendor ${fmtN(kwOf(venRecv))}</div>
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px">
+        <div style="font-weight:800;margin-bottom:6px">2. งานที่ PEA. รับ · ทำเอง หรือให้ Vendor</div>
+        <div style="display:flex;align-items:center;gap:14px"><div style="width:130px;height:130px;position:relative"><canvas id="mk2"></canvas><div class="mkc"><b>${pct(peaSelf.length,peaRecv.length)}</b><span>PEA. ทำเอง</span></div></div>
+          <div style="flex:1"><div style="display:flex;justify-content:space-between;font-size:.9rem"><span><span class="mkdot" style="background:#5E2483"></span>PEA. ดำเนินการเอง</span><span><b>${fmtN(peaSelf.length)}</b> <span class="note">งาน · ${pct(peaSelf.length,peaRecv.length)}</span></span></div>
+          <div style="display:flex;justify-content:space-between;font-size:.9rem"><span><span class="mkdot" style="background:#B07C00"></span>ให้ Vendor ทำ</span><span><b>${fmtN(peaToVen.length)}</b> <span class="note">งาน · ${pct(peaToVen.length,peaRecv.length)}</span></span></div></div></div>
+        <div class="note" style="margin-top:8px">งานที่ให้ Vendor ทำ ${fmtN(peaToVen.length)} งาน</div>${legend(peaToVenBy,peaToVen.length,vIdx)}
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px">
+        <div style="font-weight:800;margin-bottom:6px">3. งานที่ Vendor รับ · แยกตาม Vendor</div>
+        <div style="display:flex;align-items:center;gap:14px"><div style="width:130px;height:130px;position:relative;flex:none"><canvas id="mk3"></canvas><div class="mkc"><b>${venRecvBy[0]?pct(venRecvBy[0][1].length,venRecv.length):'-'}</b><span>สูงสุด 1 ราย</span></div></div>
+          <div style="flex:1">${legend(venRecvBy,venRecv.length,vIdx)||'<span class="note">— ไม่มี —</span>'}</div></div>
+      </div>
+    </div>
+    <div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px;margin-top:14px">
+      <div style="font-weight:800;margin-bottom:8px">ภาระงาน Vendor รวม (งานที่รับเอง + งานที่ PEA. ให้ทำ)</div>
+      <div style="overflow-x:auto"><table style="font-size:.88rem"><thead><tr><th>Vendor</th><th style="text-align:right">งานรวม</th><th>สัดส่วน</th><th style="text-align:right">รับงานเอง</th><th style="text-align:right">PEA. ให้ทำ</th><th style="text-align:right">kW</th><th style="text-align:right">เกิน SLA</th></tr></thead><tbody>
+        ${venAll.map(([n,a],i)=>{ const own=a.filter(x=>x.receiver==='Vendor').length, given=a.length-own, sh=venTot?a.length/venTot*100:0, ov=overOf(a);
+          return `<tr style="${i===0&&sh>30?'background:#fdecec':''}"><td><span class="mkdot" style="background:${MKT_COLORS[vIdx(n)%MKT_COLORS.length]}"></span>${esc(n)}${i===0?' <span style="background:var(--danger);color:#fff;border-radius:999px;padding:1px 8px;font-size:.72rem;font-weight:700">รับงานสูงสุด</span>':''}</td><td style="text-align:right"><b>${fmtN(a.length)}</b></td><td><div style="display:flex;align-items:center;gap:8px"><div style="width:140px;height:8px;background:#eee;border-radius:4px;overflow:hidden"><div style="width:${sh}%;height:100%;background:${MKT_COLORS[vIdx(n)%MKT_COLORS.length]}"></div></div><span class="note">${Math.round(sh)}%</span></div></td><td style="text-align:right">${fmtN(own)}</td><td style="text-align:right">${fmtN(given)}</td><td style="text-align:right">${fmtN(kwOf(a))}</td><td style="text-align:right">${ov?`<span style="background:#fde3e3;color:#b42323;border-radius:999px;padding:2px 10px;font-weight:700">${ov}</span>`:'-'}</td></tr>`; }).join('')}
+        ${!venAll.length?'<tr><td colspan="7" class="note" style="text-align:center">— ไม่มีงานที่ Vendor ติดตั้ง —</td></tr>':''}
+      </tbody></table></div>
+      <div class="note" style="margin-top:8px">สัดส่วน = งานของ Vendor ÷ งานที่ Vendor ติดตั้งทั้งหมด (${fmtN(venTot)} งาน) · เตือนเมื่อ Vendor รายเดียวมีสัดส่วนเกิน 30% · เกิน SLA นับเฉพาะงานที่ยังอยู่ในขั้นตอนที่กำหนด SLA</div>
+    </div>`;
+  if(typeof Chart==='undefined') return;
+  const dn=(id,labels,data,colors)=>{ const cv=$('#'+id); if(!cv) return; mktCharts[id]=new Chart(cv,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:colors,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,cutout:'68%',plugins:{legend:{display:false},tooltip:{callbacks:{label:it=>it.label+': '+fmtN(it.raw)+' งาน'}}}}}); };
+  dn('mk1',['PEA.','Vendor'],[peaRecv.length,venRecv.length],['#5E2483','#B07C00']);
+  dn('mk2',['PEA. ทำเอง','ให้ Vendor ทำ'],[peaSelf.length,peaToVen.length],['#5E2483','#B07C00']);
+  dn('mk3',venRecvBy.map(v=>v[0]),venRecvBy.map(v=>v[1].length),venRecvBy.map(v=>MKT_COLORS[vIdx(v[0])%MKT_COLORS.length]));
 }
 // จับคู่ชื่อจุดร่วมงานแบบยืดหยุ่น: ตัด prefix กฟจ./กฟอ./กฟส./กฟฟ./กฟน. เหลือชื่อสถานที่ แล้วเทียบ
 function hubKey(s){ return String(s||'').replace(/^กฟ[จอสฟน]\.?\s*/,'').replace(/\s+/g,'').trim(); }
@@ -3035,7 +3164,7 @@ function showView(v){
   document.querySelectorAll('#sidenav a[data-view]').forEach(a=>a.classList.toggle('nav-active', a.getAttribute('data-view')===v));
   document.body.classList.remove('nav-open');
   window.scrollTo({top:0});
-  setTimeout(()=>{ try{ Object.values(charts).forEach(c=>{ try{c.resize();}catch(e){} }); }catch(e){} }, 80);
+  setTimeout(()=>{ try{ [charts, (typeof mktCharts!=='undefined'?mktCharts:{}), (typeof meterCharts!=='undefined'?meterCharts:{})].forEach(g=>Object.values(g).forEach(c=>{ try{c.resize();}catch(e){} })); if(v==='mkt'&&typeof renderMkt==='function') renderMkt(); }catch(e){} }, 80);
 }
 document.querySelectorAll('#sidenav a[data-view]').forEach(a=>{
   a.addEventListener('click', e=>{ e.preventDefault(); showView(a.getAttribute('data-view')); });
