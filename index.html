@@ -633,11 +633,11 @@ const FIELDS = [
   {key:'installer', label:'ผู้ติดตั้ง', kw:['ผู้ติดตั้ง','ติดตั้งโดย','บริษัทติดตั้ง','ผู้รับเหมา']},
   {key:'custPhone', label:'เบอร์โทรศัพท์', kw:['เบอร์โทรศัพท์ ผู้ใช้ไฟฟ้า','เบอร์โทรศัพท์ผู้ใช้ไฟฟ้า','เบอร์โทรศัพท์','หมายเลขโทรศัพท์','เบอร์โทร','โทรศัพท์','เบอร์ติดต่อ']},
   {key:'caStatus', label:'สถานะการสร้างบัญชี CA', kw:['สถานะการสร้างบัญชี','สถานะสร้างบัญชีแสดงสัญญา','สร้างบัญชีแสดงสัญญา','บัญชีแสดงสัญญา','สถานะบัญชี']},
-  // ผูกตามชื่อหัว (strict: ตรงทั้งคำ/ขึ้นต้น + kwInc เท่านั้น) · ถ้าหาไม่เจอ ถอยไปอ่านตามตำแหน่งเดิม col (A=0)
-  {key:'panelRaw',   label:'ข้อมูลแผงโซลาร์ (เดิมคอลัมน์ R)', strict:true, col:17, kw:['ข้อมูลแผงโซลาร์','แผงโซลาร์','แผงเซลล์แสงอาทิตย์','แผงเซลล์','ข้อมูลแผง','solar panel'], kwInc:['แผงโซลาร์','แผงเซลล์']},
+  // ผูกตามชื่อหัว (strict: ตรงทั้งคำ/ขึ้นต้น + kwInc เท่านั้น · kwExact = ตรงทั้งคำเท่านั้น) · ถ้าหาไม่เจอ ถอยไปอ่านตามตำแหน่งเดิม col (A=0)
+  {key:'panelRaw',   label:'ข้อมูลแผงโซลาร์ (เดิมคอลัมน์ R)', strict:true, col:17, kw:['แผงพลังงานแสงอาทิตย์','ข้อมูลแผงโซลาร์','แผงโซลาร์','แผงเซลล์แสงอาทิตย์','แผงเซลล์','ข้อมูลแผง','solar panel'], kwInc:['แผงโซลาร์','แผงเซลล์']},
   {key:'contractNo', label:'เลขที่สัญญา (เดิมคอลัมน์ AB)',   strict:true, col:27, kw:['เลขที่สัญญา','เลขสัญญา','contract no'], kwInc:['เลขที่สัญญา','เลขสัญญา']},
   {key:'kwp',        label:'kWp (เดิมคอลัมน์ AX)',          strict:true, col:49, kw:['kwp','kw p','ขนาดติดตั้ง (kwp)','กำลังผลิตติดตั้ง'], kwInc:['kwp']},
-  {key:'respOffice', label:'กฟส./กฟย. ที่รับผิดชอบ (เดิมคอลัมน์ AZ)', strict:true, col:51, kw:['กฟส./กฟย.ที่รับผิดชอบ','กฟส./กฟย. ที่รับผิดชอบ','กฟฟ.ที่รับผิดชอบ','การไฟฟ้าที่รับผิดชอบ','หน่วยงานที่รับผิดชอบ','กฟส./กฟย.','กฟอ./กฟย.']}
+  {key:'respOffice', label:'กฟส./กฟย. ที่รับผิดชอบ (เดิมคอลัมน์ AZ)', strict:true, col:51, kw:['กฟส./กฟย.ที่รับผิดชอบ','กฟส./กฟย. ที่รับผิดชอบ','กฟฟ.ที่รับผิดชอบ','การไฟฟ้าที่รับผิดชอบ','หน่วยงานที่รับผิดชอบ','กฟส./กฟย.','กฟอ./กฟย.'], kwExact:['กฟฟ.']}
 ];
 const SLA = {reviewDays:30, signDays:30};
 const LS_KEY = 'ppim_solar_dash_v1';
@@ -945,7 +945,7 @@ function computeMapping(hdrs){
   const used = new Set();
   for(const f of FIELDS){
     let hit = null;
-    for(const k of f.kw){ hit = hdrs.find(h=>!used.has(h)&&norm(h)===norm(k)); if(hit)break; }
+    for(const k of f.kw.concat(f.kwExact||[])){ hit = hdrs.find(h=>!used.has(h)&&norm(h)===norm(k)); if(hit)break; }
     if(!hit) for(const k of f.kw){ hit = hdrs.find(h=>!used.has(h)&&norm(h).startsWith(norm(k))); if(hit)break; }
     if(!hit) for(const k of (f.strict?(f.kwInc||[]):f.kw)){ hit = hdrs.find(h=>!used.has(h)&&norm(h).includes(norm(k))); if(hit)break; }
     if(hit){ map[f.key] = hit; used.add(hit);
