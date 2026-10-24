@@ -148,6 +148,7 @@ node -e "const fs=require('fs');const h=fs.readFileSync('index.html','utf8');con
 - [ ] ถ้าต้องการ SLA รายขั้น (5/5/5/3/3 วัน ตาม mockup) ต้องมีวันที่เริ่มแต่ละขั้นในชีต แล้วปรับ `computeSla`
 - [ ] เก็บ PDF ต้นฉบับที่พิมพ์จริงลง Drive (ตอนนี้ "ดู" = สร้างใหม่จากข้อมูลปัจจุบัน)
 - [ ] รหัสผ่านพนักงานเก็บ plain text — ควร hash
-- [ ] ทบทวน `CEO_DISTRICTS` ให้ครบทุก กฟส./กฟย. ใน กฟน.1
+- [x] ทบทวน `CEO_DISTRICTS` ให้ครบทุก กฟส./กฟย. ใน กฟน.1 — ตรวจ 24 ต.ค. 2569: 1,094 รายการ ไม่เข้า CEO 0 รายการ (CEO เชียงใหม่คนเดียว ครอบคลุม กฟจ.เชียงใหม่ + กฟส.เมืองเชียงใหม่ 2)
+  ตรวจซ้ำใน Console: `(()=>{const c={};rows.forEach(r=>{if(!rowCEO(r)){const n=[reqHub(r),r.areaCheck,r.area,r.respOffice].filter(Boolean).join(' | ')||'(ว่าง)';c[n]=(c[n]||0)+1;}});return Object.entries(c).map(x=>x[1]+' × '+x[0]).join('\n')||'ครบ';})()`
 - [x] ย้ายคอลัมน์ที่อ่านตามตำแหน่ง (R/AB/AX/AZ) ไปผูกตามชื่อหัวคอลัมน์ (มีสำรองตำแหน่งเดิม) · ชื่อหัวจริง: `แผงพลังงานแสงอาทิตย์` · `เลขที่สัญญา` · `kWp` · `กฟฟ.` (ตรงทั้งคำเท่านั้น — `kwExact`)
   ตรวจใน Console: `['panelRaw','contractNo','kwp','respOffice'].map(k=>k+' → '+(mapping[k]||'ใช้ตำแหน่งเดิม')).join('\n')`
