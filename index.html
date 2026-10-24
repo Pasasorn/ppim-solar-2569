@@ -911,7 +911,7 @@ function tryJsonp(){
 async function loadDashboardData(){
   $('#lastUpdate').textContent='กำลังโหลดข้อมูล...';
   try{
-    const r = await meterApi({action:'data'});   // ภาพรวมดูได้เลย ไม่ต้อง login
+    const r = await meterApi(Object.assign({action:'data'}, (mmSession&&mmSession.emp)?{emp:mmSession.emp, pw:mmSession.pw}:{}));   // ภาพรวมดูได้เลย ไม่ต้อง login · PDPA: ไม่ login ได้ข้อมูลที่ปิดบังแล้วจาก API
     if(!r || !r.ok) throw new Error((r&&r.error)||'โหลดไม่ได้');
     if(!r.main || !r.main.headers){ const u=String(METER_API_URL||''); throw new Error('API ไม่ส่งข้อมูลกลับ (request ไปโดน doGet) · URL ที่ใช้: ...'+u.slice(-28)+(localStorage.getItem('meter_api_url')?' [มาจาก localStorage]':' [ค่าในโค้ด]')+' — ตรวจ: Execute as "Me" + Who has access "Anyone" + URL ต้องเป็น /exec ของ deployment ล่าสุด'); }
     // main → raw/headers (แปลง array เป็น object ตามหัวคอลัมน์)
@@ -991,7 +991,7 @@ function escHtml(s){ return String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'
 function maskName(s){
   s=String(s||'').trim(); if(!s) return '-';
   if(typeof mmSession!=='undefined' && mmSession && mmSession.emp) return s;
-  return s.split(/\s+/).map(w=>{ const m=w.match(/^(นางสาว|นาย|นาง|น\.ส\.|ด\.ช\.|ด\.ญ\.|บริษัท|บจก\.|หจก\.|ห้างหุ้นส่วน)/); const p=m?m[0]:''; const rest=w.slice(p.length);
+  return s.split(/\s+/).map(w=>{ const m=w.match(/^(นางสาว|นาย|นาง|คุณ|น\.ส\.|ด\.ช\.|ด\.ญ\.|บริษัท|บจก\.|หจก\.|ห้างหุ้นส่วน)/); const p=m?m[0]:''; const rest=w.slice(p.length);
     return p+(rest?rest.charAt(0)+'***':''); }).join(' ');
 }
 function parsePanels(txt){
@@ -2801,6 +2801,7 @@ loadTicker();
 if($('#mmClose')) $('#mmClose').onclick = ()=>$('#meterModal').classList.remove('show');
 if($('#mmLogout')) $('#mmLogout').onclick = ()=>{
   mmSession=null; caAuthed=false;
+  loadDashboardData();   // PDPA: โหลดใหม่เป็นข้อมูลที่ปิดบังแล้ว (ไม่ค้างชื่อเต็มไว้ในหน้า)
   if($('#navLog')) $('#navLog').classList.add('hidden');   // ซ่อนเมนู log Admin เมื่อออกจากระบบ
   const uc=$('#uploadCard'); if(uc) uc.classList.add('hidden');
   if(typeof renderCA==='function') renderCA();

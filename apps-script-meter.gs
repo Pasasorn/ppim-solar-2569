@@ -307,11 +307,46 @@ function readSheetValues(ss, tabName) {
 // ส่งข้อมูลทั้ง 2 ชีตให้ dashboard (ต้อง login ก่อน) — แทนการอ่าน gviz ตรงๆ เพื่อให้ชีตเป็น private ได้
 function doGetData(b) {
   // อ่านข้อมูลภาพรวมได้โดยไม่ต้อง login (ภาพรวม/SLA/กราฟ ดูได้เลย) — ชีตยังเป็น private ได้เพราะอ่านผ่าน Apps Script
+  // PDPA: ไม่ได้ login เป็นพนักงาน → ปิดบังข้อมูลส่วนบุคคลก่อนส่งออก (ดูจาก F12/เรียก API ตรงก็ไม่เห็น)
+  var authed = !!(b && b.emp && isRegistered(b.emp, b.pw));
   var main = readSheetValues(SpreadsheetApp.openById(SHEET_ID), MAIN_TAB);
   var sla;
   try { sla = readSheetValues(SpreadsheetApp.openById(SLA_SHEET_ID), null); }
   catch(e){ sla = { headers:[], rows:[] }; }
-  return { ok:true, main:main, sla:sla };
+  if (!authed) { maskPii(main); maskPii(sla); }
+  return { ok:true, main:main, sla:sla, masked:!authed };
+}
+
+// ===== PDPA: ปิดบังข้อมูลส่วนบุคคล (ผูกตามชื่อหัวคอลัมน์) =====
+var PII_NAME_COLS  = ['ชื่อผู้ใช้ไฟฟ้า','ชื่อ-สกุล','ชื่อผู้ยื่น','ชื่อลูกค้า','ชื่อผู้ขอ'];   // แสดงแบบ "นางผ*** อ***"
+var PII_BLANK_COLS = ['โทร','phone','อีเมล','email','ที่ตั้งโครงการ','ที่อยู่','ละติจูด','ลองจิจูด','latitude','longitude',
+                      'หมายเลขผู้ใช้ไฟฟ้า','เลขที่สัญญา','เลขสัญญา','บัตรประชาชน','เลขประจำตัว'];   // ส่งเป็นค่าว่าง
+var PII_NUM_COLS   = ['เลขที่ca82','หมายเลขca82'];   // คง 2 ตัวแรก + *** (หน้าเว็บยังนับ "สร้าง CA 82 แล้ว" ได้)
+function maskPersonName(s) {
+  s = String(s||'').trim(); if (!s) return '';
+  return s.split(/\s+/).map(function(w){
+    var m = w.match(/^(นางสาว|นาย|นาง|คุณ|น\.ส\.|ด\.ช\.|ด\.ญ\.|บริษัท|บจก\.|หจก\.|ห้างหุ้นส่วน)/), p = m ? m[0] : '', rest = w.slice(p.length);
+    return p + (rest ? rest.charAt(0) + '***' : '');
+  }).join(' ');
+}
+function piiKind(header) {
+  var n = String(header||'').toLowerCase().replace(/\s+/g,'');
+  if (!n) return '';
+  if (PII_NAME_COLS.some(function(k){ return n.indexOf(k) === 0; })) return 'name';
+  if (PII_NUM_COLS.some(function(k){ return n.indexOf(k) >= 0; })) return 'num';
+  if (n === 'ca' || n.indexOf('peano') === 0 || PII_BLANK_COLS.some(function(k){ return n.indexOf(k) >= 0; })) return 'blank';   // PEA No. แต่ไม่ใช่ TR PEA No.
+  return '';
+}
+function maskPii(tbl) {
+  if (!tbl || !tbl.headers) return;
+  var kinds = tbl.headers.map(piiKind);
+  tbl.rows.forEach(function(row){
+    for (var i=0;i<kinds.length;i++){
+      if (kinds[i] === 'name') row[i] = maskPersonName(row[i]);
+      else if (kinds[i] === 'blank') row[i] = '';
+      else if (kinds[i] === 'num') { var v = String(row[i]||'').trim(); row[i] = (v && v !== '-') ? v.slice(0,2) + '********' : v; }
+    }
+  });
 }
 
 function isAdmin(emp, pw) {
