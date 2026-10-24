@@ -120,17 +120,17 @@ body{padding-left:236px}
 /* pipeline */
 .pipeline{display:block}
 .ptrack{display:flex;gap:0;overflow-x:auto;padding:4px 0 10px;scrollbar-width:thin}
-.pstep{flex:0 0 150px;min-height:168px;background:#fff;border:1px solid #e4dcf0;padding:12px 18px 12px 14px;cursor:pointer;position:relative;margin-right:-10px;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,0 100%,14px 50%);transition:.15s;color:#1f2937}
+.pstep{flex:0 0 150px;min-height:168px;background:#fff;border:1px solid #e4dcf0;padding:12px 22px 12px 22px;cursor:pointer;position:relative;margin-right:-10px;text-align:center;display:flex;flex-direction:column;align-items:center;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,0 100%,14px 50%);transition:.15s;color:#1f2937}
 .pstep:first-child{clip-path:polygon(0 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,0 100%);border-radius:10px 0 0 10px}
 .pstep:hover{background:#f7f2fb}
 .pstep.active{background:linear-gradient(180deg,#7A34A6,#5E2483);color:#fff;border-color:transparent}
 .pstep .pn{font-size:.7rem;color:#6b7280;font-weight:600}
 .pstep.active .pn{color:#e5d6f5}
-.pstep .pt{font-size:.82rem;font-weight:700;line-height:1.25;min-height:2.5em;margin:2px 0 6px}
+.pstep .pt{font-size:.82rem;font-weight:700;line-height:1.25;min-height:2.5em;margin:2px 0 6px;display:flex;align-items:center;justify-content:center}
 .pstep .pc{font-size:1.65rem;font-weight:900;line-height:1.1}
 .pstep .pk{font-size:.75rem;color:#6b7280;margin:2px 0 8px}
 .pstep.active .pk{color:#e5d6f5}
-.pstep .pchips{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
+.pstep .pchips{display:flex;flex-direction:column;gap:4px;align-items:center}
 .pstep .chip{font-size:.68rem;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap}
 .pstep .chip.sla{background:#fff6d5;color:#8a5a00;border:1px solid #f0c86a}
 .pstep .chip.none{background:transparent;color:#777;border:1px dashed #bbb}
@@ -1960,7 +1960,15 @@ function renderStepDetail(){
   const ent=Object.entries(byH).sort((a,b)=>b[1]-a[1]); const mx=ent.length?ent[0][1]:1;
   const left=`<div class="sdcard"><div class="sdh">แยกตาม กฟฟ. · ${esc(nm)}</div>
     ${ent.length?ent.map(([h,n])=>`<div class="sdrow" onclick="sdHub=sdHub==='${esc(h)}'?'':'${esc(h)}';renderStepDetail()" style="cursor:pointer;${sdHub===h?'background:#f3eefa;border-radius:8px':''}"><span class="sdn">${esc(h)}</span><span class="sdbar"><span style="width:${n/mx*100}%"></span></span><b>${fmtN(n)}</b><span class="note">${pctTxt(n/tot*100)}</span></div>`).join(''):'<div class="note">— ไม่มีคำขอ —</div>'}
-    ${ent.length?`<div class="note" style="margin-top:8px">รวม ${fmtN(tot)} ราย · คลิกชื่อ กฟฟ. เพื่อกรองรายการด้านขวา</div>`:''}</div>`;
+    ${ent.length?`<div class="note" style="margin-top:8px">รวม ${fmtN(tot)} ราย · คลิกชื่อ กฟฟ. เพื่อกรองรายการด้านขวา</div>`:''}
+    ${sel===8&&tot?(()=>{   // ขั้น 8: สถานะงานค้างของ กบล. (จัดสรรมิเตอร์) และ กบฟ. (สร้าง CA 82)
+      const aNone=list.filter(r=>r.allocStatus==='ยังไม่จัดสรร').length, aWait=list.filter(r=>r.allocStatus==='รอจัดสรรมิเตอร์').length, aDone=list.filter(r=>r.allocStatus==='จัดสรรแล้ว').length;
+      const aPend=aNone+aWait; const caWait=list.filter(r=>!r.caCreated).length, caDone=tot-caWait;
+      const row=(ic,t,n,d,dept,c)=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid #f0ebf7"><div style="font-size:1.3rem;line-height:1">${ic}</div><div style="flex:1"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><b>${t}</b><span class="note" style="background:#f3eefa;border-radius:999px;padding:1px 9px;font-weight:700;color:var(--pea)">${dept}</span></div><div style="font-size:1.25rem;font-weight:900;color:${c};line-height:1.2">${fmtN(n)} <span style="font-size:.8rem;font-weight:700">ราย · ${pctTxt(n/tot*100)}</span></div><div class="note">${d}</div></div></div>`;
+      return `<div style="margin-top:12px"><div class="sdh" style="margin-bottom:4px">งานค้างในขั้นนี้ · แยกตามผู้รับผิดชอบ</div>
+        ${row('📦','รอจัดสรรมิเตอร์',aPend,`ยังไม่ดึง ${fmtN(aNone)} · ⏳ รอจัดสรร ${fmtN(aWait)} · ✅ จัดสรรแล้ว ${fmtN(aDone)} (${pctTxt(aDone/tot*100)})`,'ผมต.กบล.',aPend?'#B07C00':'#1f9d57')}
+        ${row('🧾','รอสร้างบัญชี CA 82',caWait,`สร้างแล้ว ${fmtN(caDone)} (${pctTxt(caDone/tot*100)})`,'ผซฟ.กบฟ.',caWait?'#B07C00':'#1f9d57')}
+        <div class="note" style="margin-top:6px">% คิดจากคำขอขั้นที่ 8 ทั้งหมด ${fmtN(tot)} ราย</div></div>`; })():''}</div>`;
   // ขวา: รายการคำขอ + ค้นหา + ตัวกรอง + เกณฑ์ SLA
   const q=(sdQuery||'').trim().toLowerCase();
   let L=list.slice();
