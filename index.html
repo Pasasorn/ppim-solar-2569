@@ -524,6 +524,16 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <h2 style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>📜 บันทึกการเข้าใช้งาน (เฉพาะ Admin)</span>
         <button class="btn btn-outline btn-sm no-print" id="btnLogRefresh">⟳ โหลดล่าสุด</button></h2>
       <div id="logContent"><div class="note">เข้าสู่ระบบด้วยตำแหน่ง Admin เพื่อดูบันทึกการใช้งาน</div></div>
+      <div class="no-print" style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+        <label style="font-weight:700;font-size:.85rem;display:block;margin-bottom:4px">🔑 รีเซ็ตรหัสผ่านพนักงาน (เฉพาะ Admin · ทีละคน)</label>
+        <div class="toolbar" style="flex-wrap:wrap;gap:6px">
+          <input id="rpTarget" placeholder="รหัสพนักงาน" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;width:150px">
+          <input id="rpNew" type="password" autocomplete="new-password" placeholder="รหัสผ่านใหม่ (≥4 ตัว)" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;width:170px">
+          <input id="rpNew2" type="password" autocomplete="new-password" placeholder="ยืนยันรหัสผ่านใหม่" style="padding:7px 10px;border:1.5px solid var(--border);border-radius:8px;width:170px">
+          <button class="btn btn-primary btn-sm" id="btnResetPw">รีเซ็ตรหัสผ่าน</button><span class="note" id="rpMsg"></span>
+        </div>
+        <div class="note" style="margin-top:4px">รหัสผ่านเก็บเป็น hash ในชีต (อ่านย้อนกลับไม่ได้) · แจ้งรหัสใหม่ให้พนักงานเอง · ทุกการรีเซ็ตบันทึกใน log</div>
+      </div>
     </div>
   </div>
 
@@ -2754,6 +2764,24 @@ async function loadLog(){
   }catch(e){ el.innerHTML='<div class="note" style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</div>'; }
 }
 if($('#btnLogRefresh')) $('#btnLogRefresh').onclick = loadLog;
+// ===== รีเซ็ตรหัสผ่านพนักงาน (Admin ทีละคน) =====
+if($('#btnResetPw')) $('#btnResetPw').onclick = async ()=>{
+  const msg=$('#rpMsg'), err=t=>msg.innerHTML='<span style="color:var(--danger)">'+t+'</span>';
+  if(!mmSession || (mmSession.role||'').toLowerCase().indexOf('admin')<0) return err('เฉพาะ Admin — เข้าสู่ระบบก่อน');
+  const target=$('#rpTarget').value.trim(), npw=$('#rpNew').value, npw2=$('#rpNew2').value;
+  if(!target) return err('กรอกรหัสพนักงาน');
+  if(npw.length<4) return err('รหัสผ่านใหม่ต้องมีอย่างน้อย 4 ตัวอักษร');
+  if(npw!==npw2) return err('รหัสผ่านใหม่ 2 ช่องไม่ตรงกัน');
+  if(!confirm('รีเซ็ตรหัสผ่านของรหัสพนักงาน '+target+' ?')) return;
+  msg.textContent='กำลังบันทึก...';
+  try{ const r=await meterApi({action:'resetpw', emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name, target, newPw:npw});
+    if(r&&r.ok){
+      msg.innerHTML='<span style="color:var(--green)">✅ รีเซ็ตแล้ว: '+escHtml(target)+' '+escHtml(r.name||'')+'</span>';
+      $('#rpNew').value=''; $('#rpNew2').value='';
+      if(target===mmSession.emp) mmSession.pw=npw;   // รีเซ็ตของตัวเอง → ใช้รหัสใหม่ต่อในหน้านี้
+    } else err('ไม่สำเร็จ: '+escHtml((r&&r.error)||'')+((r&&r.error)==='forbidden'?' (ต้องเป็น Admin)':''));
+  }catch(e){ err('เชื่อมต่อไม่ได้'); }
+};
 // ===== แถบข้อความวิ่ง =====
 async function loadTicker(){
   try{ const r=await meterApi({action:'ticker'});

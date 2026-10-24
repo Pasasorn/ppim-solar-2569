@@ -100,6 +100,7 @@ function doPost(e) {
     if (body.action === 'login')    return json(doLogin(body));
     if (body.action === 'data')     return json(doGetData(body));
     if (body.action === 'register') return json(doRegister(body));
+    if (body.action === 'resetpw')  return json(doResetPw(body));
     if (body.action === 'report')   return json(doReport(body));
     if (body.action === 'revert')   return json(doRevert(body));
     if (body.action === 'ca82')     return json(doCreateCA82(body));
@@ -151,6 +152,52 @@ function colIndex(headerRow, name) {
   return -1;
 }
 
+// ===== รหัสผ่าน: เก็บเป็น hash (SHA-256 + salt รายคน) รูปแบบ "h1$<salt>$<hex>" =====
+// ยังรับรหัสข้อความธรรมดา (บัญชีเดิม/Admin พิมพ์ทับในชีต) แล้วแปลงเป็น hash ให้ตอน login สำเร็จ
+function sha256Hex(str) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, str, Utilities.Charset.UTF_8)
+    .map(function(b){ return ('0'+(b & 0xff).toString(16)).slice(-2); }).join('');
+}
+function isHashed(stored) { return /^h1\$[^$]+\$[0-9a-f]{64}$/.test(String(stored||'')); }
+function makeHash(pw) {
+  var salt = Utilities.getUuid().replace(/-/g,'');
+  return 'h1$' + salt + '$' + sha256Hex(salt + String(pw));
+}
+function pwMatch(stored, pw) {
+  stored = String(stored==null?'':stored); pw = String(pw==null?'':pw);
+  if (!pw) return false;
+  if (isHashed(stored)) { var p = stored.split('$'); return sha256Hex(p[1] + pw) === p[2]; }
+  return stored !== '' && stored === pw;   // รหัสแบบเดิม (ข้อความธรรมดา)
+}
+// Admin รีเซ็ตรหัสผ่านให้พนักงานทีละคน → เก็บเป็น hash ทันที
+function doResetPw(b) {
+  if (!isAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  var target = String(b.target||'').trim(), npw = String(b.newPw||'');
+  if (!target || npw.length < 4) return { ok:false, error:'รหัสผ่านใหม่ต้องมีอย่างน้อย 4 ตัวอักษร' };
+  var sh = sheet(EMP_TAB); if (!sh) return { ok:false, error:'ไม่พบแท็บ '+EMP_TAB };
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iE = colIndex(h,'รหัสพนักงาน'), iN = colIndex(h,'ชื่อ-สกุล'), iR = colIndex(h,'ตำแหน่ง'), iH = colIndex(h,'จุดร่วมงาน'), iP = colIndex(h,'password');
+  if (iE<0 || iP<0) return { ok:false, error:'ไม่พบคอลัมน์ รหัสพนักงาน/password' };
+  for (var r=1;r<data.length;r++){
+    if (String(data[r][iE]).trim() === target) {
+      sh.getRange(r+1, iP+1).setValue(makeHash(npw));
+      logUser(b.emp, b.name, 'Admin', '', 'รีเซ็ตรหัสผ่าน: '+target+' ('+String(data[r][iN]||'')+')');
+      return { ok:true, name:String(data[r][iN]||''), role:iR>=0?String(data[r][iR]||''):'', hub:iH>=0?String(data[r][iH]||''):'' };
+    }
+  }
+  return { ok:false, error:'ไม่พบรหัสพนักงาน '+target };
+}
+// รันเองใน Apps Script ครั้งเดียว (เลือกฟังก์ชันนี้ → Run): แปลงรหัสข้อความธรรมดาที่เหลือทั้งหมดเป็น hash
+function migratePasswords() {
+  var sh = sheet(EMP_TAB); if (!sh) { Logger.log('ไม่พบแท็บ '+EMP_TAB); return; }
+  var data = sh.getDataRange().getValues(), iP = colIndex(data[0],'password'), n = 0;
+  for (var r=1;r<data.length;r++){
+    var v = data[r][iP];
+    if (String(v) !== '' && !isHashed(v)) { sh.getRange(r+1, iP+1).setValue(makeHash(v)); n++; }
+  }
+  Logger.log('แปลงรหัสผ่านเป็น hash แล้ว '+n+' บัญชี');
+}
+
 function doLogin(b) {
   var emp = String(b.emp||'').trim();
   var pw  = String(b.pw||'');
@@ -162,7 +209,8 @@ function doLogin(b) {
   var iE = colIndex(h,'รหัสพนักงาน'), iN = colIndex(h,'ชื่อ-สกุล'), iR = colIndex(h,'ตำแหน่ง'),
       iD = colIndex(h,'สังกัด'), iH = colIndex(h,'จุดร่วมงาน'), iP = colIndex(h,'password');
   for (var r=1;r<data.length;r++){
-    if (String(data[r][iE]).trim() === emp && String(data[r][iP]) === pw) {
+    if (String(data[r][iE]).trim() === emp && pwMatch(data[r][iP], pw)) {
+      if (!isHashed(data[r][iP])) sh.getRange(r+1, iP+1).setValue(makeHash(pw));   // รหัสแบบเดิม → แปลงเป็น hash อัตโนมัติ
       var nm=String(data[r][iN]||''), rl=iR>=0?String(data[r][iR]||''):'', hb=iH>=0?String(data[r][iH]||''):'';
       logUser(emp, nm, rl, hb, 'เข้าสู่ระบบ');
       return { ok:true, name:nm, dept:String(data[r][iD]||''), hub:hb, role:rl };
@@ -204,7 +252,7 @@ function doRegister(b) {
   }
   var row = []; for (var c=0;c<h.length;c++) row.push('');
   row[iE]=emp; row[iN]=name; row[iR]=role; row[iD]=dept; row[iH]=hub;
-  if (iP>=0) row[iP]=pw; else row.push(pw);
+  if (iP>=0) row[iP]=makeHash(pw); else row.push(makeHash(pw));
   sh.appendRow(row);
   logUser(emp, name, role, hub, 'ลงทะเบียน');
   return { ok:true, name:name, dept:dept, hub:hub, role:role };
@@ -233,7 +281,7 @@ function isRegistered(emp, pw) {
   var data = sh.getDataRange().getValues(), h = data[0];
   var iE = colIndex(h,'รหัสพนักงาน'), iP = colIndex(h,'password');
   for (var r=1;r<data.length;r++){
-    if (String(data[r][iE]).trim() === String(emp||'').trim() && String(data[r][iP]) === String(pw||'')) return true;
+    if (String(data[r][iE]).trim() === String(emp||'').trim() && pwMatch(data[r][iP], pw)) return true;
   }
   return false;
 }
@@ -271,7 +319,7 @@ function isAdmin(emp, pw) {
   var data = sh.getDataRange().getValues(), h = data[0];
   var iE = colIndex(h,'รหัสพนักงาน'), iP = colIndex(h,'password'), iR = colIndex(h,'ตำแหน่ง');
   for (var r=1;r<data.length;r++){
-    if (String(data[r][iE]).trim() === String(emp||'').trim() && String(data[r][iP]) === String(pw||'')) {
+    if (String(data[r][iE]).trim() === String(emp||'').trim() && pwMatch(data[r][iP], pw)) {
       return String(data[r][iR]||'').toLowerCase().indexOf('admin') >= 0;
     }
   }
@@ -286,7 +334,7 @@ function doGetLog(b) {
   var iE = colIndex(h,'รหัสพนักงาน'), iP = colIndex(h,'password'), iR = colIndex(h,'ตำแหน่ง');
   var isAdmin = false;
   for (var r=1;r<data.length;r++){
-    if (String(data[r][iE]).trim() === String(b.emp||'').trim() && String(data[r][iP]) === String(b.pw||'')) {
+    if (String(data[r][iE]).trim() === String(b.emp||'').trim() && pwMatch(data[r][iP], b.pw)) {
       isAdmin = String(data[r][iR]||'').toLowerCase().indexOf('admin') >= 0; break;
     }
   }
@@ -367,7 +415,7 @@ function isCentralOrAdmin(emp, pw) {
   var data = sh.getDataRange().getValues(), h = data[0];
   var iE = colIndex(h,'รหัสพนักงาน'), iP = colIndex(h,'password'), iR = colIndex(h,'ตำแหน่ง'), iH = colIndex(h,'จุดร่วมงาน');
   for (var r=1;r<data.length;r++){
-    if (String(data[r][iE]).trim() === String(emp||'').trim() && String(data[r][iP]) === String(pw||'')) {
+    if (String(data[r][iE]).trim() === String(emp||'').trim() && pwMatch(data[r][iP], pw)) {
       var role = String(data[r][iR]||'').toLowerCase();
       var hub = iH>=0 ? String(data[r][iH]||'') : '';
       return role.indexOf('admin') >= 0 || hub.indexOf('กบล') >= 0;
@@ -525,7 +573,7 @@ function isCaOrAdmin(emp, pw) {
   var data = sh.getDataRange().getValues(), h = data[0];
   var iE = colIndex(h,'รหัสพนักงาน'), iP = colIndex(h,'password'), iR = colIndex(h,'ตำแหน่ง');
   for (var r=1;r<data.length;r++){
-    if (String(data[r][iE]).trim() === String(emp||'').trim() && String(data[r][iP]) === String(pw||'')) {
+    if (String(data[r][iE]).trim() === String(emp||'').trim() && pwMatch(data[r][iP], pw)) {
       var role = String(data[r][iR]||'').toLowerCase();
       return role.indexOf('admin') >= 0 || String(data[r][iR]||'').indexOf('ผซฟ') >= 0;
     }
