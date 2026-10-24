@@ -137,6 +137,16 @@ body{padding-left:236px}
 .pstep .chip.over{background:#fde3e3;color:#b42323}
 .pstep.active .chip.sla{background:#fff;border-color:#fff}
 .pstep.active .chip.none{color:#eee;border-color:#ddd}
+.sdgrid{display:grid;grid-template-columns:minmax(260px,1fr) minmax(0,1.6fr);gap:14px;margin-top:12px}
+@media(max-width:900px){.sdgrid{grid-template-columns:1fr}}
+.sdcard{background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px}
+.sdh{font-weight:800;margin-bottom:8px}
+.sdrow{display:grid;grid-template-columns:minmax(90px,1.2fr) minmax(60px,2fr) auto auto;gap:8px;align-items:center;padding:5px 6px;font-size:.88rem}
+.sdrow .sdn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sdrow .sdbar{height:8px;background:#eee;border-radius:4px;overflow:hidden;display:block} .sdrow .sdbar span{display:block;height:100%;background:#b89bd6;border-radius:4px}
+.sdtag{display:inline-block;font-size:.72rem;font-weight:700;border-radius:999px;padding:2px 9px;white-space:nowrap}
+.sdtag.ok{background:#e9f6ee;color:#1f7a3f} .sdtag.near{background:#fff3d6;color:#8a5a00} .sdtag.over{background:#fde3e3;color:#b42323} .sdtag.none{background:#f1f1f4;color:#666}
+.sdtag.pea{background:#5E2483;color:#fff} .sdtag.ven{background:#fff;color:#333;border:1px solid #bbb}
 .mkc{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none}
 .mkc b{font-size:1.35rem;font-weight:900;color:#1f2937;line-height:1.1} .mkc span{font-size:.68rem;color:#6b7280}
 .mkdot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
@@ -276,7 +286,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
   <a href="#sec-mgr" data-view="mgr"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg></span><span class="t">สำหรับผู้จัดการ</span></a>
   <a href="#sec-mkt" data-view="mkt"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 9.5a3.5 3.5 0 0 1 0 5"/><path d="M17.5 7a7 7 0 0 1 0 10"/></svg></span><span class="t">การตลาด</span></a>
   <a href="#sec-weekly" data-view="weekly"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span><span class="t">รายงานรายสัปดาห์</span></a>
-  <a href="#sec-sla" data-view="sla"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg></span><span class="t">การควบคุม SLA</span><span class="b warn" id="nvSla">0</span></a>
+  <a href="#sec-sla" data-view="sla" class="hidden" title="ซ่อนไว้ — มีในหน้าสถานะงานทั้งหมดแล้ว"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg></span><span class="t">การควบคุม SLA</span><span class="b warn" id="nvSla">0</span></a>
   <a href="#sec-meter" data-view="meter"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4.5a4 4 0 0 0-5 5L4 15v5h5l5.5-5.5a4 4 0 0 0 5-5l-2.5 2.5-2-2z"/></svg></span><span class="t">สับเปลี่ยนมิเตอร์</span></a>
   <a href="#sec-ca" data-view="ca"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span><span class="t">สร้างบัญชี CA 82</span></a>
   <a href="#sec-hub" data-view="hub"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11a7 7 0 0 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span><span class="t">สรุปจุดรวมงาน</span></a>
@@ -382,6 +392,12 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     </div>
 
     <!-- KPI -->
+    <div class="card" id="sec-pipeline" data-view="overview">
+      <h2 style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px"><span>สถานะงานทั้งหมดใน Pipeline</span><span class="note" style="font-weight:400">คลิกขั้นตอนเพื่อดูแยกตาม กฟฟ. และรายการคำขอ</span></h2>
+      <div class="pipeline" id="pipeline"></div>
+      <div id="stepDetail" style="margin-top:12px"></div>
+    </div>
+
     <div class="card purple" id="sec-overview" data-view="overview">
       <h2>ภาพรวมของโครงการโซลาร์ภาคประชาชน ปี 2569</h2>
       <div class="kpis" id="kpis" style="margin-bottom:0"></div>
@@ -411,6 +427,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     <div class="card" id="sec-exec" data-view="exec">
       <h2>📊 สมรรถนะการควบคุม SLA แยกตาม CEO — สำหรับผู้จัดการ CEO</h2>
       <div id="ceoBox"></div>
+      <div id="codDeadline" style="margin-top:14px"></div>
     </div>
     <div class="card" data-view="exec">
       <h2>🎯 สรุปผลดำเนินงานโครงการ — เป้าหมาย / ความคืบหน้า / คอขวด</h2>
@@ -418,6 +435,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     </div>
 
     <!-- WEEKLY REPORT -->
+    <div class="card purple" data-view="weekly"><h2>คำขอสะสม ตั้งแต่ 1 ก.ค. 2569 – ปัจจุบัน</h2><div class="chart-box" style="height:360px"><canvas id="chTime"></canvas></div></div>
     <div class="card purple" id="sec-weekly" data-view="weekly">
       <h2>📅 รายงานรายสัปดาห์</h2>
       <div style="overflow-x:auto"><table><thead><tr>
@@ -425,7 +443,6 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       </tr></thead><tbody id="weeklyBody"></tbody></table></div>
     </div>
 
-    <div class="card purple" data-view="weekly"><h2>คำขอสะสม ตั้งแต่ 1 ก.ค. 2569 – ปัจจุบัน</h2><div class="chart-box" style="height:360px"><canvas id="chTime"></canvas></div></div>
 
     <!-- PIPELINE -->
     <!-- สำหรับผู้จัดการ: จัดอันดับ กฟฟ. ตาม SLA -->
@@ -439,11 +456,6 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <div id="mktBox"></div>
     </div>
 
-    <div class="card" id="sec-pipeline" data-view="overview">
-      <h2 style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px"><span>สถานะงานทั้งหมดใน Pipeline</span><span class="note" style="font-weight:400">คลิกขั้นตอนเพื่อดูแยกตาม กฟฟ. และรายการคำขอ</span></h2>
-      <div class="pipeline" id="pipeline"></div>
-      <div id="stepDetail" style="margin-top:12px"></div>
-    </div>
 
     <!-- SLA + HUB OVERVIEW -->
     <div class="card green" id="sec-sla" data-view="sla">
@@ -461,7 +473,6 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
           <div id="slaList2"></div>
         </div>
       </div>
-      <div id="codDeadline" style="margin-top:14px"></div>
     </div>
 
     <!-- HUB SUMMARY -->
@@ -1911,7 +1922,7 @@ function renderPipeline(){
     const kw = L.reduce((s,r)=>s+(r.kw||0),0);
     const over = L.filter(r=>r.sla&&r.sla.band==='over').length;
     const sla = STEP_SLA[st.id];
-    cards.push(`<div class="pstep${stepFilter===st.id?' active':''}" onclick="clickStep(${st.id})">
+    cards.push(`<div class="pstep${(stepFilter==null?1:stepFilter)===st.id?' active':''}" onclick="clickStep(${st.id})">
       <div class="pn">ขั้นที่ ${st.id}</div>
       <div class="pt">${STEP_DISP[st.id]||st.name}</div>
       <div class="pc">${fmtN(L.length)}</div>
@@ -1939,45 +1950,38 @@ let stepChart=null;
 function renderStepDetail(){
   const box=$('#stepDetail'); if(!box) return;
   if(stepChart){ try{stepChart.destroy();}catch(e){} stepChart=null; }
-  if(stepFilter==null){ box.innerHTML=''; return; }
-  const list = rows.filter(r=> stepFilter==='un' ? r.step===null : r.step===stepFilter);
-  const nm = stepFilter==='un' ? 'ไม่ทราบสถานะ' : stepName(stepFilter);
-  const tot=list.length, all=rows.length;
-  if(!tot){ box.innerHTML=`<div class="note">— ไม่มีคำขอในขั้น "${nm}" —</div>`; return; }
-  // แยกตาม กฟฟ.
-  const byH={}; list.forEach(r=>{ const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; byH[h]=(byH[h]||0)+1; });
-  const ent=Object.entries(byH).sort((a,b)=>b[1]-a[1]);
+  const sel = stepFilter==null ? 1 : stepFilter;          // ยังไม่เลือก → แสดงขั้นที่ 1 ตาม mockup
+  const list = rows.filter(r=> sel==='un' ? r.step===null : r.step===sel);
+  const nm = sel==='un' ? 'ไม่ทราบสถานะ' : (STEP_DISP[sel]||stepName(sel));
+  const tot=list.length;
   const esc=escHtml;
-  const rowsHtml=list.slice().sort((a,b)=>String(reqHub(a)||a.area).localeCompare(String(reqHub(b)||b.area),'th')).map(r=>`<tr>
-      <td><b>${esc(r.reqNo)}</b></td><td>${esc(reqHub(r)||r.areaCheck||r.area||'-')}</td><td>${esc(maskName(r.custName))}</td>
-      <td style="text-align:right">${r.kw||'-'}</td><td class="note">${esc(r.statusTxt||'-')}</td></tr>`).join('');
-  box.innerHTML=`
-    <div style="background:#f7f2fb;border:1px solid var(--border);border-radius:12px;padding:12px 14px">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
-        <div style="font-weight:800;color:var(--pea);font-size:1rem">📍 ขั้น ${stepFilter==='un'?'?':stepFilter} · ${esc(nm)} — <span style="font-size:1.2rem">${fmtN(tot)}</span> ราย <span class="note">(${pctTxt(all?tot/all*100:0)} ของทั้งหมด ${fmtN(all)})</span> · ${fmtN(ent.length)} กฟฟ.</div>
-        <button class="btn btn-outline btn-sm" onclick="clickStep(stepFilter)">✕ ปิด</button>
-      </div>
-      <div class="chart-box" style="height:${Math.max(220, Math.min(420, ent.length*30+80))}px;margin-top:8px"><canvas id="chStepHub"></canvas></div>
-      <div style="overflow-x:auto;margin-top:10px"><table style="font-size:.88rem">
-        <thead><tr><th>กฟฟ.</th><th style="text-align:right">จำนวน</th><th style="text-align:right">% ของขั้นนี้</th></tr></thead>
-        <tbody>${ent.map(([h,n])=>`<tr><td>${esc(h)}</td><td style="text-align:right"><b>${fmtN(n)}</b></td><td style="text-align:right">${pctTxt(n/tot*100)}</td></tr>`).join('')}
-        <tr style="background:#F4F7FC;font-weight:700"><td>รวม</td><td style="text-align:right">${fmtN(tot)}</td><td style="text-align:right">100%</td></tr></tbody></table></div>
-      <details style="margin-top:10px"><summary style="cursor:pointer;font-weight:700;color:var(--pea)">📋 รายการ PPIM ในขั้นนี้ (${fmtN(tot)} ราย)</summary>
-        <div style="overflow:auto;max-height:420px;margin-top:8px"><table style="font-size:.85rem">
-          <thead><tr><th>เลขที่คำขอ</th><th>กฟฟ.</th><th>ชื่อผู้ใช้ไฟฟ้า${(mmSession&&mmSession.emp)?'':' <span class="note" title="ปิดบังตาม PDPA — login เจ้าหน้าที่เพื่อดูเต็ม">🔒</span>'}</th><th style="text-align:right">kW</th><th>สถานะ PPIM</th></tr></thead>
-          <tbody>${rowsHtml}</tbody></table></div></details>
-    </div>`;
-  const cv=$('#chStepHub'); if(cv && typeof Chart!=='undefined'){
-    const labels=ent.map(e=>e[0]), data=ent.map(e=>e[1]);
-    const pctLbl={ id:'pctLbl', afterDatasetsDraw(c){ const ctx=c.ctx; c.getDatasetMeta(0).data.forEach((bar,i)=>{ ctx.save(); ctx.font='bold 11px Sarabun, Segoe UI, Tahoma'; ctx.fillStyle='#3B2064'; ctx.textAlign='left'; ctx.textBaseline='middle'; ctx.fillText(fmtN(data[i])+' ('+pctTxt(data[i]/tot*100)+')', bar.x+6, bar.y); ctx.restore(); }); } };
-    stepChart=new Chart(cv,{type:'bar',data:{labels,datasets:[{label:'จำนวนคำขอ',data,backgroundColor:'#7A34A6',borderRadius:4}]},
-      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:90}},
-        plugins:{legend:{display:false},tooltip:{callbacks:{label:it=>fmtN(it.raw)+' ราย ('+pctTxt(it.raw/tot*100)+')'}}},
-        scales:{x:{beginAtZero:true,ticks:{precision:0}},y:{ticks:{font:{size:11}}}}},
-      plugins:[pctLbl]});
-  }
-  setTimeout(()=>box.scrollIntoView({behavior:'smooth',block:'nearest'}),80);
+  // ซ้าย: แยกตาม กฟฟ. (แถบแนวนอน)
+  const byH={}; list.forEach(r=>{ const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; byH[h]=(byH[h]||0)+1; });
+  const ent=Object.entries(byH).sort((a,b)=>b[1]-a[1]); const mx=ent.length?ent[0][1]:1;
+  const left=`<div class="sdcard"><div class="sdh">แยกตาม กฟฟ. · ${esc(nm)}</div>
+    ${ent.length?ent.map(([h,n])=>`<div class="sdrow" onclick="sdHub=sdHub==='${esc(h)}'?'':'${esc(h)}';renderStepDetail()" style="cursor:pointer;${sdHub===h?'background:#f3eefa;border-radius:8px':''}"><span class="sdn">${esc(h)}</span><span class="sdbar"><span style="width:${n/mx*100}%"></span></span><b>${fmtN(n)}</b><span class="note">${pctTxt(n/tot*100)}</span></div>`).join(''):'<div class="note">— ไม่มีคำขอ —</div>'}
+    ${ent.length?`<div class="note" style="margin-top:8px">รวม ${fmtN(tot)} ราย · คลิกชื่อ กฟฟ. เพื่อกรองรายการด้านขวา</div>`:''}</div>`;
+  // ขวา: รายการคำขอ + ค้นหา + ตัวกรอง + เกณฑ์ SLA
+  const q=(sdQuery||'').trim().toLowerCase();
+  let L=list.slice();
+  if(sdHub) L=L.filter(r=>(reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ')===sdHub);
+  if(q) L=L.filter(r=>[r.reqNo,r.custName,r.area,r.areaCheck,reqHub(r),r.installer,r.receiver].some(v=>String(v||'').toLowerCase().includes(q)));
+  const bandRank={over:0,red:1,yellow:2,green:3}; L.sort((a,b)=>((a.sla&&bandRank[a.sla.band])??9)-((b.sla&&bandRank[b.sla.band])??9)||((b.sla&&b.sla.elapsed)||0)-((a.sla&&a.sla.elapsed)||0));
+  const show=L.slice(0,40);
+  const slaCell=r=>{ if(!r.sla||!r.sla.band) return '<span class="sdtag none">ไม่กำหนด SLA</span>'; const e=r.sla.elapsed; if(r.sla.band==='over') return `<span class="sdtag over">เกิน · ${e} วัน</span>`; if(r.sla.band==='red') return `<span class="sdtag near">ใกล้ครบ · ${e} วัน</span>`; return `<span class="sdtag ok">ปกติ · ${e} วัน</span>`; };
+  const hasMkt=!!(mapping&&(mapping.receiver||mapping.installer));
+  const right=`<div class="sdcard">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div class="sdh" style="margin:0">รายการคำขอ (${fmtN(L.length)})</div>
+      <input value="${esc(sdQuery||'')}" placeholder="ค้นหาเลขคำขอ / ชื่อ / กฟฟ." oninput="sdQuery=this.value;renderStepDetail();this.focus();this.setSelectionRange(this.value.length,this.value.length)" style="padding:7px 12px;border:1px solid var(--border);border-radius:10px;min-width:220px"></div>
+    ${STEP_SLA[sel]?`<div class="note" style="background:#fff6d5;border-radius:8px;padding:6px 10px;margin:8px 0">${STEP_SLA[sel]} นับจากวันที่${sel===3?'ประกาศผล/อนุมัติ':'ลูกค้ายื่นคำขอ'} (ขั้นที่ ${sel===3?'3':'1–2'} ใช้กำหนดเดียวกัน)</div>`:''}
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0 8px;font-size:.8rem"><span class="sdtag ok">ปกติ</span><span class="note">เหลือเวลามากกว่า 10 วัน</span><span class="sdtag near">ใกล้ครบ</span><span class="note">10 วันสุดท้าย</span><span class="sdtag over">เกิน</span><span class="note">เกิน SLA</span><span class="sdtag none">ไม่กำหนด</span><span class="note">แสดงวันในขั้นตอน</span></div>
+    <div style="overflow:auto;max-height:520px"><table style="font-size:.85rem"><thead><tr><th>เลขคำขอ PPIM</th>${hasMkt?'<th>ผู้รับงาน</th><th>ผู้ติดตั้ง</th>':''}<th>ผู้ยื่น${(mmSession&&mmSession.emp)?'':' <span class="note" title="ปิดบังตาม PDPA">🔒</span>'}</th><th>กฟฟ.</th><th style="text-align:right">kW</th><th>SLA</th></tr></thead><tbody>
+      ${show.map(r=>`<tr><td><b>${esc(r.reqNo)}</b></td>${hasMkt?`<td><span class="sdtag ${/pea|กฟภ/i.test(r.receiver||'')?'pea':'ven'}">${/pea|กฟภ/i.test(r.receiver||'')?'PEA.':'Vendor'}</span></td><td>${esc(r.installer||'-')}</td>`:''}<td>${esc(maskName(r.custName))}</td><td>${esc(reqHub(r)||r.areaCheck||r.area||'-')}</td><td style="text-align:right">${r.kw||'-'}</td><td>${slaCell(r)}</td></tr>`).join('')||`<tr><td colspan="${hasMkt?7:5}" class="note" style="text-align:center">— ไม่พบรายการ —</td></tr>`}
+    </tbody></table></div>
+    <div class="note" style="margin-top:6px">แสดง ${fmtN(show.length)} จาก ${fmtN(L.length)} รายการ · เรียงงานเกิน SLA และค้างนานที่สุดก่อน${sdHub?' · กรอง: '+esc(sdHub)+' <a href="#" onclick="sdHub=\'\';renderStepDetail();return false;" style="color:var(--danger)">✕</a>':''}</div></div>`;
+  box.innerHTML=`<div class="sdgrid">${left}${right}</div>`;
 }
+let sdHub='', sdQuery='';
 
 const BAND_ICON = {green:'🟢',yellow:'🟡',red:'🔴',over:'⛔'};
 function renderSla(){
