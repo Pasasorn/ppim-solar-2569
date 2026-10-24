@@ -1966,15 +1966,15 @@ function drawKpiChart(){
   const g={}; rows.filter(S.f).forEach(r=>{ const h=reqHub(r)||'ไม่ระบุจุดรวมงาน'; g[h]=(g[h]||0)+(S.kw?(r.kw||0):1); });
   const E=Object.entries(g).map(([h,v])=>[h,S.kw?Math.round(v*10)/10:v]).sort((a,b)=>a[1]-b[1]||a[0].localeCompare(b[0],'th'));   // น้อย → มาก
   const total=E.reduce((s,e)=>s+e[1],0), unit=S.kw?'kW':'งาน';
-  $('#kpiChartTitle').textContent='📊 '+S.t+' — แยกจุดรวมงาน (น้อย → มาก)';
+  $('#kpiChartTitle').textContent='📊 '+S.t+' — แยกจุดรวมงาน';
   $('#kpiChartNote').textContent=E.length?('รวม '+fmtN(total)+' '+unit+' · '+E.length+' จุดรวมงาน · กดการ์ดเดิมอีกครั้งเพื่อปิด'):'ไม่มีรายการในกลุ่มนี้';
-  const wrap=$('#kpiChartWrap'); wrap.style.height=Math.max(120, E.length*26+50)+'px';
+  const wrap=$('#kpiChartWrap'); wrap.style.height='420px';
   if(!E.length) return;
   charts.kpi = new Chart($('#kpiChart'),{type:'bar',
-    data:{labels:E.map(e=>e[0]),datasets:[{label:unit,data:E.map(e=>e[1]),backgroundColor:'#7A34A6',hoverBackgroundColor:'#54206F',borderRadius:4,barThickness:16}]},
-    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+    data:{labels:E.map(e=>e[0]),datasets:[{label:unit,data:E.map(e=>e[1]),backgroundColor:'#7A34A6',hoverBackgroundColor:'#54206F',borderRadius:4,maxBarThickness:36}]},
+    options:{responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmtN(c.raw)+' '+unit+(total?' ('+pctTxt(c.raw/total*100)+')':'')}}},
-      scales:{x:{beginAtZero:true,ticks:{precision:S.kw?undefined:0},grid:{color:'#eee'},title:{display:true,text:unit}},y:{grid:{display:false},ticks:{font:{size:12}}}}}});
+      scales:{x:{grid:{display:false},ticks:{font:{size:12},autoSkip:false,maxRotation:60,minRotation:0}},y:{beginAtZero:true,ticks:{precision:S.kw?undefined:0},grid:{color:'#eee'},title:{display:true,text:unit}}}}});   // ชื่อ กฟฟ. แกน x · จำนวนแกน y
 }
 
 // ชื่อขั้นตอนสำหรับแสดงในแถบ Pipeline (รูปแบบตาม mockup)
