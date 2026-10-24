@@ -106,6 +106,7 @@ body{padding-left:236px}
 @media(max-width:620px){.kpis{grid-template-columns:repeat(2,1fr)}}
 .kpi{background:#f7f2fb;border-radius:18px;padding:15px 15px 14px;box-shadow:0 4px 14px rgba(107,44,145,.07);border:1px solid #0000000d;text-align:left;transition:.18s}
 .kpi:hover{box-shadow:0 10px 24px rgba(107,44,145,.15);transform:translateY(-3px)}
+.kpi.clk{cursor:pointer} .kpi.sel{outline:2.5px solid var(--pea);outline-offset:-1px;background:#efe4f7}
 .kpi .ic{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:13px;font-size:1.4rem;line-height:1;background:#fff;color:var(--pea);margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
 .kpi .kh{display:flex;align-items:center;gap:8px;margin-bottom:10px} .kpi .kh .ic{margin-bottom:0}
 .kpi .dept{font-size:.7rem;font-weight:800;color:var(--pea);background:#fff;border:1px solid #e3d9f0;border-radius:999px;padding:3px 9px;white-space:nowrap;letter-spacing:.2px}
@@ -401,11 +402,14 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     <div class="card purple" id="sec-overview" data-view="overview">
       <h2>ภาพรวมของโครงการโซลาร์ภาคประชาชน ปี 2569</h2>
       <div class="kpis" id="kpis" style="margin-bottom:0"></div>
-    </div>
-    <div class="card" data-view="overview" id="ovSlaCard">
-      <h2>⏱️ งานเกิน / ใกล้เกิน SLA</h2>
-      <div class="note" style="margin-bottom:8px">👷 ฝั่งเจ้าหน้าที่ = ขั้นตรวจสอบ/พิจารณา (กฟภ.) · 🧑‍💼 ฝั่งลูกค้า = รอชำระเงิน/ทำสัญญา</div>
-      <div id="ovSlaList"></div>
+      <div id="kpiChartBox" class="hidden" style="margin-top:14px;background:#fff;border-radius:14px;padding:12px 14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          <b id="kpiChartTitle" style="color:var(--pea)"></b>
+          <button class="btn btn-outline btn-sm no-print" onclick="kpiPick(null)">✕ ปิดกราฟ</button>
+        </div>
+        <div class="note" id="kpiChartNote" style="margin-bottom:6px"></div>
+        <div id="kpiChartWrap" style="position:relative"><canvas id="kpiChart"></canvas></div>
+      </div>
     </div>
 
     <!-- METER SUMMARY -->
@@ -1910,7 +1914,25 @@ function renderKpis(){
   const ca82Pop = rows.filter(r=>r.step>=8);
   const ca82Done = ca82Pop.filter(r=>r.caCreated).length, ca82Wait = ca82Pop.length - ca82Done;
   const pc = n => tot ? ' <span class="pc">('+pctTxt(n/tot*100)+')</span>' : '';
-  const K = (cls,ic,v,l,d,dept)=>`<div class="kpi ${cls}"><div class="kh"><div class="ic">${ic}</div>${dept?`<span class="dept" title="หน่วยงานรับผิดชอบ">${dept}</span>`:''}</div><div class="v">${v}</div><div class="l">${l}</div><div class="d">${d}</div></div>`;
+  // กดการ์ด → กราฟแยกจุดรวมงาน เรียงจากน้อยไปมาก (ชุดข้อมูลของแต่ละการ์ด)
+  KPI_SETS = {
+    'คำขอทั้งหมด':            {t:'คำขอทั้งหมด', f:r=>true},
+    'กำลังไฟรวม (kW)':        {t:'กำลังไฟรวม (kW) — ไม่รวมยกเลิก', f:r=>r.step!==0, kw:true},
+    'ผ่านตรวจ Grid':          {t:'ผ่านตรวจ Grid', f:r=>r.gridPass},
+    'รอตรวจ Grid':            {t:'รอตรวจ Grid', f:r=>!r.gridPass && r.step!==0 && !(r.gridChk&&r.gridChk.includes('ไม่ผ่าน'))},
+    'ผ่านการพิจารณา':         {t:'ผ่านการพิจารณา (ขั้น 3+)', f:r=>r.step>=3&&r.step!==0},
+    'สถานะ SLA':              {t:'งานที่ยังอยู่ใน SLA (🟢🟡🔴)', f:r=>r.sla&&['green','yellow','red'].includes(r.sla.band)},
+    'เกิน SLA':               {t:'งานเกิน SLA', f:r=>r.sla&&r.sla.band==='over'},
+    'รอสับเปลี่ยนมิเตอร์':     {t:'รอสับเปลี่ยนมิเตอร์ (ขั้น 8)', f:r=>r.step===8&&(r.meterPhase==='1P'||r.meterPhase==='3P')},
+    'สถานะจัดสรรมิเตอร์':     {t:'ยังไม่จัดสรรมิเตอร์ (ขั้น 8+ ที่ยังไม่ "จัดสรรแล้ว")', f:r=>r.step>=8&&r.allocStatus!=='จัดสรรแล้ว'},
+    'รอ ผบส.กด COD':          {t:'รอ ผบส.กด COD (ขั้น 9)', f:r=>r.step===9&&(r.meterPhase==='1P'||r.meterPhase==='3P')},
+    'สับเปลี่ยนแล้ว':          {t:'สับเปลี่ยนแล้ว (ขั้น 9+10)', f:r=>(r.step===9||r.step===10)&&(r.meterPhase==='1P'||r.meterPhase==='3P')},
+    'สร้างบัญชี CA 82':       {t:'รอสร้างบัญชี CA 82 (ขั้น 8+)', f:r=>r.step>=8&&!r.caCreated},
+    'COD แล้ว':               {t:'COD แล้ว', f:r=>r.step===10},
+    'ยกเลิก / ไม่ผ่านตรวจสอบ': {t:'ยกเลิก / ไม่ผ่านตรวจสอบ (ไม่รวมตก Grid)', f:r=>r.step===0&&!isGridFail(r)}
+  };
+  if(kpiSel && !KPI_SETS[kpiSel]) kpiSel=null;
+  const K = (cls,ic,v,l,d,dept)=>`<div class="kpi ${cls}${KPI_SETS[l]?' clk'+(kpiSel===l?' sel':''):''}"${KPI_SETS[l]?` onclick="kpiPick('${l}')" title="กดเพื่อดูกราฟแยกจุดรวมงาน"`:''}><div class="kh"><div class="ic">${ic}</div>${dept?`<span class="dept" title="หน่วยงานรับผิดชอบ">${dept}</span>`:''}</div><div class="v">${v}</div><div class="l">${l}</div><div class="d">${d}</div></div>`;
   $('#kpis').innerHTML =
     K('',       '📋', fmtN(tot),                                      'คำขอทั้งหมด',        'ทุกคำขอในระบบ') +
     K('info',   '⚡', fmtN(kwSum),                                    'กำลังไฟรวม (kW)',    '= '+fmtN(kwSum/1000)+' MW') +
@@ -1926,6 +1948,33 @@ function renderKpis(){
     K('info',   '🧾', fmtN(ca82Done)+' / '+fmtN(ca82Pop.length)+(ca82Pop.length?' <span class="pc">('+pctTxt(ca82Done/ca82Pop.length*100)+')</span>':''), 'สร้างบัญชี CA 82', 'รอสร้างอีก '+fmtN(ca82Wait)+' ราย', 'ผซฟ.กบฟ.') +
     K('ok',     '🏁', fmtN(cod)+pc(cod),                              'COD แล้ว',           'เชื่อมต่อเข้าระบบ',                  'ผบส.') +
     K('danger', '❌', '<span style="font-size:1.05rem;white-space:nowrap;line-height:1.5"><span style="color:#8b5a00">🚫 '+fmtN(cancelled)+' <span class="pc">('+pctTxt(tot?cancelled/tot*100:0)+')</span></span><br><span style="color:var(--danger)">⛔ '+fmtN(techFail)+' <span class="pc">('+pctTxt(tot?techFail/tot*100:0)+')</span></span></span>', 'ยกเลิก / ไม่ผ่านตรวจสอบ', '🚫 ยกเลิก/คืนคำขอ · ⛔ ไม่ผ่านตรวจสอบ · รวม '+fmtN(cancelled+techFail)+' ('+pctTxt(tot?(cancelled+techFail)/tot*100:0)+') ไม่รวมตก Grid');
+  drawKpiChart();
+}
+
+let KPI_SETS = {}, kpiSel = null;
+function kpiPick(l){
+  kpiSel = (l && kpiSel!==l) ? l : null;   // กดการ์ดเดิมซ้ำ = ปิดกราฟ
+  renderKpis();
+  if(kpiSel){ const b=$('#kpiChartBox'); if(b) b.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+}
+function drawKpiChart(){
+  const box=$('#kpiChartBox'); if(!box) return;
+  if(charts.kpi){ charts.kpi.destroy(); charts.kpi=null; }
+  const S = kpiSel && KPI_SETS[kpiSel];
+  if(!S){ box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  const g={}; rows.filter(S.f).forEach(r=>{ const h=reqHub(r)||'ไม่ระบุจุดรวมงาน'; g[h]=(g[h]||0)+(S.kw?(r.kw||0):1); });
+  const E=Object.entries(g).map(([h,v])=>[h,S.kw?Math.round(v*10)/10:v]).sort((a,b)=>a[1]-b[1]||a[0].localeCompare(b[0],'th'));   // น้อย → มาก
+  const total=E.reduce((s,e)=>s+e[1],0), unit=S.kw?'kW':'งาน';
+  $('#kpiChartTitle').textContent='📊 '+S.t+' — แยกจุดรวมงาน (น้อย → มาก)';
+  $('#kpiChartNote').textContent=E.length?('รวม '+fmtN(total)+' '+unit+' · '+E.length+' จุดรวมงาน · กดการ์ดเดิมอีกครั้งเพื่อปิด'):'ไม่มีรายการในกลุ่มนี้';
+  const wrap=$('#kpiChartWrap'); wrap.style.height=Math.max(120, E.length*26+50)+'px';
+  if(!E.length) return;
+  charts.kpi = new Chart($('#kpiChart'),{type:'bar',
+    data:{labels:E.map(e=>e[0]),datasets:[{label:unit,data:E.map(e=>e[1]),backgroundColor:'#7A34A6',hoverBackgroundColor:'#54206F',borderRadius:4,barThickness:16}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+fmtN(c.raw)+' '+unit+(total?' ('+pctTxt(c.raw/total*100)+')':'')}}},
+      scales:{x:{beginAtZero:true,ticks:{precision:S.kw?undefined:0},grid:{color:'#eee'},title:{display:true,text:unit}},y:{grid:{display:false},ticks:{font:{size:12}}}}}});
 }
 
 // ชื่อขั้นตอนสำหรับแสดงในแถบ Pipeline (รูปแบบตาม mockup)
