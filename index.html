@@ -407,6 +407,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
           <b id="kpiChartTitle" style="color:var(--pea)"></b>
           <button class="btn btn-outline btn-sm no-print" onclick="kpiPick(null)">✕ ปิดกราฟ</button>
         </div>
+        <div id="kpiChartChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
         <div class="note" id="kpiChartNote" style="margin-bottom:6px"></div>
         <div id="kpiChartWrap" style="position:relative"><canvas id="kpiChart"></canvas></div>
       </div>
@@ -1916,7 +1917,7 @@ function renderKpis(){
   const pc = n => tot ? ' <span class="pc">('+pctTxt(n/tot*100)+')</span>' : '';
   // กดการ์ด → กราฟแยกจุดรวมงาน เรียงจากน้อยไปมาก (ชุดข้อมูลของแต่ละการ์ด)
   KPI_SETS = {
-    'คำขอทั้งหมด':            {t:'คำขอทั้งหมด', f:r=>true},
+    'คำขอทั้งหมด':            {t:'คำขอทั้งหมด', f:r=>true, steps:true},   // มีปุ่มเลือกสถานะ (ขั้น)
     'กำลังไฟรวม (kW)':        {t:'กำลังไฟรวม (kW) — ไม่รวมยกเลิก', f:r=>r.step!==0, kw:true},
     'ผ่านตรวจ Grid':          {t:'ผ่านตรวจ Grid', f:r=>r.gridPass},
     'รอตรวจ Grid':            {t:'รอตรวจ Grid', f:r=>!r.gridPass && r.step!==0 && !(r.gridChk&&r.gridChk.includes('ไม่ผ่าน'))},
@@ -1951,22 +1952,34 @@ function renderKpis(){
   drawKpiChart();
 }
 
-let KPI_SETS = {}, kpiSel = null;
+let KPI_SETS = {}, kpiSel = null, kpiStep = 'all';   // kpiStep: 'all' | 0-10 | 'un'
 function kpiPick(l){
   kpiSel = (l && kpiSel!==l) ? l : null;   // กดการ์ดเดิมซ้ำ = ปิดกราฟ
+  kpiStep = 'all';
   renderKpis();
   if(kpiSel){ const b=$('#kpiChartBox'); if(b) b.scrollIntoView({behavior:'smooth',block:'nearest'}); }
 }
+function kpiPickStep(v){ kpiStep=v; drawKpiChart(); }
 function drawKpiChart(){
   const box=$('#kpiChartBox'); if(!box) return;
   if(charts.kpi){ charts.kpi.destroy(); charts.kpi=null; }
   const S = kpiSel && KPI_SETS[kpiSel];
   if(!S){ box.classList.add('hidden'); return; }
   box.classList.remove('hidden');
-  const g={}; rows.filter(S.f).forEach(r=>{ const h=reqHub(r)||'ไม่ระบุจุดรวมงาน'; g[h]=(g[h]||0)+(S.kw?(r.kw||0):1); });
+  // ปุ่มเลือกสถานะ (เฉพาะการ์ดที่มี steps)
+  const chips=$('#kpiChartChips'); let stepName='';
+  const stepOk = r => kpiStep==='all' || (kpiStep==='un' ? r.step==null : r.step===kpiStep);
+  if(S.steps){
+    const base=rows.filter(S.f), cnt=v=>base.filter(r=>v==='un'?r.step==null:r.step===v).length;
+    const opts=[['all','ทั้งหมด',base.length]].concat(STEPS.filter(st=>st.id!==0).map(st=>[st.id,'ขั้น '+st.id+' '+(STEP_DISP[st.id]||st.name),cnt(st.id)]),
+      [[0,'ยกเลิก / ไม่ผ่าน',cnt(0)]], cnt('un')?[['un','ไม่ทราบสถานะ',cnt('un')]]:[]);
+    const cur=opts.find(o=>o[0]===kpiStep); if(!cur) kpiStep='all'; else if(kpiStep!=='all') stepName=cur[1];
+    chips.innerHTML=opts.map(o=>`<button class="btn btn-sm ${o[0]===kpiStep?'btn-primary':'btn-outline'}" style="padding:4px 10px;font-size:.78rem" onclick="kpiPickStep(${typeof o[0]==='number'?o[0]:`'${o[0]}'`})">${o[1]} <b>${fmtN(o[2])}</b></button>`).join('');
+  } else { chips.innerHTML=''; kpiStep='all'; }
+  const g={}; rows.filter(r=>S.f(r)&&stepOk(r)).forEach(r=>{ const h=reqHub(r)||'ไม่ระบุจุดรวมงาน'; g[h]=(g[h]||0)+(S.kw?(r.kw||0):1); });
   const E=Object.entries(g).map(([h,v])=>[h,S.kw?Math.round(v*10)/10:v]).sort((a,b)=>a[1]-b[1]||a[0].localeCompare(b[0],'th'));   // น้อย → มาก
   const total=E.reduce((s,e)=>s+e[1],0), unit=S.kw?'kW':'งาน';
-  $('#kpiChartTitle').textContent='📊 '+S.t+' — แยกจุดรวมงาน';
+  $('#kpiChartTitle').textContent='📊 '+S.t+(stepName?' · '+stepName:'')+' — แยกจุดรวมงาน';
   $('#kpiChartNote').textContent=E.length?('รวม '+fmtN(total)+' '+unit+' · '+E.length+' จุดรวมงาน · กดการ์ดเดิมอีกครั้งเพื่อปิด'):'ไม่มีรายการในกลุ่มนี้';
   const wrap=$('#kpiChartWrap'); wrap.style.height='420px';
   if(!E.length) return;
