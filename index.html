@@ -2,6 +2,7 @@
 <html lang="th">
 <head>
 <meta charset="UTF-8">
+<link id="favicon" rel="icon" type="image/png" href="">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>รายงานสถานะคำขอโครงการโซลาร์ภาคประชาชน ปี 2569 (PPIM)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -56,7 +57,9 @@ html{scroll-behavior:smooth}
 #sidenav a.nav-active::before{top:-16px;-webkit-mask:radial-gradient(circle 16px at 0 0,#0000 98%,#000);mask:radial-gradient(circle 16px at 0 0,#0000 98%,#000)}
 #sidenav a.nav-active::after{bottom:-16px;-webkit-mask:radial-gradient(circle 16px at 0 100%,#0000 98%,#000);mask:radial-gradient(circle 16px at 0 100%,#0000 98%,#000)}
 #sidenav a.hidden{display:none}   /* กันเมนู (เช่น log Admin) ที่ต้องซ่อน ให้ .hidden ชนะ specificity */
-#sidenav a .i{font-size:1.15rem;width:22px;text-align:center}
+#sidenav a .i{font-size:1.15rem;width:22px;height:22px;text-align:center;display:inline-flex;align-items:center;justify-content:center;flex:none;opacity:.92}
+#sidenav a .i svg{width:20px;height:20px;display:block}
+#sidenav a.nav-active .i{opacity:1}
 #sidenav a .t{flex:1}
 #sidenav a .b{background:rgba(255,255,255,.22);color:#fff;font-size:.72rem;font-weight:800;
   padding:1px 9px;border-radius:11px;min-width:26px;text-align:center}
@@ -243,19 +246,20 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     </svg>
     <div class="brand-txt"><b>โครงการโซลาร์ภาคประชาชน ปี 2569</b><span>รายงานสถานะคำขอ · ระบบ PPIM</span></div>
   </div>
-  <a href="#sec-overview" data-view="overview"><span class="i">📊</span><span class="t">ภาพรวม</span></a>
-  <a href="#sec-exec" data-view="exec"><span class="i">📊</span><span class="t">สรุปผู้บริหาร</span></a>
-  <a href="#sec-weekly" data-view="weekly"><span class="i">📅</span><span class="t">รายงานรายสัปดาห์</span></a>
-  <a href="#sec-pipeline" data-view="pipeline"><span class="i">🔄</span><span class="t">สถานะขั้นตอน</span><span class="b" id="nvTot">0</span></a>
-  <a href="#sec-sla" data-view="sla"><span class="i">⏰</span><span class="t">การควบคุม SLA</span><span class="b warn" id="nvSla">0</span></a>
-  <a href="#sec-meter" data-view="meter"><span class="i">🔧</span><span class="t">สับเปลี่ยนมิเตอร์</span></a>
-  <a href="#sec-ca" data-view="ca"><span class="i">🧾</span><span class="t">สร้างบัญชี CA 82</span></a>
-  <a href="#sec-hub" data-view="hub"><span class="i">📍</span><span class="t">สรุปจุดรวมงาน</span></a>
-  <a href="#sec-tr" data-view="tr"><span class="i">⚡</span><span class="t">หม้อแปลง 25%</span></a>
-  <a href="#sec-charts" data-view="charts"><span class="i">📈</span><span class="t">กราฟวิเคราะห์</span></a>
-  <a href="#sec-table" data-view="table"><span class="i">📑</span><span class="t">ตารางคำขอ</span><span class="b ok" id="nvCod">0</span></a>
-  <a href="#sec-log" data-view="log" id="navLog" class="hidden"><span class="i">📜</span><span class="t">บันทึกการใช้งาน (Admin)</span></a>
-  <a href="#" id="navLogin" style="margin-top:8px;background:rgba(255,255,255,.12)"><span class="i">🔐</span><span class="t">เข้าสู่ระบบเจ้าหน้าที่</span></a>
+  <a href="#sec-overview" data-view="overview"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h10M4 18h7"/><circle cx="18" cy="16" r="3"/><path d="m20.5 18.5 1.5 1.5"/></svg></span><span class="t">สถานะงานทั้งหมด</span><span class="b" id="nvTot">0</span></a>
+  <a href="#sec-exec" data-view="exec"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18"/><rect x="5" y="10" width="3" height="7"/><rect x="10.5" y="5" width="3" height="12"/><rect x="16" y="13" width="3" height="4"/></svg></span><span class="t">สำหรับผู้จัดการ CEO</span></a>
+  <a href="#sec-mgr" data-view="mgr"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg></span><span class="t">สำหรับผู้จัดการ</span></a>
+  <a href="#sec-mkt" data-view="mkt"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1z"/><path d="M15 9.5a3.5 3.5 0 0 1 0 5"/><path d="M17.5 7a7 7 0 0 1 0 10"/></svg></span><span class="t">การตลาด</span></a>
+  <a href="#sec-weekly" data-view="weekly"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span><span class="t">รายงานรายสัปดาห์</span></a>
+  <a href="#sec-sla" data-view="sla"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg></span><span class="t">การควบคุม SLA</span><span class="b warn" id="nvSla">0</span></a>
+  <a href="#sec-meter" data-view="meter"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4.5a4 4 0 0 0-5 5L4 15v5h5l5.5-5.5a4 4 0 0 0 5-5l-2.5 2.5-2-2z"/></svg></span><span class="t">สับเปลี่ยนมิเตอร์</span></a>
+  <a href="#sec-ca" data-view="ca"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h12v18l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21z"/><path d="M9 8h6M9 12h6M9 16h3"/></svg></span><span class="t">สร้างบัญชี CA 82</span></a>
+  <a href="#sec-hub" data-view="hub"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.2 7-11a7 7 0 0 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg></span><span class="t">สรุปจุดรวมงาน</span></a>
+  <a href="#sec-tr" data-view="tr"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></span><span class="t">หม้อแปลง 25%</span></a>
+  <a href="#sec-charts" data-view="charts"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></span><span class="t">กราฟวิเคราะห์</span></a>
+  <a href="#sec-table" data-view="table"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg></span><span class="t">ตารางคำขอ</span><span class="b ok" id="nvCod">0</span></a>
+  <a href="#sec-log" data-view="log" id="navLog" class="hidden"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h9l4 4v14H8z"/><path d="M17 3v4h4M11 12h6M11 16h6M4 7v14h4"/></svg></span><span class="t">บันทึกการใช้งาน (Admin)</span></a>
+  <a href="#" id="navLogin" style="margin-top:8px;background:rgba(255,255,255,.12)"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><span class="t">เข้าสู่ระบบเจ้าหน้าที่</span></a>
   <div class="brand-foot">การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ)</div>
 </nav>
 <div id="navOverlay" class="no-print" onclick="document.body.classList.remove('nav-open')"></div>
@@ -380,7 +384,11 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
 
     <!-- SUMMARY -->
     <div class="card" id="sec-exec" data-view="exec">
-      <h2>📊 สรุปผู้บริหาร — โครงการโซลาร์ภาคประชาชน ปี 2569</h2>
+      <h2>📊 สมรรถนะการควบคุม SLA แยกตาม CEO — สำหรับผู้จัดการ CEO</h2>
+      <div id="ceoBox"></div>
+    </div>
+    <div class="card" data-view="exec">
+      <h2>🎯 สรุปผลดำเนินงานโครงการ — เป้าหมาย / ความคืบหน้า / คอขวด</h2>
       <div id="execSummary"></div>
     </div>
 
@@ -395,7 +403,18 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     <div class="card purple" data-view="weekly"><h2>คำขอสะสม ตั้งแต่ 1 ก.ค. 2569 – ปัจจุบัน</h2><div class="chart-box" style="height:360px"><canvas id="chTime"></canvas></div></div>
 
     <!-- PIPELINE -->
-    <div class="card" id="sec-pipeline" data-view="pipeline">
+    <!-- สำหรับผู้จัดการ: จัดอันดับ กฟฟ. ตาม SLA -->
+    <div class="card" id="sec-mgr" data-view="mgr">
+      <h2>👤 สมรรถนะการควบคุม SLA รายการไฟฟ้า — สำหรับผู้จัดการ</h2>
+      <div id="mgrBox"></div>
+    </div>
+    <!-- การตลาด (รอข้อมูลผู้รับงาน/ผู้ติดตั้ง) -->
+    <div class="card" id="sec-mkt" data-view="mkt">
+      <h2>📣 การตลาด · ผู้รับงานและผู้ติดตั้ง</h2>
+      <div class="note" style="background:#fdf6e3;border-left:4px solid var(--warn);padding:10px 12px;border-radius:8px">🚧 หน้านี้รอข้อมูล 2 คอลัมน์ในชีต PPIM: <b>ผู้รับงาน (PEA / Vendor)</b> และ <b>ผู้ติดตั้ง</b> — เมื่อเพิ่มคอลัมน์แล้วแจ้งชื่อหัวคอลัมน์ ระบบจะแสดงสัดส่วน PEA/Vendor, ภาระงานราย Vendor, และการเตือนเมื่อ Vendor รายเดียวรับงานเกิน 30%</div>
+    </div>
+
+    <div class="card" id="sec-pipeline" data-view="overview">
       <h2>สถานะขั้นตอนการดำเนินงาน โครงการโซลาร์ภาคประชาชน ปี 2569</h2>
       <div class="pipeline" id="pipeline"></div>
       <div class="note" style="margin-top:8px">👆 คลิกขั้นตอนเพื่อดูการกระจายตาม กฟฟ. และรายการ PPIM ของขั้นนั้น</div>
@@ -1074,7 +1093,7 @@ function process(){
 }
 
 /* ================= RENDER ================= */
-function renderAll(){ renderKpis(); renderOvSla(); renderMeters(); renderCA(); renderExec(); renderWeekly(); renderPipeline(); if(typeof renderStepDetail==='function') renderStepDetail(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); renderSidenav(); }
+function renderAll(){ renderKpis(); renderOvSla(); renderMeters(); renderCA(); renderExec(); if(typeof renderCEO==='function') renderCEO(); if(typeof renderMgr==='function') renderMgr(); renderWeekly(); renderPipeline(); if(typeof renderStepDetail==='function') renderStepDetail(); renderSla(); renderCodDeadline(); renderHubOverview(); renderHubs(); renderTransformers(); renderCharts(); buildFilterOptions(); renderTable(); renderSidenav(); }
 
 /* ================= ตัวเลขบนแถบเมนู ================= */
 function renderSidenav(){
@@ -2275,6 +2294,119 @@ const GATE_INFO = {
 const CENTRAL_HUB = 'กบล.กฟน.1';   // จุดกลาง — เห็น/รายงานได้ทุก กฟฟ.
 const HUB_LIST = ['กบล.กฟน.1','กฟจ.เชียงราย','กฟจ.เชียงใหม่','กฟจ.เชียงใหม่ 2','กฟจ.พะเยา','กฟจ.ลำปาง','กฟจ.ลำพูน','กฟจ.แม่ฮ่องสอน','กฟอ.เกาะคา','กฟอ.จอมทอง','กฟอ.เทิง','กฟอ.ฝาง','กฟอ.พาน','กฟอ.แม่ริม','กฟอ.แม่สาย','กฟอ.สันกำแพง','กฟอ.สันทราย','กฟอ.สันป่าตอง','กฟอ.หางดง'];
 if($('#mmRHub')) $('#mmRHub').innerHTML = '<option value="">— เลือกจุดร่วมงาน —</option>' + HUB_LIST.map(h=>`<option>${h}</option>`).join('');
+// ===== CEO (6 จังหวัด) — จัดกลุ่ม กฟฟ./จุดรวมงาน เข้า CEO ตามชื่อจังหวัดหรืออำเภอ =====
+const CEO_LIST = ['เชียงใหม่','ลำพูน','ลำปาง','เชียงราย','แม่ฮ่องสอน','พะเยา'];
+const CEO_DISTRICTS = {
+  'เชียงใหม่':  ['เชียงใหม่','สันทราย','หางดง','แม่ริม','สันป่าตอง','สันกำแพง','จอมทอง','ฝาง','ดอยสะเก็ด','แม่แตง','พร้าว','เชียงดาว','ไชยปราการ','แม่อาย','ฮอด','แม่แจ่ม','อมก๋อย','สะเมิง','สารภี','เวียงแหง','กัลยาณิวัฒนา','แม่วาง','ดอยหล่อ','แม่ออน','ดอยเต่า'],
+  'ลำพูน':      ['ลำพูน','ป่าซาง','บ้านธิ','แม่ทา','ลี้','บ้านโฮ่ง','ทุ่งหัวช้าง','เวียงหนองล่อง','แม่ตืน'],
+  'ลำปาง':      ['ลำปาง','เกาะคา','แม่เมาะ','งาว','แจ้ห่ม','เถิน','แม่ทะ','สบปราบ','ห้างฉัตร','เสริมงาม','เมืองปาน','วังเหนือ','แม่พริก'],
+  'เชียงราย':   ['เชียงราย','พาน','แม่สาย','เทิง','เชียงของ','เวียงป่าเป้า','แม่จัน','เชียงแสน','แม่สรวย','เวียงชัย','พญาเม็งราย','ขุนตาล','ป่าแดด','แม่ฟ้าหลวง','เวียงแก่น','ดอยหลวง','เวียงเชียงรุ้ง','แม่ลาว'],
+  'แม่ฮ่องสอน': ['แม่ฮ่องสอน','แม่สะเรียง','ปาย','ขุนยวม','แม่ลาน้อย','สบเมย','ปางมะผ้า'],
+  'พะเยา':      ['พะเยา','เชียงคำ','ดอกคำใต้','จุน','ปง','แม่ใจ','เชียงม่วน','ภูซาง','ภูกามยาว']
+};
+function hubCEO(name){
+  const k=String(name||'').replace(/^กฟ[จอสฟยน]\.?\s*/,'').replace(/\s+/g,'').replace(/2$/,'');
+  if(!k || /กบล/.test(String(name))) return '';
+  for(const c of CEO_LIST){ if(k.indexOf(c)===0) return c; }
+  for(const c of CEO_LIST){ if(CEO_DISTRICTS[c].some(d=>k.indexOf(d)===0)) return c; }
+  return '';
+}
+function rowCEO(r){ return hubCEO(reqHub(r)) || hubCEO(r.areaCheck) || hubCEO(r.area) || hubCEO(r.respOffice) || ''; }
+// ===== สมรรถนะ SLA (ใช้ SLA เดิม: 30 วัน ช่วงตรวจสอบ + ช่วงทำสัญญา) =====
+// กลุ่มสี: เขียว = green+yellow (ปกติ) · เหลือง = red (ใกล้เกิน ≤30 วัน) · แดง = over (เกิน SLA) · ในเกณฑ์ = ไม่เกิน
+const SLA_PHASES=[{k:'review',n:'ตรวจสอบ/พิจารณา'},{k:'contract',n:'ทำสัญญา/ชำระเงิน'}];
+let mgrPhase='all', mgrCEO='';
+function slaStat(list){
+  const t=list.length; let g=0,y=0,o=0,el=0;
+  list.forEach(r=>{ const b=r.sla.band; if(b==='over')o++; else if(b==='red')y++; else g++; el+=(r.sla.elapsed||0); });
+  const inOk=t-o, pct=t?inOk/t*100:0, gp=t?g/t*100:0;
+  return {t,g,y,o,inOk,pct,gp,score:t?Math.round(60*inOk/t+40*g/t):0,avgUse:t?Math.round(el/t/30*100):0};
+}
+function slaPick(phase,ceo){ return rows.filter(r=>r.step!==0 && r.sla && r.sla.band && (phase==='all'||r.sla.phase===phase) && (!ceo||rowCEO(r)===ceo)); }
+const barHtml=(s,w)=>{ if(!s.t) return '<div style="height:8px;background:#eee;border-radius:4px"></div>'; return `<div style="display:flex;height:9px;border-radius:5px;overflow:hidden;${w?'width:'+w:''}"><div style="width:${s.g/s.t*100}%;background:#22A45D"></div><div style="width:${s.y/s.t*100}%;background:#B07C00"></div><div style="width:${s.o/s.t*100}%;background:#D64545"></div></div>`; };
+const pctColor=p=>p>=90?'#1f9d57':p>=80?'#B07C00':'var(--danger)';
+function renderCEO(){
+  const box=$('#ceoBox'); if(!box) return;
+  const all=slaPick('all',''); if(!all.length){ box.innerHTML='<div class="note">— ยังไม่มีงานที่อยู่ในช่วง SLA —</div>'; return; }
+  const A=slaStat(all);
+  const byCeo=CEO_LIST.map(c=>{ const L=slaPick('all',c); return {c,s:slaStat(L),ph:SLA_PHASES.map(p=>slaStat(L.filter(r=>r.sla.phase===p.k))),L}; }).filter(x=>x.s.t>0);
+  const ranked=byCeo.filter(x=>x.s.t>=5).sort((a,b)=>b.s.pct-a.s.pct||b.s.score-a.s.score);
+  ranked.forEach((x,i)=>x.rank=i+1);
+  const phStat=SLA_PHASES.map(p=>({p,s:slaStat(all.filter(r=>r.sla.phase===p.k))}));
+  const worst=phStat.filter(x=>x.s.t).sort((a,b)=>a.s.pct-b.s.pct)[0];
+  const best=ranked[0], most=byCeo.slice().sort((a,b)=>b.s.t-a.s.t)[0], fast=byCeo.filter(x=>x.s.t>=5).sort((a,b)=>a.s.avgUse-b.s.avgUse)[0];
+  const kpi=(l,v,d,c)=>`<div style="flex:1;min-width:180px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 14px"><div class="note">${l}</div><div style="font-size:1.6rem;font-weight:800;color:${c||'#1f2937'};line-height:1.2">${v}</div><div class="note">${d}</div></div>`;
+  const esc=escHtml;
+  box.innerHTML=`
+    <div class="note" style="margin-bottom:8px">SLA 30 วัน · ช่วงตรวจสอบ/พิจารณา และ ช่วงทำสัญญา/ชำระเงิน · นับเฉพาะงานที่ยังอยู่ในขั้นที่กำหนด SLA · ไม่รวมงานยกเลิก</div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
+      ${kpi('งานที่อยู่ใน SLA ทั้งเขต',fmtN(A.t)+' รายการ','🟢 '+fmtN(A.g)+' · 🟡 '+fmtN(A.y)+' · 🔴 '+fmtN(A.o))}
+      ${kpi('ในเกณฑ์ SLA ทั้งเขต',pctTxt(A.pct),'งานที่ยังไม่เกิน SLA',pctColor(A.pct))}
+      ${kpi('ใช้เวลาเฉลี่ยทั้งเขต',A.avgUse+'%','ของกำหนด 30 วัน · '+phStat.map(x=>x.p.n.split('/')[0]+' '+x.s.avgUse+'%').join(' · '))}
+      ${kpi('SLA ที่ต้องเร่ง',worst?esc(worst.p.n):'-',worst?('ในเกณฑ์ '+pctTxt(worst.s.pct)+' · เกิน '+fmtN(worst.s.o)+' งาน'):'',worst?'var(--danger)':'')}
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+      ${best?`<div class="note" style="flex:1;min-width:220px;background:#eef9f1;border:1px solid #bfe6cc;border-radius:10px;padding:8px 12px">⭐ ในเกณฑ์สูงสุด <b>CEO ${best.c}</b> ${pctTxt(best.s.pct)}</div>`:''}
+      ${most?`<div class="note" style="flex:1;min-width:220px;background:#eef4fc;border:1px solid #cfe0f5;border-radius:10px;padding:8px 12px">📋 งานมากที่สุด <b>CEO ${most.c}</b> ${fmtN(most.s.t)} งาน · ${pctTxt(most.s.pct)}</div>`:''}
+      ${fast?`<div class="note" style="flex:1;min-width:220px;background:#f3eefa;border:1px solid #ddd0ee;border-radius:10px;padding:8px 12px">⚡ เร็วที่สุด <b>CEO ${fast.c}</b> ใช้เวลา ${fast.s.avgUse}% ของ SLA</div>`:''}
+    </div>
+    <div style="font-weight:700;color:#374151;margin:6px 0">ภาพรวมทุก SLA แยกตาม CEO</div>
+    <div style="overflow-x:auto"><table style="font-size:.88rem"><thead><tr><th>CEO</th>${SLA_PHASES.map(p=>`<th>${p.n}<br><span class="note">30 วัน</span></th>`).join('')}<th style="background:#ead9f7">รวมทุก SLA</th></tr></thead><tbody>
+      ${byCeo.map(x=>`<tr><td><b>CEO ${esc(x.c)}</b></td>${x.ph.map(s=>`<td>${s.t?`<b style="color:${pctColor(s.pct)}">${pctTxt(s.pct)}</b><br><span class="note">${fmtN(s.t)} งาน${s.o?' · เกิน '+fmtN(s.o):''}</span>`:'<span class="note">–</span>'}</td>`).join('')}<td style="background:#faf5ff"><b style="color:${pctColor(x.s.pct)}">${pctTxt(x.s.pct)}</b><br><span class="note">${fmtN(x.s.t)} งาน${x.s.o?' · เกิน '+fmtN(x.s.o):''}</span></td></tr>`).join('')}
+      <tr style="background:#F4F7FC;font-weight:700"><td>ทั้งเขต</td>${phStat.map(x=>`<td><span style="color:${pctColor(x.s.pct)}">${pctTxt(x.s.pct)}</span><br><span class="note" style="font-weight:400">${fmtN(x.s.t)} งาน${x.s.o?' · เกิน '+fmtN(x.s.o):''}</span></td>`).join('')}<td style="background:#faf5ff"><span style="color:${pctColor(A.pct)}">${pctTxt(A.pct)}</span><br><span class="note" style="font-weight:400">${fmtN(A.t)} งาน</span></td></tr>
+    </tbody></table></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:14px">
+      ${byCeo.slice().sort((a,b)=>(a.rank||99)-(b.rank||99)||b.s.t-a.s.t).map(x=>{
+        const hubs={}; x.L.forEach(r=>{ const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; (hubs[h]=hubs[h]||[]).push(r); });
+        const hrows=Object.entries(hubs).map(([h,L])=>({h,s:slaStat(L)})).sort((a,b)=>b.s.t-a.s.t);
+        return `<div style="background:#fff;border:1px solid var(--border);border-radius:14px;padding:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:800;font-size:1.05rem">CEO ${esc(x.c)}</div><span class="note" style="background:${x.rank?'#fff3b0':'#eee'};border-radius:999px;padding:2px 10px;font-weight:700">${x.rank?'อันดับ '+x.rank:'งานน้อย ไม่จัดอันดับ'}</span></div>
+          <div style="display:flex;gap:12px;align-items:center;margin:6px 0"><div style="font-size:2.3rem;font-weight:900;color:${pctColor(x.s.pct)};line-height:1">${pctTxt(x.s.pct)}</div><div class="note">ในเกณฑ์ SLA · งาน <b>${fmtN(x.s.t)}</b> รายการ<br>ใช้เวลา <b>${x.s.avgUse}%</b> ของ SLA · เขียว ${x.s.g} · เหลือง ${x.s.y} · แดง ${x.s.o}</div></div>
+          ${barHtml(x.s)}
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">${x.ph.map((s,i)=>s.t?`<span class="note" style="background:#f3eefa;border-radius:8px;padding:3px 9px">${SLA_PHASES[i].n.split('/')[0]} <b>${pctTxt(s.pct)}</b></span>`:'').join('')}</div>
+          <table style="font-size:.85rem"><thead><tr><th>การไฟฟ้า</th><th style="text-align:right">งาน</th><th style="text-align:right">แดง</th><th style="text-align:right">ในเกณฑ์</th></tr></thead><tbody>
+            ${hrows.map(h=>`<tr><td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${pctColor(h.s.pct)};margin-right:6px"></span>${esc(h.h)}</td><td style="text-align:right">${fmtN(h.s.t)}</td><td style="text-align:right;color:var(--danger);font-weight:700">${h.s.o||''}</td><td style="text-align:right">${pctTxt(h.s.pct)}</td></tr>`).join('')}
+          </tbody></table></div>`; }).join('')}
+    </div>
+    <div class="note" style="margin-top:10px">🟢 ไม่มีงานเกิน SLA · 🟡 มีงานใกล้เกิน (21-30 วัน) · 🔴 เกิน SLA · ในเกณฑ์ = งานที่ยังไม่เกิน SLA · CEO ที่มีงานน้อยกว่า 5 รายการไม่จัดอันดับ</div>`;
+}
+function renderMgr(){
+  const box=$('#mgrBox'); if(!box) return;
+  const esc=escHtml;
+  const list=slaPick(mgrPhase,mgrCEO);
+  const hubs={}; list.forEach(r=>{ const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; (hubs[h]=hubs[h]||[]).push(r); });
+  const items=Object.entries(hubs).map(([h,L])=>({h,ceo:hubCEO(h),s:slaStat(L),ph:SLA_PHASES.map(p=>slaStat(L.filter(r=>r.sla.phase===p.k)))}));
+  const ranked=items.filter(x=>x.s.t>=5).sort((a,b)=>b.s.score-a.s.score||b.s.t-a.s.t); ranked.forEach((x,i)=>x.rank=i+1);
+  const small=items.filter(x=>x.s.t<5).sort((a,b)=>b.s.score-a.s.score);
+  const chip=(v,l,on)=>`<button class="mtab${on?' on':''}" style="border-radius:999px;margin:0 4px 6px 0;padding:6px 14px" onclick="mgrPhase='${v}';renderMgr()">${l}</button>`;
+  const rowH=(x,i)=>`<tr style="${x.rank&&x.rank<=3?'background:#f1faf3':''}">
+      <td style="text-align:center">${x.rank?(x.rank<=3?`<span style="display:inline-block;width:26px;height:26px;line-height:26px;border-radius:50%;background:${['#f4c430','#c0c0c0','#cd7f32'][x.rank-1]};font-weight:800;text-align:center">${x.rank}</span>`:x.rank):'–'}</td>
+      <td><b>${esc(x.h)}</b></td><td class="note">${x.ceo?'CEO '+esc(x.ceo):'-'}</td><td style="text-align:right">${fmtN(x.s.t)}</td>
+      <td><div style="display:flex;align-items:center;gap:8px">${barHtml(x.s,'150px')}<span class="note">${x.s.g} · ${x.s.y} · <span style="color:var(--danger)">${x.s.o}</span></span></div></td>
+      <td style="text-align:right;font-size:1.15rem;font-weight:900;color:${pctColor(x.s.score)}">${x.s.score}</td>
+      <td style="text-align:right;font-weight:700;color:${pctColor(x.s.pct)}">${pctTxt(x.s.pct)}</td>
+      <td style="text-align:right">${x.s.avgUse}%</td>
+      ${x.ph.map(s=>`<td style="text-align:right">${s.t?s.score:'–'}</td>`).join('')}</tr>`;
+  box.innerHTML=`
+    <div class="note" style="margin-bottom:8px">SLA 30 วัน · ${mgrPhase==='all'?'ทุกช่วง SLA':SLA_PHASES.find(p=>p.k===mgrPhase).n} · ${mgrCEO?'CEO '+esc(mgrCEO):'ทุก CEO'} · ${fmtN(list.length)} งาน</div>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:10px">
+      ${chip('all','ทุก SLA',mgrPhase==='all')}${SLA_PHASES.map(p=>chip(p.k,p.n+' · 30 วัน',mgrPhase===p.k)).join('')}
+      <select onchange="mgrCEO=this.value;renderMgr()" style="margin-left:auto;padding:6px 10px;border-radius:8px;border:1px solid var(--border)"><option value="">ทุก CEO</option>${CEO_LIST.map(c=>`<option value="${c}" ${mgrCEO===c?'selected':''}>CEO ${c}</option>`).join('')}</select>
+    </div>
+    ${ranked.length?`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:12px">
+      ${ranked.slice(0,3).map((x,i)=>`<div style="display:flex;gap:12px;align-items:center;background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 14px"><div style="width:38px;height:38px;border-radius:50%;background:${['#f4c430','#c0c0c0','#cd7f32'][i]};display:flex;align-items:center;justify-content:center;font-weight:900;font-size:1.1rem">${i+1}</div><div><div style="font-weight:800">${esc(x.h)} <span class="note">${x.ceo?'CEO '+esc(x.ceo):''}</span></div><div class="note">คะแนน <b style="color:#B07C00;font-size:1.05rem">${x.s.score}</b> · ในเกณฑ์ <b style="color:${pctColor(x.s.pct)}">${pctTxt(x.s.pct)}</b> · ใช้เวลา ${x.s.avgUse}% ของ SLA · ${fmtN(x.s.t)} งาน</div></div></div>`).join('')}</div>`:''}
+    <div style="overflow-x:auto"><table style="font-size:.88rem"><thead><tr><th>อันดับ</th><th>การไฟฟ้า</th><th>สังกัด</th><th style="text-align:right">งาน</th><th>เขียว · เหลือง · แดง</th><th style="text-align:right">คะแนน<br><span class="note">เต็ม 100</span></th><th style="text-align:right">ในเกณฑ์</th><th style="text-align:right">เฉลี่ยรวม<br><span class="note">% ของ SLA</span></th>${SLA_PHASES.map(p=>`<th style="text-align:right">${p.n.split('/')[0]}<br><span class="note">คะแนน</span></th>`).join('')}</tr></thead><tbody>
+      ${ranked.map(rowH).join('')}
+      ${small.length?`<tr><td colspan="${8+SLA_PHASES.length}" style="background:#f7f7fa;font-weight:700;color:#555">การไฟฟ้าที่มีงานน้อยกว่า 5 รายการ (ไม่จัดอันดับ)</td></tr>${small.map(rowH).join('')}`:''}
+      ${!items.length?`<tr><td colspan="${8+SLA_PHASES.length}" class="note" style="text-align:center">— ไม่มีงานในช่วง SLA ที่เลือก —</td></tr>`:''}
+    </tbody></table></div>
+    <div style="background:#f7f2fb;border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-top:12px;font-size:.88rem;line-height:1.7">
+      <b>สูตรคำนวณคะแนน (เต็ม 100)</b><br><code style="background:#fff;padding:2px 8px;border-radius:6px">คะแนน = 60 × (งานในเกณฑ์ ÷ งานทั้งหมด) + 40 × (งานแถบเขียว ÷ งานทั้งหมด)</code><br>
+      งานในเกณฑ์ = งานที่ยังไม่เกิน SLA (เขียว + เหลือง) · งานแถบเขียว = ใช้เวลาไม่เกิน 20 วัน · เหลือง = 21–30 วัน (ใกล้เกิน) · แดง = เกิน 30 วัน<br>
+      ตัวอย่าง: งาน 20 รายการ เขียว 14 · เหลือง 4 · แดง 2 → 60 × 18/20 + 40 × 14/20 = 54 + 28 = <b>82 คะแนน</b><br>
+      อันดับเรียงตามคะแนน ถ้าเท่ากันเรียงตามจำนวนงานมากกว่า · การไฟฟ้าที่มีงานน้อยกว่า 5 รายการไม่จัดอันดับ · ไฮไลต์สีเขียว = 3 อันดับแรก · นับเฉพาะงานที่ยังอยู่ในขั้นที่กำหนด SLA · ไม่รวมงานยกเลิก
+    </div>`;
+}
 // จับคู่ชื่อจุดร่วมงานแบบยืดหยุ่น: ตัด prefix กฟจ./กฟอ./กฟส./กฟฟ./กฟน. เหลือชื่อสถานที่ แล้วเทียบ
 function hubKey(s){ return String(s||'').replace(/^กฟ[จอสฟน]\.?\s*/,'').replace(/\s+/g,'').trim(); }
 function canonHub(s){ const k=hubKey(s); return k ? (HUB_LIST.find(h=>hubKey(h)===k)||'') : ''; }
@@ -2912,6 +3044,31 @@ showView('overview');   // หน้าเริ่มต้น
 
 // โหลดภาพรวมได้เลยไม่ต้อง login (อ่านผ่าน Apps Script — ชีตยัง private ได้) · login เฉพาะมิเตอร์+CA82
 loadDashboardData();
+</script>
+<script>
+// ===== favicon พระอาทิตย์หมุน (วาดด้วย canvas แล้วสลับเฟรม) =====
+(function(){
+  const link=document.getElementById('favicon'); if(!link) return;
+  const c=document.createElement('canvas'); c.width=64; c.height=64; const x=c.getContext('2d');
+  let a=0, last=0;
+  function draw(){
+    x.clearRect(0,0,64,64);
+    // พื้นม่วงมุมมน
+    x.fillStyle='#5E2483'; x.beginPath(); x.roundRect(0,0,64,64,15); x.fill();
+    // แฉก (หมุน)
+    x.save(); x.translate(32,32); x.rotate(a); x.strokeStyle='#FFD23F'; x.lineWidth=3.6; x.lineCap='round';
+    for(let i=0;i<8;i++){ x.beginPath(); x.moveTo(0,-19); x.lineTo(0,-26); x.stroke(); x.rotate(Math.PI/4); }
+    x.restore();
+    // ดวงยิ้ม
+    x.fillStyle='#FFD23F'; x.beginPath(); x.arc(32,32,14.5,0,Math.PI*2); x.fill();
+    x.fillStyle='#7A4A00'; x.beginPath(); x.arc(26.5,29.5,2.1,0,Math.PI*2); x.fill(); x.beginPath(); x.arc(37.5,29.5,2.1,0,Math.PI*2); x.fill();
+    x.strokeStyle='#7A4A00'; x.lineWidth=2.4; x.beginPath(); x.arc(32,33,6.5,Math.PI*0.15,Math.PI*0.85); x.stroke();
+    link.href=c.toDataURL('image/png');
+  }
+  function tick(t){ if(!document.hidden && t-last>140){ last=t; a+=Math.PI/24; draw(); } requestAnimationFrame(tick); }
+  draw(); requestAnimationFrame(tick);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) draw(); });
+})();
 </script>
 </body>
 </html>
