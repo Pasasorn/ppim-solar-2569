@@ -632,7 +632,12 @@ const FIELDS = [
   {key:'receiver', label:'ผู้รับงาน (PEA/Vendor)', kw:['ผู้รับงาน','รับงานโดย','หน่วยรับงาน']},
   {key:'installer', label:'ผู้ติดตั้ง', kw:['ผู้ติดตั้ง','ติดตั้งโดย','บริษัทติดตั้ง','ผู้รับเหมา']},
   {key:'custPhone', label:'เบอร์โทรศัพท์', kw:['เบอร์โทรศัพท์ ผู้ใช้ไฟฟ้า','เบอร์โทรศัพท์ผู้ใช้ไฟฟ้า','เบอร์โทรศัพท์','หมายเลขโทรศัพท์','เบอร์โทร','โทรศัพท์','เบอร์ติดต่อ']},
-  {key:'caStatus', label:'สถานะการสร้างบัญชี CA', kw:['สถานะการสร้างบัญชี','สถานะสร้างบัญชีแสดงสัญญา','สร้างบัญชีแสดงสัญญา','บัญชีแสดงสัญญา','สถานะบัญชี']}
+  {key:'caStatus', label:'สถานะการสร้างบัญชี CA', kw:['สถานะการสร้างบัญชี','สถานะสร้างบัญชีแสดงสัญญา','สร้างบัญชีแสดงสัญญา','บัญชีแสดงสัญญา','สถานะบัญชี']},
+  // ผูกตามชื่อหัว (strict: ตรงทั้งคำ/ขึ้นต้น + kwInc เท่านั้น) · ถ้าหาไม่เจอ ถอยไปอ่านตามตำแหน่งเดิม col (A=0)
+  {key:'panelRaw',   label:'ข้อมูลแผงโซลาร์ (เดิมคอลัมน์ R)', strict:true, col:17, kw:['ข้อมูลแผงโซลาร์','แผงโซลาร์','แผงเซลล์แสงอาทิตย์','แผงเซลล์','ข้อมูลแผง','solar panel'], kwInc:['แผงโซลาร์','แผงเซลล์']},
+  {key:'contractNo', label:'เลขที่สัญญา (เดิมคอลัมน์ AB)',   strict:true, col:27, kw:['เลขที่สัญญา','เลขสัญญา','contract no'], kwInc:['เลขที่สัญญา','เลขสัญญา']},
+  {key:'kwp',        label:'kWp (เดิมคอลัมน์ AX)',          strict:true, col:49, kw:['kwp','kw p','ขนาดติดตั้ง (kwp)','กำลังผลิตติดตั้ง'], kwInc:['kwp']},
+  {key:'respOffice', label:'กฟส./กฟย. ที่รับผิดชอบ (เดิมคอลัมน์ AZ)', strict:true, col:51, kw:['กฟส./กฟย.ที่รับผิดชอบ','กฟส./กฟย. ที่รับผิดชอบ','กฟฟ.ที่รับผิดชอบ','การไฟฟ้าที่รับผิดชอบ','หน่วยงานที่รับผิดชอบ','กฟส./กฟย.','กฟอ./กฟย.']}
 ];
 const SLA = {reviewDays:30, signDays:30};
 const LS_KEY = 'ppim_solar_dash_v1';
@@ -942,8 +947,9 @@ function computeMapping(hdrs){
     let hit = null;
     for(const k of f.kw){ hit = hdrs.find(h=>!used.has(h)&&norm(h)===norm(k)); if(hit)break; }
     if(!hit) for(const k of f.kw){ hit = hdrs.find(h=>!used.has(h)&&norm(h).startsWith(norm(k))); if(hit)break; }
-    if(!hit) for(const k of f.kw){ hit = hdrs.find(h=>!used.has(h)&&norm(h).includes(norm(k))); if(hit)break; }
-    if(hit){ map[f.key] = hit; used.add(hit); }
+    if(!hit) for(const k of (f.strict?(f.kwInc||[]):f.kw)){ hit = hdrs.find(h=>!used.has(h)&&norm(h).includes(norm(k))); if(hit)break; }
+    if(hit){ map[f.key] = hit; used.add(hit);
+      if(f.col!=null && hdrs.indexOf(hit)!==f.col) console.warn('[mapping] '+f.key+': ผูกตามชื่อหัว "'+hit+'" (คอลัมน์ที่ '+(hdrs.indexOf(hit)+1)+') ไม่ตรงตำแหน่งเดิม (คอลัมน์ที่ '+(f.col+1)+' = "'+(hdrs[f.col]||'')+'")'); }
   }
   return map;
 }
@@ -1014,16 +1020,17 @@ function buildRowsFrom(rawArr, map){
   const today = new Date(); today.setHours(0,0,0,0);
   return rawArr.map((r,i)=>{
     const get = k => map[k]!=null ? r[map[k]] : '';
+    const getCol = (k,idx) => map[k]!=null ? r[map[k]] : ((typeof headers!=='undefined' && headers[idx]) ? r[headers[idx]] : '');   // ชื่อหัวก่อน → ถ้าไม่เจอใช้ตำแหน่งเดิม
     const clean = v => { v=String(v||'').trim().replace(/กฟอ\./g,'กฟส.'); return v==='-'?'':v; };   // แสดงผล กฟอ. เป็น กฟส. ทั้งระบบ (กฟจ. คงเดิม)
     const hubV = clean(get('hub'));
     const o = {
       i, reqNo:clean(get('reqNo')), area:clean(get('area'))||clean(get('areaCheck'))||'ไม่ระบุ',
       areaCheck: clean(get('areaCheck')),
-      respOffice: (typeof headers!=='undefined' && headers[51]) ? clean(r[headers[51]]) : '',   // คอลัมน์ AZ = กฟส./กฟย. ที่รับผิดชอบ (อ่านตามตำแหน่ง: A=0 … AZ=51)
-      panelRaw:   (typeof headers!=='undefined' && headers[17]) ? clean(r[headers[17]]) : '',   // คอลัมน์ R = ข้อมูลแผงโซลาร์ (ข้อความอิสระ)
+      respOffice: clean(getCol('respOffice',51)),   // กฟส./กฟย. ที่รับผิดชอบ (ชื่อหัว → สำรองคอลัมน์ AZ)
+      panelRaw:   clean(getCol('panelRaw',17)),     // ข้อมูลแผงโซลาร์ ข้อความอิสระ (ชื่อหัว → สำรองคอลัมน์ R)
       receiver: clean(get('receiver')), installer: clean(get('installer')),                         // การตลาด: ผู้รับงาน (PEA/Vendor) · ผู้ติดตั้ง
-      contractNo: (typeof headers!=='undefined' && headers[27]) ? clean(r[headers[27]]) : '',   // คอลัมน์ AB = เลขที่สัญญา
-      kwp:        (typeof headers!=='undefined' && headers[49]) ? clean(r[headers[49]]) : '',   // คอลัมน์ AX = kWp (A=0 … AX=49)
+      contractNo: clean(getCol('contractNo',27)),   // เลขที่สัญญา (ชื่อหัว → สำรองคอลัมน์ AB)
+      kwp:        clean(getCol('kwp',49)),          // kWp (ชื่อหัว → สำรองคอลัมน์ AX)
       hub: (hubV==='#N/A'||hubV.toLowerCase()==='x') ? '' : hubV,
       gridChk: clean(get('gridChk')),   // ผลตรวจ Grid Capacity — ผูกตามชื่อหัวคอลัมน์ (คอลัมน์ M เป็นระดับแรงดัน ไม่ใช่ผลตรวจ Grid)
       tr: clean(get('tr')), kva: clean(get('kva')), trOwner: clean(get('trOwner')),
