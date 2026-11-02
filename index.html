@@ -107,6 +107,7 @@ body{padding-left:236px}
 .kpi{background:#f7f2fb;border-radius:18px;padding:15px 15px 14px;box-shadow:0 4px 14px rgba(107,44,145,.07);border:1px solid #0000000d;text-align:left;transition:.18s}
 .kpi:hover{box-shadow:0 10px 24px rgba(107,44,145,.15);transform:translateY(-3px)}
 .kpi.clk{cursor:pointer} .kpi.sel{outline:2.5px solid var(--pea);outline-offset:-1px;background:#efe4f7}
+.kpisub{color:inherit;text-decoration:none;border-radius:6px;padding:0 3px;margin:0 -3px}.kpisub:hover{background:#efe4f7;text-decoration:underline}.kpisub.on{background:#e3d2f0;outline:1.5px solid var(--pea)}
 .kpi .ic{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:13px;font-size:1.4rem;line-height:1;background:#fff;color:var(--pea);margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
 .kpi .kh{display:flex;align-items:center;gap:8px;margin-bottom:10px} .kpi .kh .ic{margin-bottom:0}
 .kpi .dept{font-size:.7rem;font-weight:800;color:var(--pea);background:#fff;border:1px solid #e3d9f0;border-radius:999px;padding:3px 9px;white-space:nowrap;letter-spacing:.2px}
@@ -410,6 +411,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
         <div id="kpiChartChips" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
         <div class="note" id="kpiChartNote" style="margin-bottom:6px"></div>
         <div id="kpiChartWrap" style="position:relative"><canvas id="kpiChart"></canvas></div>
+        <div id="kpiList"></div>
       </div>
     </div>
 
@@ -1771,8 +1773,8 @@ function renderMeterFlow(){
         <b style="color:var(--pea)">📊 ${S.ic} ${S.l} — แยกจุดรวมงาน</b><button class="btn btn-outline btn-sm no-print" onclick="meterFlowPick(null)">✕ ปิด</button></div>
       ${E.length?'<div style="position:relative;height:340px"><canvas id="meterFlowChart"></canvas></div>':'<div class="note">ไม่มีรายการในสถานะนี้</div>'}
       ${S.since?`<div style="margin-top:12px;font-weight:700">⚠ ค้างเกิน ${METER_AGE_WARN} วัน (นับจากวัน${S.since}) · ${fmtN(late.length)} ราย${late.length>50?' — แสดง 50 รายการที่ค้างนานสุด':''}</div>
-      ${late.length?`<div style="overflow:auto;max-height:360px;margin-top:6px"><table style="font-size:.85rem"><thead><tr><th>เลขคำขอ</th><th>ผู้ยื่น</th><th>จุดรวมงาน</th><th>กฟฟ.</th><th style="text-align:right">ค้าง (วัน)</th></tr></thead><tbody>
-        ${late.slice(0,50).map(x=>`<tr><td><b>${escHtml(x.r.reqNo)}</b></td><td>${escHtml(maskName(x.r.custName))}</td><td>${escHtml(reqHub(x.r)||'-')}</td><td>${escHtml(x.r.areaCheck||x.r.area||'-')}</td><td style="text-align:right;font-weight:800;color:${x.d>METER_AGE_WARN*2?'var(--danger)':'#B07C00'}">${fmtN(x.d)}</td></tr>`).join('')}
+      ${late.length?`<div style="overflow:auto;max-height:360px;margin-top:6px"><table style="font-size:.85rem"><thead><tr><th>เลขคำขอ</th><th>ผู้ยื่น</th><th>จุดรวมงาน</th><th>กฟฟ.</th><th style="text-align:right">ค้าง (วัน)</th><th>หมายเหตุ CA 82</th></tr></thead><tbody>
+        ${late.slice(0,50).map(x=>`<tr><td><b>${escHtml(x.r.reqNo)}</b></td><td>${escHtml(maskName(x.r.custName))}</td><td>${escHtml(reqHub(x.r)||'-')}</td><td>${escHtml(x.r.areaCheck||x.r.area||'-')}</td><td style="text-align:right;font-weight:800;color:${x.d>METER_AGE_WARN*2?'var(--danger)':'#B07C00'}">${fmtN(x.d)}</td><td>${ca82NoteCell(x.r)}</td></tr>`).join('')}
       </tbody></table></div>`:'<div class="note">✅ ไม่มีงานค้างเกินกำหนด</div>'}`:''}
     </div>`;
     el.innerHTML = h;
@@ -2002,7 +2004,9 @@ function renderKpis(){
     'สถานะ SLA':              {t:'งานที่ยังอยู่ใน SLA (🟢🟡🔴)', f:r=>r.sla&&['green','yellow','red'].includes(r.sla.band),
                                stack:{key:r=>r.sla.band, parts:[['green','🟢 ใช้ไป ≤10 วัน','#22A45D'],['yellow','🟡 11–20 วัน','#E0A800'],['red','🔴 21–30 วัน','#D64545']]}},   // แท่งซ้อนสีตาม SLA
     'เกิน SLA':               {t:'งานเกิน SLA', f:r=>r.sla&&r.sla.band==='over'},
-    'รอสับเปลี่ยนมิเตอร์':     {t:'รอสับเปลี่ยนมิเตอร์ (ขั้น 8)', f:r=>r.step===8&&(r.meterPhase==='1P'||r.meterPhase==='3P')},
+    'รอสับเปลี่ยนมิเตอร์':     {t:'รอสับเปลี่ยนมิเตอร์ (ขั้น 8)', f:r=>r.step===8&&(r.meterPhase==='1P'||r.meterPhase==='3P'), list:true,
+                               subs:[['all','ทั้งหมด',r=>true],['ca','🧾 มี CA 82 แล้ว',r=>r.caCreated],['noca','ยังไม่มี CA 82',r=>!r.caCreated],
+                                 ['al','📦 จัดสรรแล้ว',r=>r.allocated],['noal','ยังไม่จัดสรร',r=>!r.allocated],['both','✅ พร้อมสับเปลี่ยน (ครบทั้ง 2)',r=>r.caCreated&&r.allocated]]},
     'สถานะจัดสรรมิเตอร์':     {t:'สถานะจัดสรรมิเตอร์ (ขั้น 8+)', f:r=>r.step>=8,
                                stack:{key:r=>r.allocStatus==='จัดสรรแล้ว'?'done':r.allocStatus==='รอจัดสรรมิเตอร์'?'wait':'none',
                                  parts:[['none','⬜ ยังไม่ดึง','#9AA0A6'],['wait','⏳ รอจัดสรร','#E0A800'],['done','✅ จัดสรรแล้ว','#22A45D']]}},   // แท่งซ้อนสีตามการ์ด
@@ -2023,7 +2027,8 @@ function renderKpis(){
     K('warn',   '⏱️', '<span style="font-size:1.15rem">🟢'+fmtN(g)+' 🟡'+fmtN(y)+' 🔴'+fmtN(rd)+'</span>', 'สถานะ SLA', 'ช่วงตรวจสอบ+ทำสัญญา') +
     K('danger', '⛔', fmtN(ov)+pc(ov),                                'เกิน SLA',           'ค้างเกิน 30 วัน') +
     K('warn',   '🔧', fmtN(meterWait)+pc(meterWait),                  'รอสับเปลี่ยนมิเตอร์', '1P '+fmtN(mtr.w1)+' / 3P '+fmtN(mtr.w3)+' · ขั้น 8'
-      +`<div style="margin-top:6px;line-height:1.6;font-weight:700">🧾 มี CA 82 แล้ว <span style="color:#1f9d57">${fmtN(w8.ca)}</span> / ${fmtN(meterWait)}<br>📦 จัดสรรแล้ว <span style="color:#1f9d57">${fmtN(w8.al)}</span> / ${fmtN(meterWait)}<br>✅ พร้อมสับเปลี่ยน (ครบทั้ง 2) <span style="color:#1f9d57">${fmtN(w8.both)}</span></div>`, 'ผมม.') +
+      +(()=>{ const sl=(k,t)=>`<a href="#" class="kpisub${kpiSel==='รอสับเปลี่ยนมิเตอร์'&&kpiSub===k?' on':''}" onclick="event.stopPropagation();kpiPickSub('รอสับเปลี่ยนมิเตอร์','${k}');return false;" title="กดเพื่อดูรายการคำขอ">${t}</a>`;
+        return `<div style="margin-top:6px;line-height:1.6;font-weight:700">${sl('ca',`🧾 มี CA 82 แล้ว <span style="color:#1f9d57">${fmtN(w8.ca)}</span> / ${fmtN(meterWait)}`)}<br>${sl('al',`📦 จัดสรรแล้ว <span style="color:#1f9d57">${fmtN(w8.al)}</span> / ${fmtN(meterWait)}`)}<br>${sl('both',`✅ พร้อมสับเปลี่ยน (ครบทั้ง 2) <span style="color:#1f9d57">${fmtN(w8.both)}</span>`)}</div>`; })(), 'ผมม.') +
     K('info',   '📦', '<span style="font-size:1.1rem;white-space:nowrap"><span style="color:#8b919c">⬜'+fmtN(allocNone)+'</span> <span style="color:#B07C00">⏳'+fmtN(allocWait)+'</span> <span style="color:#1f9d57">✅'+fmtN(allocDone)+'</span></span>', 'สถานะจัดสรรมิเตอร์', 'ยังไม่ดึง · รอจัดสรร · จัดสรรแล้ว'+(allocPop.length?' · '+pctTxt(allocDone/allocPop.length*100)+' ของ '+fmtN(allocPop.length)+' ราย':''), 'ผมต.กบล.') +
     K('info',   '⏳', fmtN(meterPbs)+pc(meterPbs),                    'รอ ผบส.กด COD',      '⚠ อย่าลืมกดใน PPIM · ขั้น 9',        'ผบส.') +
     K('ok',     '🔌', fmtN(meterDone)+pc(meterDone),                  'สับเปลี่ยนแล้ว',      '1P '+fmtN(mtr.d1)+' / 3P '+fmtN(mtr.d3)+' · ขั้น 9+10', 'ผมม.') +
@@ -2033,18 +2038,40 @@ function renderKpis(){
   drawKpiChart();
 }
 
-let KPI_SETS = {}, kpiSel = null, kpiStep = 'all';   // kpiStep: 'all' | 0-10 | 'un'
+let KPI_SETS = {}, kpiSel = null, kpiStep = 'all', kpiSub = 'all';   // kpiStep: 'all' | 0-10 | 'un' · kpiSub: กลุ่มย่อยของการ์ดที่มี subs
 function kpiPick(l){
   kpiSel = (l && kpiSel!==l) ? l : null;   // กดการ์ดเดิมซ้ำ = ปิดกราฟ
-  kpiStep = 'all';
+  kpiStep = 'all'; kpiSub = 'all';
   renderKpis();
   if(kpiSel){ const b=$('#kpiChartBox'); if(b) b.scrollIntoView({behavior:'smooth',block:'nearest'}); }
 }
 function kpiPickStep(v){ kpiStep=v; drawKpiChart(); }
+// กดตัวเลขย่อยในการ์ด → เปิดกราฟ + รายการคำขอของกลุ่มนั้น (กดซ้ำ = กลับไปทั้งหมด)
+function kpiPickSub(l,k){
+  if(kpiSel===l){ kpiSub = (kpiSub===k) ? 'all' : k; renderKpis(); }
+  else { kpiSel=l; kpiStep='all'; kpiSub=k; renderKpis(); }
+  const b=$('#kpiList'); if(b) b.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function kpiChipSub(k){ kpiSub=k; renderKpis(); }
+// รายการคำขอใต้กราฟ (การ์ดที่มี list:true) — เรียงตามจุดรวมงาน แล้วเลขคำขอ
+const ca82NoteCell = r => r.ca82Note ? `<span title="${escHtml(r.ca82Note).replace(/"/g,'&quot;')}" style="background:#fff7d6;color:#7a5b00;border:1px solid #f0d77a;border-radius:8px;padding:1px 7px;font-size:.78rem;display:inline-block;max-width:260px;white-space:normal">📝 ${escHtml(r.ca82Note)}</span>` : '<span style="color:#aaa">-</span>';
+function kpiListHtml(L){
+  if(!L.length) return '';
+  const MAX=300, S=[...L].sort((a,b)=>(reqHub(a)||'').localeCompare(reqHub(b)||'','th')||String(a.reqNo).localeCompare(String(b.reqNo)));
+  const yes=t=>`<span style="color:#1f9d57;font-weight:700">✅ ${t}</span>`, no=t=>`<span style="color:#B07C00">⏳ ${t}</span>`;
+  return `<div style="margin-top:12px;font-weight:700">📋 รายการคำขอ ${fmtN(L.length)} ราย${L.length>MAX?' — แสดง '+MAX+' รายการแรก':''}</div>
+    <div style="overflow:auto;max-height:420px;margin-top:6px"><table style="font-size:.85rem"><thead><tr><th>เลขคำขอ</th><th>ผู้ยื่น</th><th>จุดรวมงาน</th><th>กฟฟ.</th><th>เฟส</th><th>CA 82</th><th>จัดสรรมิเตอร์</th><th style="text-align:right">รอ (วัน)</th><th>หมายเหตุ CA 82</th></tr></thead><tbody>
+    ${S.slice(0,MAX).map(r=>`<tr><td><b>${escHtml(r.reqNo)}</b></td><td>${escHtml(maskName(r.custName))}</td><td>${escHtml(reqHub(r)||'-')}</td><td>${escHtml(r.areaCheck||r.area||'-')}</td><td>${escHtml(r.meterPhase||'-')}</td>
+      <td>${r.caCreated?yes(escHtml(r.ca82NoSys||r.ca82No||'สร้างแล้ว')):no('ยังไม่สร้าง')}</td>
+      <td>${r.allocated?yes('จัดสรรแล้ว'):no(escHtml(r.allocStatus||'ยังไม่ดึง'))}</td>
+      <td style="text-align:right">${r.swapWaitDays!=null?fmtN(r.swapWaitDays):'-'}</td><td>${ca82NoteCell(r)}</td></tr>`).join('')}
+    </tbody></table></div>`;
+}
 function drawKpiChart(){
   const box=$('#kpiChartBox'); if(!box) return;
   if(charts.kpi){ charts.kpi.destroy(); charts.kpi=null; }
   const S = kpiSel && KPI_SETS[kpiSel];
+  const listEl=$('#kpiList'); if(listEl) listEl.innerHTML='';
   if(!S){ box.classList.add('hidden'); return; }
   box.classList.remove('hidden');
   // ปุ่มเลือกสถานะ (เฉพาะการ์ดที่มี steps)
@@ -2056,15 +2083,22 @@ function drawKpiChart(){
       [[0,'ยกเลิก / ไม่ผ่าน',cnt(0)]], cnt('un')?[['un','ไม่ทราบสถานะ',cnt('un')]]:[]);
     const cur=opts.find(o=>o[0]===kpiStep); if(!cur) kpiStep='all'; else if(kpiStep!=='all') stepName=cur[1];
     chips.innerHTML=opts.map(o=>`<button class="btn btn-sm ${o[0]===kpiStep?'btn-primary':'btn-outline'}" style="padding:4px 10px;font-size:.78rem" onclick="kpiPickStep(${typeof o[0]==='number'?o[0]:`'${o[0]}'`})">${o[1]} <b>${fmtN(o[2])}</b></button>`).join('');
-  } else { chips.innerHTML=''; kpiStep='all'; }
+  } else if(S.subs){   // การ์ดที่มีกลุ่มย่อย (รอสับเปลี่ยนมิเตอร์: CA 82 / จัดสรร)
+    kpiStep='all'; const base=rows.filter(S.f);
+    if(!S.subs.some(o=>o[0]===kpiSub)) kpiSub='all';
+    chips.innerHTML=S.subs.map(o=>`<button class="btn btn-sm ${o[0]===kpiSub?'btn-primary':'btn-outline'}" style="padding:4px 10px;font-size:.78rem" onclick="kpiChipSub('${o[0]}')">${o[1]} <b>${fmtN(base.filter(o[2]).length)}</b></button>`).join('');
+    if(kpiSub!=='all') stepName=S.subs.find(o=>o[0]===kpiSub)[1];
+  } else { chips.innerHTML=''; kpiStep='all'; kpiSub='all'; }
+  const subF = (S.subs && S.subs.find(o=>o[0]===kpiSub)||[0,0,()=>true])[2];
   const ST = S.stack || (S.steps && kpiStep==='all' ? S.stackAll : null);   // แท่งซ้อนสี (การ์ดคำขอทั้งหมด: เฉพาะปุ่ม "ทั้งหมด")
-  const g={}, gp={}; rows.filter(r=>S.f(r)&&stepOk(r)).forEach(r=>{ const h=reqHub(r)||'ไม่ระบุจุดรวมงาน'; g[h]=(g[h]||0)+(S.kw?(r.kw||0):1);
+  const g={}, gp={}; rows.filter(r=>S.f(r)&&stepOk(r)&&subF(r)).forEach(r=>{ const h=reqHub(r)||'ไม่ระบุจุดรวมงาน'; g[h]=(g[h]||0)+(S.kw?(r.kw||0):1);
     if(ST){ const k=ST.key(r); (gp[h]=gp[h]||{})[k]=(gp[h][k]||0)+1; } });
   const E=Object.entries(g).map(([h,v])=>[h,S.kw?Math.round(v*10)/10:v]).sort((a,b)=>a[1]-b[1]||a[0].localeCompare(b[0],'th'));   // น้อย → มาก
   const total=E.reduce((s,e)=>s+e[1],0), unit=S.kw?'kW':'งาน';
   $('#kpiChartTitle').textContent='📊 '+S.t+(stepName?' · '+stepName:'')+' — แยกจุดรวมงาน';
   $('#kpiChartNote').textContent=E.length?('รวม '+fmtN(total)+' '+unit+' · '+E.length+' จุดรวมงาน · กดการ์ดเดิมอีกครั้งเพื่อปิด'):'ไม่มีรายการในกลุ่มนี้';
   const wrap=$('#kpiChartWrap'); wrap.style.height='420px';
+  if(S.list && listEl) listEl.innerHTML = kpiListHtml(rows.filter(r=>S.f(r)&&stepOk(r)&&subF(r)));
   if(!E.length) return;
   charts.kpi = new Chart($('#kpiChart'),{type:'bar',
     data:{labels:E.map(e=>e[0]),datasets: ST
