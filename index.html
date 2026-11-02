@@ -1975,6 +1975,9 @@ function renderKpis(){
     else if(r.step===9){ ph==='1P'?mtr.p1++:mtr.p3++; }
     if(r.step===9||r.step===10){ ph==='1P'?mtr.d1++:mtr.d3++; } });
   const meterWait = mtr.w1+mtr.w3, meterPbs = mtr.p1+mtr.p3, meterDone = mtr.d1+mtr.d3;
+  // รอสับเปลี่ยน (ขั้น 8 กลุ่มเดียวกับ meterWait): มี CA 82 แล้ว / จัดสรรแล้ว / ครบทั้ง 2 = พร้อมสับเปลี่ยน
+  const w8L = rows.filter(r=>r.step===8 && (r.meterPhase==='1P'||r.meterPhase==='3P'));
+  const w8 = {ca:w8L.filter(r=>r.caCreated).length, al:w8L.filter(r=>r.allocated).length, both:w8L.filter(r=>r.caCreated&&r.allocated).length};
   // ระยะเวลารอ ผบส. (ขั้น 9)
   const pbsDays = rows.filter(r=>r.step===9&&r.codWaitDays!=null).map(r=>r.codWaitDays);
   const pbsMax = pbsDays.length?Math.max(...pbsDays):0, pbsAvg = pbsDays.length?Math.round(pbsDays.reduce((a,b)=>a+b,0)/pbsDays.length):0;
@@ -2019,7 +2022,8 @@ function renderKpis(){
     K('ok',     '👍', fmtN(passed)+pc(passed),                        'ผ่านการพิจารณา',     'ทำสัญญาขึ้นไป (ขั้น 3+)') +
     K('warn',   '⏱️', '<span style="font-size:1.15rem">🟢'+fmtN(g)+' 🟡'+fmtN(y)+' 🔴'+fmtN(rd)+'</span>', 'สถานะ SLA', 'ช่วงตรวจสอบ+ทำสัญญา') +
     K('danger', '⛔', fmtN(ov)+pc(ov),                                'เกิน SLA',           'ค้างเกิน 30 วัน') +
-    K('warn',   '🔧', fmtN(meterWait)+pc(meterWait),                  'รอสับเปลี่ยนมิเตอร์', '1P '+fmtN(mtr.w1)+' / 3P '+fmtN(mtr.w3)+' · จัดสรรทุกขนาด · ขั้น 8', 'ผมม.') +
+    K('warn',   '🔧', fmtN(meterWait)+pc(meterWait),                  'รอสับเปลี่ยนมิเตอร์', '1P '+fmtN(mtr.w1)+' / 3P '+fmtN(mtr.w3)+' · ขั้น 8'
+      +`<div style="margin-top:6px;line-height:1.6;font-weight:700">🧾 มี CA 82 แล้ว <span style="color:#1f9d57">${fmtN(w8.ca)}</span> / ${fmtN(meterWait)}<br>📦 จัดสรรแล้ว <span style="color:#1f9d57">${fmtN(w8.al)}</span> / ${fmtN(meterWait)}<br>✅ พร้อมสับเปลี่ยน (ครบทั้ง 2) <span style="color:#1f9d57">${fmtN(w8.both)}</span></div>`, 'ผมม.') +
     K('info',   '📦', '<span style="font-size:1.1rem;white-space:nowrap"><span style="color:#8b919c">⬜'+fmtN(allocNone)+'</span> <span style="color:#B07C00">⏳'+fmtN(allocWait)+'</span> <span style="color:#1f9d57">✅'+fmtN(allocDone)+'</span></span>', 'สถานะจัดสรรมิเตอร์', 'ยังไม่ดึง · รอจัดสรร · จัดสรรแล้ว'+(allocPop.length?' · '+pctTxt(allocDone/allocPop.length*100)+' ของ '+fmtN(allocPop.length)+' ราย':''), 'ผมต.กบล.') +
     K('info',   '⏳', fmtN(meterPbs)+pc(meterPbs),                    'รอ ผบส.กด COD',      '⚠ อย่าลืมกดใน PPIM · ขั้น 9',        'ผบส.') +
     K('ok',     '🔌', fmtN(meterDone)+pc(meterDone),                  'สับเปลี่ยนแล้ว',      '1P '+fmtN(mtr.d1)+' / 3P '+fmtN(mtr.d3)+' · ขั้น 9+10', 'ผมม.') +
