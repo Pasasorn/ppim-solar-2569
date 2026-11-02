@@ -642,6 +642,7 @@ const FIELDS = [
   {key:'ca82No',  label:'หมายเลข CA 82 (ชีต)', kw:['หมายเลข ca 82','หมายเลขca82','เลขที่ ca 82']},
   {key:'ca82Sys', label:'สถานะสร้างบัญชี CA 82 (ระบบ)', kw:['สถานะสร้างบัญชี ca 82','สถานะสร้างบัญชีca82']},
   {key:'ca82NoSys', label:'เลขที่ CA 82 (ระบบ)', kw:['เลขที่ ca 82 (ระบบ)','เลขที่ca82(ระบบ)']},
+  {key:'ca82Note', label:'หมายเหตุ CA 82 (ระบบ)', kw:['หมายเหตุ ca 82','หมายเหตุca82']},
   {key:'custName', label:'ชื่อผู้ใช้ไฟฟ้า', kw:['ชื่อผู้ใช้ไฟฟ้า']},
   {key:'projLoc', label:'ที่ตั้งโครงการ', kw:['ที่ตั้งโครงการ']},
   {key:'prodKw', label:'กำลังการผลิต (kW)', kw:['กำลังการผลิต']},
@@ -1059,7 +1060,7 @@ function buildRowsFrom(rawArr, map){
       dConnReq:parseDate(get('dConnReq')), dConnApprove:parseDate(get('dConnApprove')),
       dCod:parseDate(get('dCod')), dSwapReport:parseDate(get('dSwapReport')),
       swapStatus: clean(get('swapStatus')),
-      ca82No: clean(get('ca82No')), ca82Sys: clean(get('ca82Sys')), ca82NoSys: clean(get('ca82NoSys')), custName: clean(get('custName')), projLoc: clean(get('projLoc')), prodKw: clean(get('prodKw')), custPhone: clean(get('custPhone')),
+      ca82No: clean(get('ca82No')), ca82Sys: clean(get('ca82Sys')), ca82NoSys: clean(get('ca82NoSys')), ca82Note: clean(get('ca82Note')), custName: clean(get('custName')), projLoc: clean(get('projLoc')), prodKw: clean(get('prodKw')), custPhone: clean(get('custPhone')),
       caStatus: clean(get('caStatus'))
     };
     // สร้างบัญชี CA 82 แล้ว ถ้า: ผซฟ.บันทึกผ่านระบบ (ca82Sys) · หรือมีหมายเลข CA 82 จริงในชีต · หรือ caStatus บอกว่าสร้างแล้ว
@@ -1594,7 +1595,7 @@ function renderCA(){
       const swB = r.step>=10 ? pill('#e4f6ec','#1E7A3C','✅ COD แล้ว')
                 : r.step===9 ? pill('#eaf2fc','#2c66ad','🔧 สับเปลี่ยนแล้ว')
                 : pill('#fdf2df','#b07c00','⏳ รอสับเปลี่ยน');
-      return `<div style="padding:5px 0;display:flex;flex-wrap:wrap;align-items:center;gap:7px"><a href="#" onclick="caPick('${r.reqNo}');return false;" style="color:var(--pea);font-weight:700">${r.reqNo}</a><span style="color:var(--gray);font-size:.8rem">${r.areaCheck||r.area||''}</span>${caB}${swB}</div>`;
+      return `<div style="padding:5px 0;display:flex;flex-wrap:wrap;align-items:center;gap:7px"><a href="#" onclick="caPick('${r.reqNo}');return false;" style="color:var(--pea);font-weight:700">${r.reqNo}</a><span style="color:var(--gray);font-size:.8rem">${r.areaCheck||r.area||''}</span>${caB}${swB}${r.ca82Note?`<span title="${escHtml(r.ca82Note).replace(/"/g,'&quot;')}" style="background:#fff7d6;color:#7a5b00;border:1px solid #f0d77a;border-radius:999px;padding:2px 9px;font-size:.76rem;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">📝 ${escHtml(r.ca82Note)}</span>`:''}</div>`;
     }).join('');
     return `<tr style="cursor:pointer" onclick="mtrToggle('${did}')" title="คลิกดูเลข PPIM"><td><b>▸ ${h}</b></td><td class="cell-green">${o.d||'-'}</td><td><b>${o.t}</b></td><td>${pctTxt(o.t?o.d/o.t*100:0)}</td></tr>
     <tr id="${did}" style="display:none"><td colspan="4" style="background:#faf7fd;font-size:.85rem;padding:8px 14px;line-height:1.5">${items||'—'}</td></tr>`;
@@ -1653,6 +1654,11 @@ async function renderCaDetail(reqNo){
       return `<div style="margin:12px 0 4px;background:${s.bg};border-radius:9px;padding:9px 13px;font-weight:700;color:${s.c}">🔧 สถานะการสับเปลี่ยนมิเตอร์: ${s.t}</div>`; })()}
     <div style="font-weight:700;margin:12px 0 6px">📎 เอกสารแนบ (บัตร ปชช./ภพ.20/รูปสับเปลี่ยน)</div>
     <div id="ca82Files" class="note">กำลังโหลดเอกสาร...</div>
+    <div style="margin-top:12px;background:#fffbea;border:1px solid #f0d77a;border-radius:10px;padding:12px">
+      <div style="font-weight:700;margin-bottom:6px">📝 หมายเหตุ CA 82 <span class="note" style="font-weight:400">(บันทึกได้ทุกเมื่อ แม้ยังไม่สร้าง CA 82 · สูงสุด 500 ตัวอักษร · ลบข้อความแล้วบันทึก = ลบหมายเหตุ)</span></div>
+      <textarea id="ca82Note" rows="2" maxlength="500" style="width:100%;padding:8px;border:1.5px solid var(--border);border-radius:8px;box-sizing:border-box;font-family:inherit" placeholder="เช่น รอเอกสาร ภพ.20 · ติดต่อลูกค้าไม่ได้ · CA เดิมผิด">${escHtml(r.ca82Note||'')}</textarea>
+      <div class="toolbar" style="margin-top:6px"><button class="btn btn-outline btn-sm" id="ca82NoteBtn">💾 บันทึกหมายเหตุ</button><span class="note" id="ca82NoteMsg"></span></div>
+    </div>
     <div style="margin-top:12px;background:${created?'#fff9e6':'#eef7ee'};border-radius:10px;padding:12px">
       <div style="font-weight:700;margin-bottom:6px">${created?('✏️ แก้ไขหมายเลข CA 82 (เดิม: '+(curNo||'-')+')'):'✅ บันทึกหมายเลข CA 82'}</div>
       <label>หมายเลข CA 82</label><input id="ca82No" placeholder="เช่น 8200xxxxxx" value="${created?(curNo||''):''}">
@@ -1661,6 +1667,17 @@ async function renderCaDetail(reqNo){
       <div class="toolbar" style="margin-top:10px"><button class="btn btn-primary btn-sm" id="ca82Btn">${created?'✏️ ยืนยันการแก้ไข':'✅ ยืนยันการบันทึก CA 82'}</button></div>
     </div>`;
   loadCaFiles(reqNo);
+  const nbtn=$('#ca82NoteBtn');
+  if(nbtn) nbtn.onclick=async ()=>{
+    const note=$('#ca82Note').value.trim(), msg=$('#ca82NoteMsg');
+    msg.textContent='กำลังบันทึก...';
+    try{
+      const res=await meterApi({action:'ca82note', emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name, reqNo, note});
+      if(res&&res.ok){ r.ca82Note=note; renderCA(); caPick(reqNo);   // วาดรายการใหม่แล้วเปิดคำขอเดิมค้างไว้
+        const m2=$('#ca82NoteMsg'); if(m2) m2.innerHTML='<span style="color:var(--green)">✅ บันทึกหมายเหตุแล้ว</span>'; }
+      else msg.innerHTML='<span style="color:var(--danger)">ไม่สำเร็จ: '+escHtml((res&&res.error)||'')+(res&&res.error==='unknown action'?' (ยังไม่ได้ deploy Apps Script เวอร์ชันใหม่)':'')+'</span>';
+    }catch(e){ msg.innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+escHtml(e.message)+'</span>'; }
+  };
   const btn=$('#ca82Btn');
   if(btn) btn.onclick=async ()=>{
     const caNo=$('#ca82No').value.trim();

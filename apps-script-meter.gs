@@ -36,6 +36,7 @@ var COL_SWAP_STATUS = 'สถานะการสับเปลี่ยน (�
 var COL_CA82_STATUS = 'สถานะสร้างบัญชี CA 82 (ระบบ)';   // ผซฟ. บันทึกว่าสร้างบัญชี CA 82 แล้ว (คอลัมน์ระบบ ไม่ทับ PPIM)
 var COL_CA82_NO     = 'เลขที่ CA 82 (ระบบ)';            // หมายเลข CA 82 ที่ ผซฟ. กรอก
 var COL_CA82_DATE   = 'วันที่สร้างบัญชี CA 82';          // วันที่บันทึกการสร้างบัญชี
+var COL_CA82_NOTE   = 'หมายเหตุ CA 82 (ระบบ)';           // หมายเหตุของ ผซฟ. (บันทึกได้ทุกเมื่อ แม้ยังไม่สร้าง CA 82)
 var CENTRAL_HUB     = 'กบล.กฟน.1';                       // จุดกลาง — จัดสรรมิเตอร์ได้ทุก กฟฟ.
 var COL_ALLOC_PULL  = 'วันที่ดึงข้อมูลจัดสรร';           // ดึงไป Export แล้ว = รอจัดสรรมิเตอร์
 var COL_ALLOC_DATE  = 'วันที่จัดสรรมิเตอร์';             // จัดสรรจริงแล้ว
@@ -104,6 +105,7 @@ function doPost(e) {
     if (body.action === 'report')   return json(doReport(body));
     if (body.action === 'revert')   return json(doRevert(body));
     if (body.action === 'ca82')     return json(doCreateCA82(body));
+    if (body.action === 'ca82note') return json(doCa82Note(body));
     if (body.action === 'files')    return json(doGetFiles(body));
     if (body.action === 'markpull') return json(doMarkPull(body));
     if (body.action === 'allocdocs')return json(doGetAllocDocs(body));
@@ -320,7 +322,7 @@ function doGetData(b) {
 // ===== PDPA: ปิดบังข้อมูลส่วนบุคคล (ผูกตามชื่อหัวคอลัมน์) =====
 var PII_NAME_COLS  = ['ชื่อผู้ใช้ไฟฟ้า','ชื่อ-สกุล','ชื่อผู้ยื่น','ชื่อลูกค้า','ชื่อผู้ขอ'];   // แสดงแบบ "นางผ*** อ***"
 var PII_BLANK_COLS = ['โทร','phone','อีเมล','email','ที่ตั้งโครงการ','ที่อยู่','ละติจูด','ลองจิจูด','latitude','longitude',
-                      'หมายเลขผู้ใช้ไฟฟ้า','เลขที่สัญญา','เลขสัญญา','บัตรประชาชน','เลขประจำตัว'];   // ส่งเป็นค่าว่าง
+                      'หมายเลขผู้ใช้ไฟฟ้า','เลขที่สัญญา','เลขสัญญา','บัตรประชาชน','เลขประจำตัว','หมายเหตุca82'];   // ส่งเป็นค่าว่าง (หมายเหตุอาจมีข้อมูลส่วนบุคคล)
 var PII_NUM_COLS   = ['เลขที่ca82','หมายเลขca82'];   // คง 2 ตัวแรก + *** (หน้าเว็บยังนับ "สร้าง CA 82 แล้ว" ได้)
 function maskPersonName(s) {
   s = String(s||'').trim(); if (!s) return '';
@@ -644,6 +646,26 @@ function doCreateCA82(b) {
     : ('สร้างบัญชี CA 82 ' + reqNo + (caNo?(' ('+caNo+')'):''));
   logUser(b.emp, b.name, 'ผซฟ.', '', act);
   return { ok:true, isEdit:isEdit };
+}
+
+// ผซฟ./Admin บันทึกหมายเหตุ CA 82 ของคำขอ (แทนที่ค่าเดิม · ว่าง = ลบหมายเหตุ) — เขียนคอลัมน์ระบบ + log
+function doCa82Note(b) {
+  if (!isCaOrAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  var reqNo = String(b.reqNo||'').trim(), note = String(b.note||'').trim().slice(0, 500);
+  if (!reqNo) return { ok:false, error:'missing reqNo' };
+  var sh = sheet(MAIN_TAB);
+  if (!sh) return { ok:false, error:'ไม่พบแท็บ '+MAIN_TAB };
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iReq = colIndex(h,'เลขที่คำขอ');
+  if (iReq < 0) return { ok:false, error:'ไม่พบคอลัมน์ เลขที่คำขอ' };
+  var foundRow = -1;
+  for (var r=1;r<data.length;r++){ if (String(data[r][iReq]).trim() === reqNo) { foundRow = r; break; } }
+  if (foundRow < 0) return { ok:false, error:'ไม่พบคำขอ '+reqNo };
+  var iNote = colIndex(h, COL_CA82_NOTE);
+  if (iNote < 0) { iNote = h.length; sh.getRange(1, iNote+1).setValue(COL_CA82_NOTE); }
+  sh.getRange(foundRow+1, iNote+1).setValue(note);
+  logUser(b.emp, b.name, 'ผซฟ.', '', (note ? 'หมายเหตุ CA 82 ' + reqNo + ': ' + note : 'ลบหมายเหตุ CA 82 ' + reqNo));
+  return { ok:true };
 }
 
 // ดึงไฟล์แนบของคำขอจาก Drive (บัตร ปชช./ภพ.20/รูป) ส่งเป็น base64 — ไฟล์ไม่ต้องแชร์สาธารณะ (Apps Script อ่านในฐานะเจ้าของ)
