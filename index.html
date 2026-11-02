@@ -418,6 +418,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <h2 style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>🔧 สถานะของการสับเปลี่ยนมิเตอร์</span>
         <button class="btn-3d no-print" id="btnMeterReport">📝 กดรายงานผลการสับเปลี่ยนมิเตอร์</button></h2>
       <div class="note" style="margin-bottom:10px">🔧 สับเปลี่ยนแล้วจริง = COD แล้ว · 📈 คาดการณ์ = สถานะ “รอทดสอบเชื่อมต่อ/COD” (รอ ผมต. สับเปลี่ยนมิเตอร์) เท่านั้น · แยกเฟสจากคอลัมน์ “จำนวนเฟส”</div>
+      <div id="meterFlow" style="margin-bottom:14px"></div>
       <div id="meterSummary"></div>
     </div>
 
@@ -1713,7 +1714,61 @@ const METERS = [
   {key:'1P', name:'Meter TOU 1P2W 5(100)A', code:'1060070703', alloc:600},
   {key:'3P', name:'Meter TOU 3P4W 5(100)A', code:'1060070709', alloc:90}
 ];
+// ===== สรุปสถานะงานมิเตอร์ (ขั้น 8+) — 1 คำขอ = 1 สถานะ "งานถัดไป" + CA 82 คู่ขนาน · เตือนค้างนาน =====
+const METER_AGE_WARN = 7;   // ค้างเกินกี่วันให้เตือน
+const daysSince = d => d ? Math.max(0, daysBetween(d, (()=>{const t=new Date();t.setHours(0,0,0,0);return t;})())) : null;
+const METER_FLOW = [
+  {k:'doc',  ic:'📄', l:'รอออกเอกสารขอจัดสรร', who:'ผมต.กบล.', f:r=>r.step===8&&!r.allocated&&!r.pulled, age:r=>r.swapWaitDays, since:'อนุมัติเชื่อมต่อ'},
+  {k:'alloc',ic:'⏳', l:'รอจัดสรรมิเตอร์',     who:'ผมต.กบล.', f:r=>r.step===8&&r.pulled,                 age:r=>daysSince(r.pullDate), since:'ออกเอกสาร'},
+  {k:'swap', ic:'🔧', l:'รอสับเปลี่ยน',          who:'ผมม./ผมต.', f:r=>r.step===8&&r.allocated,             age:r=>daysSince(r.allocDate), since:'จัดสรร'},
+  {k:'pbs',  ic:'📨', l:'สับเปลี่ยนแล้ว รอ ผบส. กด COD', who:'ผบส.', f:r=>r.step===9,                       age:r=>r.codWaitDays, since:'รายงานสับเปลี่ยน'},
+  {k:'cod',  ic:'🏁', l:'COD เรียบร้อย',          who:'',          f:r=>r.step===10,                         age:()=>null},
+  {k:'ca82', ic:'🧾', l:'รอสร้าง CA 82',          who:'ผซฟ.กบฟ.', f:r=>r.step>=8&&!r.caCreated,             age:r=>r.step===8?r.swapWaitDays:null, since:'อนุมัติเชื่อมต่อ', parallel:true}
+];
+let meterFlowSel = null;
+function meterFlowPick(k){ meterFlowSel = (meterFlowSel===k) ? null : k; renderMeterFlow(); }
+function renderMeterFlow(){
+  const el=$('#meterFlow'); if(!el) return;
+  if(charts.mflow){ charts.mflow.destroy(); charts.mflow=null; }
+  const st = METER_FLOW.map(x=>{ const L=rows.filter(x.f); const ages=L.map(x.age).filter(v=>v!=null);
+    return {...x, L, n:L.length, over:ages.filter(v=>v>METER_AGE_WARN).length, max:ages.length?Math.max(...ages):null, avg:ages.length?Math.round(ages.reduce((a,b)=>a+b,0)/ages.length):null}; });
+  const main = st.filter(x=>!x.parallel), par = st.filter(x=>x.parallel), tot = main.reduce((s,x)=>s+x.n,0);
+  const card = x=>`<div class="kpi clk${meterFlowSel===x.k?' sel':''}" onclick="meterFlowPick('${x.k}')" title="กดเพื่อดูแยกจุดรวมงาน + รายการค้างนาน"${x.parallel?' style="border:2px dashed #c9b3dd"':''}>
+      <div class="kh"><div class="ic">${x.ic}</div>${x.who?`<span class="dept">${x.who}</span>`:''}</div>
+      <div class="v">${fmtN(x.n)}${!x.parallel&&tot?` <span class="pc">(${pctTxt(x.n/tot*100)})</span>`:''}</div>
+      <div class="l">${x.l}</div>
+      <div class="d">${x.avg!=null?`รอเฉลี่ย ${fmtN(x.avg)} วัน · สูงสุด ${fmtN(x.max)} วัน`:(x.k==='cod'?'งานเสร็จสมบูรณ์':'-')}</div>
+      ${x.over?`<div style="margin-top:6px"><span style="background:#fde8e8;color:var(--danger);border-radius:999px;padding:2px 9px;font-size:.76rem;font-weight:800">⚠ ค้างเกิน ${METER_AGE_WARN} วัน ${fmtN(x.over)} ราย</span></div>`:''}
+    </div>`;
+  let h = `<div style="font-weight:800;color:var(--pea);margin-bottom:6px">📋 สถานะงานมิเตอร์ (ขั้น 8 ขึ้นไป · รวม ${fmtN(tot)} ราย · 1 คำขอ = 1 สถานะ ตามงานถัดไปที่ต้องทำ)</div>
+    <div class="kpis" style="margin-bottom:8px">${main.map(card).join('')}</div>
+    <div class="note" style="margin:4px 0 6px">ทำคู่ขนานกับขั้นตอนด้านบน (ไม่นับรวมยอด):</div>
+    <div class="kpis" style="margin-bottom:0">${par.map(card).join('')}</div>`;
+  const S = st.find(x=>x.k===meterFlowSel);
+  if(S){
+    const g={}; S.L.forEach(r=>{ const hb=reqHub(r)||'ไม่ระบุจุดรวมงาน'; g[hb]=(g[hb]||0)+1; });
+    const E=Object.entries(g).sort((a,b)=>a[1]-b[1]||a[0].localeCompare(b[0],'th'));
+    const late=S.L.map(r=>({r,d:S.age(r)})).filter(x=>x.d!=null&&x.d>METER_AGE_WARN).sort((a,b)=>b.d-a.d);
+    h += `<div style="margin-top:14px;background:#fff;border-radius:14px;padding:12px 14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+        <b style="color:var(--pea)">📊 ${S.ic} ${S.l} — แยกจุดรวมงาน</b><button class="btn btn-outline btn-sm no-print" onclick="meterFlowPick(null)">✕ ปิด</button></div>
+      ${E.length?'<div style="position:relative;height:340px"><canvas id="meterFlowChart"></canvas></div>':'<div class="note">ไม่มีรายการในสถานะนี้</div>'}
+      ${S.since?`<div style="margin-top:12px;font-weight:700">⚠ ค้างเกิน ${METER_AGE_WARN} วัน (นับจากวัน${S.since}) · ${fmtN(late.length)} ราย${late.length>50?' — แสดง 50 รายการที่ค้างนานสุด':''}</div>
+      ${late.length?`<div style="overflow:auto;max-height:360px;margin-top:6px"><table style="font-size:.85rem"><thead><tr><th>เลขคำขอ</th><th>ผู้ยื่น</th><th>จุดรวมงาน</th><th>กฟฟ.</th><th style="text-align:right">ค้าง (วัน)</th></tr></thead><tbody>
+        ${late.slice(0,50).map(x=>`<tr><td><b>${escHtml(x.r.reqNo)}</b></td><td>${escHtml(maskName(x.r.custName))}</td><td>${escHtml(reqHub(x.r)||'-')}</td><td>${escHtml(x.r.areaCheck||x.r.area||'-')}</td><td style="text-align:right;font-weight:800;color:${x.d>METER_AGE_WARN*2?'var(--danger)':'#B07C00'}">${fmtN(x.d)}</td></tr>`).join('')}
+      </tbody></table></div>`:'<div class="note">✅ ไม่มีงานค้างเกินกำหนด</div>'}`:''}
+    </div>`;
+    el.innerHTML = h;
+    if(E.length) charts.mflow = new Chart($('#meterFlowChart'),{type:'bar',
+      data:{labels:E.map(e=>e[0]),datasets:[{label:'ราย',data:E.map(e=>e[1]),backgroundColor:'#7A34A6',hoverBackgroundColor:'#54206F',borderRadius:4,maxBarThickness:36}]},
+      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},plugins:{legend:{display:false}},
+        scales:{x:{grid:{display:false},ticks:{font:{size:12},autoSkip:false,maxRotation:60,minRotation:0}},y:{beginAtZero:true,ticks:{precision:0},grid:{color:'#eee'},title:{display:true,text:'ราย'}}}},
+      plugins:[{id:'barValues',afterDatasetsDraw(ch){ const {ctx}=ch; ctx.save(); ctx.font='700 12px sans-serif'; ctx.fillStyle='#3b3f46'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+        ch.getDatasetMeta(0).data.forEach((bar,i)=>ctx.fillText(fmtN(E[i][1]), bar.x, bar.y-4)); ctx.restore(); }}]});
+  } else el.innerHTML = h;
+}
 function renderMeters(){
+  renderMeterFlow();
   const el = $('#meterSummary'); if(!el) return;
   // แยกเป็น "สับเปลี่ยนแล้วจริง" = COD แล้ว (ขั้น 10) กับ "คาดการณ์" = กำลังดำเนินการ ยังไม่ COD/ยกเลิก
   const swapped = {'1P':0,'3P':0}, fore = {'1P':0,'3P':0}, fore8 = {'1P':0,'3P':0}, alloc = {'1P':0,'3P':0};
