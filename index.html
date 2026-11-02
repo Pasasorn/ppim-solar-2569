@@ -1744,8 +1744,11 @@ const METER_FLOW = [
   {k:'cod',  ic:'🏁', l:'COD เรียบร้อย',          who:'',          f:r=>r.step===10,                         age:()=>null},
   {k:'ca82', ic:'🧾', l:'รอสร้าง CA 82',          who:'ผซฟ.กบฟ.', f:r=>r.step>=8&&!r.caCreated,             age:r=>r.step===8?r.swapWaitDays:null, since:'อนุมัติเชื่อมต่อ', parallel:true}
 ];
-let meterFlowSel = null;
-function meterFlowPick(k){ meterFlowSel = (meterFlowSel===k) ? null : k; renderMeterFlow(); }
+let meterFlowSel = null, meterFlowSub = null;   // meterFlowSub: 'ready' | 'notready' (เฉพาะการ์ดรอสับเปลี่ยน)
+function meterFlowPick(k){ meterFlowSel = (meterFlowSel===k) ? null : k; meterFlowSub = null; renderMeterFlow(); }
+function meterFlowPickSub(k){ if(meterFlowSel==='swap'&&meterFlowSub===k){ meterFlowSub=null; } else { meterFlowSel='swap'; meterFlowSub=k; } renderMeterFlow(); }
+// รอสับเปลี่ยน (จัดสรรแล้ว): พร้อมเปลี่ยนจริง = มี CA 82 แล้วด้วย · ไม่พร้อม = ยังไม่มี CA 82
+const SWAP_SUB = {ready:{l:'✅ พร้อมเปลี่ยน (มี CA 82 + จัดสรรแล้ว)', f:r=>r.caCreated}, notready:{l:'⛔ ยังไม่พร้อม (ขาด CA 82)', f:r=>!r.caCreated}};
 function renderMeterFlow(){
   const el=$('#meterFlow'); if(!el) return;
   if(charts.mflow){ charts.mflow.destroy(); charts.mflow=null; }
@@ -1757,13 +1760,18 @@ function renderMeterFlow(){
       <div class="v">${fmtN(x.n)}${!x.parallel&&tot?` <span class="pc">(${pctTxt(x.n/tot*100)})</span>`:''}</div>
       <div class="l">${x.l}</div>
       <div class="d">${x.avg!=null?`รอเฉลี่ย ${fmtN(x.avg)} วัน · สูงสุด ${fmtN(x.max)} วัน`:(x.k==='cod'?'งานเสร็จสมบูรณ์':'-')}</div>
+      ${x.k==='swap'&&x.n?(()=>{ const rd=x.L.filter(SWAP_SUB.ready.f).length, nr=x.n-rd;
+        const ln=(k,c,t,v)=>`<a href="#" class="kpisub${meterFlowSel==='swap'&&meterFlowSub===k?' on':''}" onclick="event.stopPropagation();meterFlowPickSub('${k}');return false;" title="กดเพื่อดูแยกจุดรวมงาน + รายการ">${t} <span style="color:${c}">${fmtN(v)}</span> เครื่อง <span class="pc">(${pctTxt(v/x.n*100)})</span></a>`;
+        return `<div style="margin-top:6px;line-height:1.65;font-weight:700;font-size:.82rem">${ln('ready','#1f9d57','✅ พร้อมเปลี่ยน',rd)}<br>${ln('notready','var(--danger)','⛔ ไม่พร้อม (ขาด CA 82)',nr)}
+          <div style="height:7px;border-radius:99px;background:#f3c9c9;overflow:hidden;margin-top:4px"><div style="height:100%;width:${(rd/x.n*100).toFixed(1)}%;background:#22A45D"></div></div></div>`; })():''}
       ${x.over?`<div style="margin-top:6px"><span style="background:#fde8e8;color:var(--danger);border-radius:999px;padding:2px 9px;font-size:.76rem;font-weight:800">⚠ ค้างเกิน ${METER_AGE_WARN} วัน ${fmtN(x.over)} ราย</span></div>`:''}
     </div>`;
   let h = `<div style="font-weight:800;color:var(--pea);margin-bottom:6px">📋 สถานะงานมิเตอร์ (ขั้น 8 ขึ้นไป · รวม ${fmtN(tot)} ราย · 1 คำขอ = 1 สถานะ ตามงานถัดไปที่ต้องทำ)</div>
     <div class="kpis" style="margin-bottom:8px">${main.map(card).join('')}</div>
     <div class="note" style="margin:4px 0 6px">ทำคู่ขนานกับขั้นตอนด้านบน (ไม่นับรวมยอด):</div>
     <div class="kpis" style="margin-bottom:0">${par.map(card).join('')}</div>`;
-  const S = st.find(x=>x.k===meterFlowSel);
+  let S = st.find(x=>x.k===meterFlowSel);
+  if(S && S.k==='swap' && meterFlowSub && SWAP_SUB[meterFlowSub]){ const ss=SWAP_SUB[meterFlowSub]; S={...S, L:S.L.filter(ss.f), l:S.l+' · '+ss.l}; }
   if(S){
     const g={}; S.L.forEach(r=>{ const hb=reqHub(r)||'ไม่ระบุจุดรวมงาน'; g[hb]=(g[hb]||0)+1; });
     const E=Object.entries(g).sort((a,b)=>a[1]-b[1]||a[0].localeCompare(b[0],'th'));
