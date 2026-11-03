@@ -24,6 +24,11 @@ git add index.html apps-script-meter.gs && git commit -m "..." && git push
 ```
 ถ้าแก้ `.gs` → ต้องวางโค้ดทับใน Apps Script แล้ว **Deploy → Manage deployments → ✏️ Edit → Version: New version → Deploy** (URL `/exec` ต้องไม่เปลี่ยน) · ถ้าเพิ่ม service ใหม่ให้ Run ฟังก์ชันทดสอบ (เช่น `testDrive`, `testSignature`) 1 ครั้งเพื่ออนุญาตสิทธิ์
 
+**Auto deploy Apps Script (GitHub Actions — `.github/workflows/deploy-apps-script.yml`):** push `apps-script-meter.gs` ขึ้น `main` → Actions วางโค้ดทับ + Deploy New version บน deployment เดิม (URL `/exec` เดิม) ให้อัตโนมัติ · กดรันเองได้ที่แท็บ Actions → Deploy Apps Script → Run workflow
+- ตั้งค่าครั้งเดียว: (1) เปิด Apps Script API ที่ `script.google.com/home/usersettings` (2) บนเครื่องตัวเอง (มี Node) รัน `npx @google/clasp@2.4.2 login` แล้วคัดลอกเนื้อหาไฟล์ `~/.clasprc.json` (Windows: `C:\Users\<ชื่อ>\.clasprc.json`) (3) GitHub repo → Settings → Secrets and variables → Actions → New repository secret: `CLASPRC_JSON` = เนื้อหาไฟล์นั้น, `GAS_SCRIPT_ID` = Script ID (Apps Script → ⚙️ Project Settings → IDs)
+- workflow จะหยุดเองถ้าโปรเจกต์ Apps Script มีไฟล์โค้ดมากกว่า 1 ไฟล์ (กันลบไฟล์อื่น) · ใช้ `appsscript.json` เดิมจากโปรเจกต์ · Deployment ID อยู่ใน `env` ของ workflow (ต้องตรงกับ URL ใน `index.html`)
+- ถ้าเพิ่ม service/สิทธิ์ใหม่ ยังต้อง Run ฟังก์ชันทดสอบในหน้า Apps Script เอง 1 ครั้ง (การอนุญาตสิทธิ์ทำผ่าน Actions ไม่ได้)
+
 ---
 
 ## 2. ผู้ใช้ / สิทธิ์ (3 บทบาท + สาธารณะ)

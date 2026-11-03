@@ -1,0 +1,73 @@
+# Auto-deploy apps-script-meter.gs → Google Apps Script (New version บน deployment เดิม · URL /exec ไม่เปลี่ยน)
+# ต้องตั้งค่าครั้งเดียว (ดู HANDOFF.md หัวข้อ "Auto deploy Apps Script"):
+#   secrets.CLASPRC_JSON  = เนื้อหาไฟล์ ~/.clasprc.json หลังรัน `npx @google/clasp@2.4.2 login` บนเครื่องตัวเอง
+#   secrets.GAS_SCRIPT_ID = Script ID (Apps Script → ⚙️ Project Settings → IDs)
+name: Deploy Apps Script
+
+on:
+  push:
+    branches: [main]
+    paths: [apps-script-meter.gs]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-apps-script
+  cancel-in-progress: false
+
+env:
+  # deployment เดิมที่ Dashboard เรียกใช้ (ตรงกับ URL /exec ใน index.html)
+  GAS_DEPLOYMENT_ID: AKfycbxtZZeNznb3LOMF_P4YrsI7OMcd-DqbKIXrdpeiftFcy4v7s2Bnf0ks-t7U6OjVfTk
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: ตรวจว่าตั้ง secrets แล้ว
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+          GAS_SCRIPT_ID: ${{ secrets.GAS_SCRIPT_ID }}
+        run: |
+          if [ -z "$CLASPRC_JSON" ] || [ -z "$GAS_SCRIPT_ID" ]; then
+            echo "::error::ยังไม่ได้ตั้ง secrets CLASPRC_JSON / GAS_SCRIPT_ID (Settings → Secrets and variables → Actions)"; exit 1; fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: ตรวจ syntax .gs
+        run: node -e "new Function(require('fs').readFileSync('apps-script-meter.gs','utf8'))"
+
+      - name: ติดตั้ง clasp + credentials
+        env:
+          CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
+        run: |
+          npm i -g @google/clasp@2.4.2
+          printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+
+      - name: ดึงโปรเจกต์เดิม (เก็บ appsscript.json เดิมไว้) แล้ววางโค้ดใหม่ทับ
+        env:
+          GAS_SCRIPT_ID: ${{ secrets.GAS_SCRIPT_ID }}
+        run: |
+          mkdir gas && cd gas
+          printf '{"scriptId":"%s","rootDir":"."}' "$GAS_SCRIPT_ID" > .clasp.json
+          clasp pull
+          ls -la
+          n=$(ls *.js *.gs 2>/dev/null | wc -l)
+          if [ "$n" != "1" ]; then
+            echo "::error::โปรเจกต์ Apps Script มีไฟล์โค้ด $n ไฟล์ (คาดว่า 1) — หยุดเพื่อไม่ให้ลบไฟล์อื่น"; exit 1; fi
+          f=$(ls *.js *.gs 2>/dev/null)
+          cp ../apps-script-meter.gs "$f"
+          echo "วางโค้ดทับไฟล์ $f"
+
+      - name: Push + Deploy เป็น New version (URL เดิม)
+        working-directory: gas
+        run: |
+          clasp push --force
+          clasp deploy -i "$GAS_DEPLOYMENT_ID" -d "auto ${GITHUB_SHA::7}"
+          clasp deployments
+
+      - name: ลบ credentials
+        if: always()
+        run: rm -f ~/.clasprc.json
