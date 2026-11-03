@@ -44,7 +44,17 @@ jobs:
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
         run: |
           npm i -g @google/clasp@2.4.2
-          printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+          # รองรับทั้งไฟล์จาก clasp 2.x ({token:...}) และ clasp 3.x ({tokens:{default:...}}) → แปลงเป็นรูปแบบ 2.x
+          node -e '
+            let j; try { j = JSON.parse(process.env.CLASPRC_JSON); } catch(e){ console.log("::error::CLASPRC_JSON ไม่ใช่ JSON ที่ถูกต้อง (คัดลอกไม่ครบ?)"); process.exit(1); }
+            console.log("keys ในไฟล์:", Object.keys(j).join(", "));   // แสดงเฉพาะชื่อ key ไม่แสดงค่า
+            if (j.token && j.token.refresh_token) { require("fs").writeFileSync(process.env.HOME+"/.clasprc.json", JSON.stringify(j)); console.log("รูปแบบ clasp 2.x"); process.exit(0); }
+            const t = j.tokens && (j.tokens.default || Object.values(j.tokens)[0]);
+            if (!t || !t.refresh_token) { console.log("::error::ไม่พบ refresh_token ใน CLASPRC_JSON — รัน clasp login ใหม่แล้วคัดลอกไฟล์ .clasprc.json ทั้งไฟล์"); process.exit(1); }
+            const out = { token: { access_token: t.access_token||"", refresh_token: t.refresh_token, scope: t.scope||"", token_type: "Bearer", expiry_date: t.expiry_date||0 },
+              oauth2ClientSettings: { clientId: t.client_id, clientSecret: t.client_secret, redirectUri: "http://localhost" }, isLocalCreds: false };
+            require("fs").writeFileSync(process.env.HOME+"/.clasprc.json", JSON.stringify(out)); console.log("แปลงจากรูปแบบ clasp 3.x แล้ว");
+          '
 
       - name: ดึงโปรเจกต์เดิม (เก็บ appsscript.json เดิมไว้) แล้ววางโค้ดใหม่ทับ
         env:
