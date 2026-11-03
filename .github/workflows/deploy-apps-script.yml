@@ -62,10 +62,16 @@ jobs:
           printf '{"scriptId":"%s","rootDir":"."}' "$GAS_SCRIPT_ID" > .clasp.json
           clasp pull
           ls -la
-          n=$(ls *.js *.gs 2>/dev/null | wc -l)
-          if [ "$n" != "1" ]; then
-            echo "::error::โปรเจกต์ Apps Script มีไฟล์โค้ด $n ไฟล์ (คาดว่า 1) — หยุดเพื่อไม่ให้ลบไฟล์อื่น"; exit 1; fi
-          f=$(ls *.js *.gs 2>/dev/null)
+          # กันวางทับผิดโปรเจกต์: deployment ที่ Dashboard ใช้ ต้องอยู่ในโปรเจกต์นี้
+          clasp list-deployments | tee ../deployments.txt
+          if ! grep -q "$GAS_DEPLOYMENT_ID" ../deployments.txt; then
+            echo "::error::ไม่พบ Deployment ID ของ Dashboard ($GAS_DEPLOYMENT_ID) ในโปรเจกต์นี้ — GAS_SCRIPT_ID น่าจะเป็นคนละโปรเจกต์ หยุดโดยไม่แก้อะไร"; exit 1; fi
+          shopt -s nullglob
+          files=( *.js *.gs )
+          if [ "${#files[@]}" != "1" ]; then
+            echo "::error::โปรเจกต์ Apps Script มีไฟล์โค้ด ${#files[@]} ไฟล์ (${files[*]}) (คาดว่า 1) — หยุดเพื่อไม่ให้ลบไฟล์อื่น"; exit 1; fi
+          f="${files[0]}"
+          echo "ไฟล์เดิม $f: $(wc -c < "$f") bytes · ไฟล์ใหม่: $(wc -c < ../apps-script-meter.gs) bytes"
           cp ../apps-script-meter.gs "$f"
           echo "วางโค้ดทับไฟล์ $f"
 
