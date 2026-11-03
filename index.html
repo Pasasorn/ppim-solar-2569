@@ -1115,6 +1115,7 @@ function buildRowsFrom(rawArr, map){
     // ระยะเวลาดำเนินงานมิเตอร์
     const swapBase = o.dConnApprove||o.dSign||o.dPay||o.dAnnounce;   // วันที่อนุมัติเชื่อมต่อ (fallback วันทำสัญญา)
     o.swapWaitDays = (o.step===8 && swapBase) ? Math.max(0,daysBetween(swapBase,today)) : null; // รอเปลี่ยนมิเตอร์ นับจากวันอนุมัติเชื่อมต่อ
+    o.swapFromAlloc = (o.step===8 && o.allocDate) ? Math.max(0,daysBetween(o.allocDate,today)) : null; // รอสับเปลี่ยน นับจากวันจัดสรรมิเตอร์ (ยังไม่จัดสรร = null)
     o.codWaitDays  = (o.step===9 && o.dSwapReport) ? Math.max(0,daysBetween(o.dSwapReport,today)) : null; // รอ ผบส.กรอก COD นับจากวันรายงานสับเปลี่ยน
     return o;
   }).filter(o=>o.reqNo);
@@ -1784,6 +1785,11 @@ function renderMeterFlow(){
       ${late.length?`<div style="overflow:auto;max-height:360px;margin-top:6px"><table style="font-size:.85rem"><thead><tr><th>เลขคำขอ</th><th>ผู้ยื่น</th><th>จุดรวมงาน</th><th>กฟฟ.</th><th style="text-align:right">ค้าง (วัน)</th><th>หมายเหตุ CA 82</th></tr></thead><tbody>
         ${late.slice(0,50).map(x=>`<tr><td><b>${escHtml(x.r.reqNo)}</b></td><td>${escHtml(maskName(x.r.custName))}</td><td>${escHtml(reqHub(x.r)||'-')}</td><td>${escHtml(x.r.areaCheck||x.r.area||'-')}</td><td style="text-align:right;font-weight:800;color:${x.d>METER_AGE_WARN*2?'var(--danger)':'#B07C00'}">${fmtN(x.d)}</td><td>${ca82NoteCell(x.r)}</td></tr>`).join('')}
       </tbody></table></div>`:'<div class="note">✅ ไม่มีงานค้างเกินกำหนด</div>'}`:''}
+      ${S.k==='ca82'?(()=>{ const N=S.L.filter(r=>r.ca82Note).sort((a,b)=>(a.areaCheck||a.area||'').localeCompare(b.areaCheck||b.area||'','th')||String(a.reqNo).localeCompare(String(b.reqNo)));
+        return `<div style="margin-top:14px;font-weight:700">📝 รอสร้าง CA 82 ที่ระบุสาเหตุ (หมายเหตุ) · ${fmtN(N.length)} ราย</div>
+        ${N.length?`<div style="overflow:auto;max-height:360px;margin-top:6px"><table style="font-size:.85rem"><thead><tr><th>เลขคำขอ PPIM</th><th>กฟฟ.</th><th>สาเหตุ</th><th style="text-align:right">รอ (วัน)</th></tr></thead><tbody>
+          ${N.map(r=>{ const d=S.age(r); return `<tr><td><b>${escHtml(r.reqNo)}</b></td><td>${escHtml(r.areaCheck||r.area||'-')}</td><td style="white-space:normal;min-width:220px">📝 ${escHtml(r.ca82Note)}</td><td style="text-align:right">${d!=null?fmtN(d):'-'}</td></tr>`; }).join('')}
+        </tbody></table></div>`:`<div class="note">${(typeof mmSession!=='undefined'&&mmSession)?'ยังไม่มีรายการที่ระบุหมายเหตุ':'ยังไม่มีรายการที่ระบุหมายเหตุ (หมายเหตุแสดงเฉพาะเมื่อ login — PDPA)'}</div>`}`; })():''}
     </div>`;
     el.innerHTML = h;
     if(E.length) charts.mflow = new Chart($('#meterFlowChart'),{type:'bar',
@@ -1828,7 +1834,7 @@ function renderMeters(){
       if(phx){
         const a=byArea[gk]=byArea[gk]||{'1P':0,'3P':0,done:0,items:[]};
         a.items.push({reqNo:r.reqNo, phase:phx, step:r.step, caCreated:r.caCreated, ca82:(r.ca82NoSys||r.ca82No||''), meterSize:r.meterSize, allocStatus:r.allocStatus, tou5100:r.isTOU5100, statusTxt:r.statusTxt, swapStatus:r.swapStatus});
-        if(r.step===8){ a[phx]++; if(r.swapWaitDays!=null) swapAging.push(r.swapWaitDays); }
+        if(r.step===8){ a[phx]++; if(r.swapFromAlloc!=null) swapAging.push(r.swapFromAlloc); }
         else { a.done++; if(r.step===9 && r.codWaitDays!=null) codAging.push(r.codWaitDays); }
       }
     }
@@ -1838,7 +1844,7 @@ function renderMeters(){
   const mv=0, none=unknownType;
   const agg=arr=>arr.length?{n:arr.length,max:Math.max(...arr),avg:Math.round(arr.reduce((a,b)=>a+b,0)/arr.length)}:{n:0,max:0,avg:0};
   const swA=agg(swapAging), cdA=agg(codAging);
-  const timeBlock=`<div class="note" style="margin-top:10px;background:#fdf6e3;border-left:4px solid var(--warn);padding:8px 10px;border-radius:6px">⏱ <b>ระยะเวลาดำเนินงาน:</b> · รอเปลี่ยนมิเตอร์ (นับจากวันอนุมัติเชื่อมต่อ): ${fmtN(swA.n)} ราย เฉลี่ย ${swA.avg} วัน นานสุด ${swA.max} วัน &nbsp;|&nbsp; รอ ผบส.กรอก COD (นับจากวันรายงานสับเปลี่ยน): ${fmtN(cdA.n)} ราย เฉลี่ย ${cdA.avg} วัน นานสุด ${cdA.max} วัน</div>`;
+  const timeBlock=`<div class="note" style="margin-top:10px;background:#fdf6e3;border-left:4px solid var(--warn);padding:8px 10px;border-radius:6px">⏱ <b>ระยะเวลาดำเนินงาน:</b> · รอเปลี่ยนมิเตอร์ (นับจากวันจัดสรรมิเตอร์ · เฉพาะที่จัดสรรแล้ว): ${fmtN(swA.n)} ราย เฉลี่ย ${swA.avg} วัน นานสุด ${swA.max} วัน &nbsp;|&nbsp; รอ ผบส.กรอก COD (นับจากวันรายงานสับเปลี่ยน): ${fmtN(cdA.n)} ราย เฉลี่ย ${cdA.avg} วัน นานสุด ${cdA.max} วัน</div>`;
   const areaRows = Object.entries(byArea).sort((a,b)=>((b[1]['1P']+b[1]['3P']+b[1].done)-(a[1]['1P']+a[1]['3P']+a[1].done)));
   const pctCell=(done,total)=>{ const pp=total?done/total*100:0; const c=pp>=80?'var(--green)':pp>=50?'var(--warn)':'var(--danger)'; return `<b style="color:${c}">${pctTxt(pp)}</b>`; };
   // ยอดรวมตาราง กฟฟ. = ผลรวมจริงจาก byArea (รวม TOU 5(100) ที่ต้องสับเปลี่ยนด้วย)
@@ -2068,11 +2074,11 @@ function kpiListHtml(L){
   const MAX=300, S=[...L].sort((a,b)=>(reqHub(a)||'').localeCompare(reqHub(b)||'','th')||String(a.reqNo).localeCompare(String(b.reqNo)));
   const yes=t=>`<span style="color:#1f9d57;font-weight:700">✅ ${t}</span>`, no=t=>`<span style="color:#B07C00">⏳ ${t}</span>`;
   return `<div style="margin-top:12px;font-weight:700">📋 รายการคำขอ ${fmtN(L.length)} ราย${L.length>MAX?' — แสดง '+MAX+' รายการแรก':''}</div>
-    <div style="overflow:auto;max-height:420px;margin-top:6px"><table style="font-size:.85rem"><thead><tr><th>เลขคำขอ</th><th>ผู้ยื่น</th><th>จุดรวมงาน</th><th>กฟฟ.</th><th>เฟส</th><th>CA 82</th><th>จัดสรรมิเตอร์</th><th style="text-align:right">รอ (วัน)</th><th>หมายเหตุ CA 82</th></tr></thead><tbody>
+    <div style="overflow:auto;max-height:420px;margin-top:6px"><table style="font-size:.85rem"><thead><tr><th>เลขคำขอ</th><th>ผู้ยื่น</th><th>จุดรวมงาน</th><th>กฟฟ.</th><th>เฟส</th><th>CA 82</th><th>จัดสรรมิเตอร์</th><th style="text-align:right" title="นับจากวันจัดสรรมิเตอร์">รอสับเปลี่ยน (วัน)<br><span style="font-weight:400;font-size:.72rem">นับจากวันจัดสรร</span></th><th>หมายเหตุ CA 82</th></tr></thead><tbody>
     ${S.slice(0,MAX).map(r=>`<tr><td><b>${escHtml(r.reqNo)}</b></td><td>${escHtml(maskName(r.custName))}</td><td>${escHtml(reqHub(r)||'-')}</td><td>${escHtml(r.areaCheck||r.area||'-')}</td><td>${escHtml(r.meterPhase||'-')}</td>
       <td>${r.caCreated?yes(escHtml(r.ca82NoSys||r.ca82No||'สร้างแล้ว')):no('ยังไม่สร้าง')}</td>
       <td>${r.allocated?yes('จัดสรรแล้ว'):no(escHtml(r.allocStatus||'ยังไม่ดึง'))}</td>
-      <td style="text-align:right">${r.swapWaitDays!=null?fmtN(r.swapWaitDays):'-'}</td><td>${ca82NoteCell(r)}</td></tr>`).join('')}
+      <td style="text-align:right">${r.swapFromAlloc!=null?fmtN(r.swapFromAlloc):'-'}</td><td>${ca82NoteCell(r)}</td></tr>`).join('')}
     </tbody></table></div>`;
 }
 function drawKpiChart(){
@@ -2881,7 +2887,7 @@ function mmFillDetail(){
       <div><b>🔢 CA ลูกค้า (PPIM):</b> ${r.ca||'-'} &nbsp;·&nbsp; <b>PEA No.:</b> ${r.peaNo||'-'}</div>
       <div><b>🧾 หมายเลข CA 82:</b> ${r.ca82NoSys||r.ca82No||'<span style="color:var(--gray)">— ยังไม่สร้างบัญชี —</span>'}</div>
       <div><b>⚡ ชนิดมิเตอร์:</b> ${phase}</div>
-      ${r.swapWaitDays!=null?`<div><b>⏱ รอเปลี่ยนมิเตอร์:</b> ${fmtN(r.swapWaitDays)} วัน (นับจากวันอนุมัติเชื่อมต่อ)</div>`:''}
+      ${r.step===8?`<div><b>⏱ รอเปลี่ยนมิเตอร์:</b> ${r.swapFromAlloc!=null?fmtN(r.swapFromAlloc)+' วัน (นับจากวันจัดสรรมิเตอร์)':'<span style="color:var(--gray)">ยังไม่จัดสรรมิเตอร์</span>'}</div>`:''}
       <div style="margin-top:8px">${mapLink}</div>
     </div>`;
   $('#mmMeterNo').value = r.peaNo||'';   // หมายเลขมิเตอร์ = PEA No. (ดึงอัตโนมัติ)
