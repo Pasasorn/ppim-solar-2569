@@ -1745,8 +1745,29 @@ const METER_FLOW = [
   {k:'cod',  ic:'🏁', l:'COD เรียบร้อย',          who:'',          f:r=>r.step===10,                         age:()=>null},
   {k:'ca82', ic:'🧾', l:'รอสร้าง CA 82',          who:'ผซฟ.กบฟ.', f:r=>r.step>=8&&!r.caCreated,             age:r=>r.step===8?r.swapWaitDays:null, since:'อนุมัติเชื่อมต่อ', parallel:true}
 ];
-let meterFlowSel = null, meterFlowSub = null;   // meterFlowSub: 'ready' | 'notready' (เฉพาะการ์ดรอสับเปลี่ยน)
-function meterFlowPick(k){ meterFlowSel = (meterFlowSel===k) ? null : k; meterFlowSub = null; renderMeterFlow(); }
+let meterFlowSel = null, meterFlowSub = null, meterFlowArea = null;   // meterFlowArea: กฟฟ. ที่กดดูรายการ   // meterFlowSub: 'ready' | 'notready' (เฉพาะการ์ดรอสับเปลี่ยน)
+function meterFlowPick(k){ meterFlowSel = (meterFlowSel===k) ? null : k; meterFlowSub = null; meterFlowArea = null; renderMeterFlow(); }
+function meterFlowPickArea(a){ meterFlowArea = (meterFlowArea===a) ? null : a; renderMeterFlow(); const e=$('#mfAreaList'); if(e) e.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+// ตารางแยก กฟฟ. — จำนวนมิเตอร์ (1P/3P) + วันรอนับจากวันอนุมัติเชื่อมต่อ (ขั้น 8) · กดแถว = รายการคำขอของ กฟฟ. นั้น
+const mfArea = r => r.areaCheck||r.area||'ไม่ระบุ กฟฟ.';
+function meterFlowAreaHtml(S){
+  const g={}; S.L.forEach(r=>{ const a=mfArea(r), x=g[a]=g[a]||{a,n:0,p1:0,p3:0,d:[],L:[]}; x.n++; if(r.meterPhase==='3P')x.p3++; else if(r.meterPhase==='1P')x.p1++; if(r.swapWaitDays!=null)x.d.push(r.swapWaitDays); x.L.push(r); });
+  const A=Object.values(g).sort((a,b)=>b.n-a.n||a.a.localeCompare(b.a,'th'));
+  if(!A.length) return '';
+  const avg=d=>d.length?Math.round(d.reduce((s,v)=>s+v,0)/d.length):null, col=v=>v==null?'':v>30?'var(--danger)':v>14?'#B07C00':'#1f9d57';
+  const cell=v=>`<td style="text-align:right;font-weight:800;color:${col(v)}">${v!=null?fmtN(v):'-'}</td>`;
+  const sel=A.find(x=>x.a===meterFlowArea);
+  let h=`<div style="margin-top:14px;font-weight:700">🏢 แยก กฟฟ. · ${fmtN(S.L.length)} เครื่อง · ${fmtN(A.length)} กฟฟ. <span class="note" style="font-weight:400">— วันรอนับจากวันอนุมัติเชื่อมต่อ · กดแถวเพื่อดูรายการ</span></div>
+    <div style="overflow:auto;max-height:380px;margin-top:6px"><table style="font-size:.85rem"><thead><tr><th>กฟฟ.</th><th style="text-align:right">เครื่อง</th><th style="text-align:right">1P</th><th style="text-align:right">3P</th><th style="text-align:right">รอเฉลี่ย (วัน)</th><th style="text-align:right">รอนานสุด (วัน)</th><th style="text-align:right">เกิน 30 วัน</th></tr></thead><tbody>
+    ${A.map(x=>`<tr style="cursor:pointer${x===sel?';background:#efe4f7':''}" onclick="meterFlowPickArea('${escHtml(x.a).replace(/'/g,"\\'")}')"><td><b>${x===sel?'▾':'▸'} ${escHtml(x.a)}</b></td><td style="text-align:right;font-weight:800">${fmtN(x.n)}</td><td style="text-align:right">${fmtN(x.p1)}</td><td style="text-align:right">${fmtN(x.p3)}</td>${cell(avg(x.d))}${cell(x.d.length?Math.max(...x.d):null)}<td style="text-align:right;color:var(--danger)">${fmtN(x.d.filter(v=>v>30).length)||'-'}</td></tr>`).join('')}
+    </tbody></table></div>`;
+  if(sel){ const L=[...sel.L].sort((a,b)=>(b.swapWaitDays??-1)-(a.swapWaitDays??-1));
+    h+=`<div id="mfAreaList" style="margin-top:10px;background:#faf6fd;border-radius:10px;padding:8px 10px"><div style="font-weight:700;margin-bottom:4px">📋 ${escHtml(sel.a)} · ${fmtN(L.length)} เครื่อง (เรียงรอนานสุดก่อน)</div>
+      <div style="overflow:auto;max-height:360px"><table style="font-size:.84rem"><thead><tr><th>เลขคำขอ PPIM</th><th>ผู้ยื่น</th><th>เฟส</th><th>วันอนุมัติเชื่อมต่อ</th><th style="text-align:right">รอ (วัน)<br><span style="font-weight:400;font-size:.72rem">จากอนุมัติเชื่อมต่อ</span></th><th>จัดสรรมิเตอร์</th><th>CA 82</th><th>หมายเหตุ CA 82</th></tr></thead><tbody>
+      ${L.map(r=>`<tr><td><b>${escHtml(r.reqNo)}</b></td><td>${escHtml(maskName(r.custName))}</td><td>${escHtml(r.meterPhase||'-')}</td><td>${r.dConnApprove?fmtD(r.dConnApprove):'<span style="color:#aaa" title="ไม่มีวันอนุมัติเชื่อมต่อ — ใช้วันทำสัญญาแทน">-</span>'}</td>${cell(r.swapWaitDays)}<td>${r.allocated?'✅ '+fmtD(r.allocDate):'⏳ '+escHtml(r.allocStatus||'ยังไม่จัดสรร')}</td><td>${r.caCreated?'✅':'⏳'}</td><td>${ca82NoteCell(r)}</td></tr>`).join('')}
+      </tbody></table></div></div>`; }
+  return h;
+}
 function meterFlowPickSub(k){ if(meterFlowSel==='swap'&&meterFlowSub===k){ meterFlowSub=null; } else { meterFlowSel='swap'; meterFlowSub=k; } renderMeterFlow(); }
 // รอสับเปลี่ยน (จัดสรรแล้ว): พร้อมเปลี่ยนจริง = มี CA 82 แล้วด้วย · ไม่พร้อม = ยังไม่มี CA 82
 const SWAP_SUB = {ready:{l:'✅ พร้อมเปลี่ยน (มี CA 82 + จัดสรรแล้ว)', f:r=>r.caCreated}, notready:{l:'⛔ ยังไม่พร้อม (ขาด CA 82)', f:r=>!r.caCreated}};
@@ -1781,6 +1802,7 @@ function renderMeterFlow(){
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
         <b style="color:var(--pea)">📊 ${S.ic} ${S.l} — แยกจุดรวมงาน</b><button class="btn btn-outline btn-sm no-print" onclick="meterFlowPick(null)">✕ ปิด</button></div>
       ${E.length?'<div style="position:relative;height:340px"><canvas id="meterFlowChart"></canvas></div>':'<div class="note">ไม่มีรายการในสถานะนี้</div>'}
+      ${['doc','alloc','swap','ca82'].includes(S.k)?meterFlowAreaHtml(S):''}
       ${S.since?`<div style="margin-top:12px;font-weight:700">⚠ ค้างเกิน ${METER_AGE_WARN} วัน (นับจากวัน${S.since}) · ${fmtN(late.length)} ราย${late.length>50?' — แสดง 50 รายการที่ค้างนานสุด':''}</div>
       ${late.length?`<div style="overflow:auto;max-height:360px;margin-top:6px"><table style="font-size:.85rem"><thead><tr><th>เลขคำขอ</th><th>ผู้ยื่น</th><th>จุดรวมงาน</th><th>กฟฟ.</th><th style="text-align:right">ค้าง (วัน)</th><th>หมายเหตุ CA 82</th></tr></thead><tbody>
         ${late.slice(0,50).map(x=>`<tr><td><b>${escHtml(x.r.reqNo)}</b></td><td>${escHtml(maskName(x.r.custName))}</td><td>${escHtml(reqHub(x.r)||'-')}</td><td>${escHtml(x.r.areaCheck||x.r.area||'-')}</td><td style="text-align:right;font-weight:800;color:${x.d>METER_AGE_WARN*2?'var(--danger)':'#B07C00'}">${fmtN(x.d)}</td><td>${ca82NoteCell(x.r)}</td></tr>`).join('')}
