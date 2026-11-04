@@ -1616,6 +1616,7 @@ function renderCA(){
       ${rowsHtml}
       <tr style="background:#F4F7FC;font-weight:700"><td>รวม</td><td>${fmtN(done)}</td><td>${fmtN(total)}</td><td>${pctTxt(pct)}</td></tr>
     </tbody></table></div>
+    ${caSwappedHtml(pop)}
     <div style="margin-top:16px;border-top:1px dashed var(--border);padding-top:12px">
       <div class="note" style="background:#eef7ee;border-left:4px solid var(--green);padding:8px 10px;border-radius:6px;margin-bottom:8px">✅ <b>บันทึก / แก้ไข การสร้างบัญชี CA 82</b> — เลือกคำขอ → ดูข้อมูลลูกค้า + เอกสารแนบ → กรอกหมายเลข CA 82 → ยืนยัน (✅ = สร้างแล้ว · ⬜ = รอ)</div>
       <label>เลือกคำขอที่ยังไม่สร้างบัญชี (PPIM) — ที่สร้างแล้วกดจากตารางด้านบนเพื่อแก้ไข</label>
@@ -1624,6 +1625,33 @@ function renderCA(){
     </div>`;
   const sel=$('#ca82Req');
   if(sel) sel.onchange=()=>renderCaDetail(sel.value);
+}
+// ===== แท็บ CA 82: รายที่สับเปลี่ยนมิเตอร์แล้ว (ขั้น 9–10) + เอกสารที่ ผมต. upload (โหลดเมื่อกดเท่านั้น) =====
+let caSwShowCod = false;
+function caSwappedHtml(pop){
+  const all = pop.filter(r=>r.step===9||r.step===10);
+  const L = all.filter(r=>caSwShowCod||r.step===9||!r.caCreated)
+    .sort((a,b)=>(a.caCreated-b.caCreated)||((b.dSwapReport||0)-(a.dSwapReport||0)));
+  const nNoCa = all.filter(r=>!r.caCreated).length;
+  return `<div style="margin-top:16px;border-top:1px dashed var(--border);padding-top:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+      <div style="font-weight:800;color:#2c66ad">🔧 สับเปลี่ยนมิเตอร์แล้ว ${fmtN(all.length)} ราย <span style="font-weight:700;color:${nNoCa?'var(--danger)':'var(--green)'}">· ยังไม่สร้าง CA 82 ${fmtN(nNoCa)} ราย</span></div>
+      <label style="font-size:.8rem;display:flex;align-items:center;gap:5px;margin:0;cursor:pointer"><input type="checkbox" ${caSwShowCod?'checked':''} onchange="caSwShowCod=this.checked;renderCA()" style="width:auto;margin:0"> แสดงราย COD แล้วที่สร้าง CA 82 แล้วด้วย</label>
+    </div>
+    <div class="note" style="margin-bottom:6px">กด “📎 เอกสาร ผมต.” เพื่อดูแบบฟอร์มตรวจสอบ / แบบฟอร์มอ่าน TOU / รูปมิเตอร์ ที่แผนกมิเตอร์ upload · กดเลขคำขอเพื่อบันทึก CA 82</div>
+    ${L.length?`<div style="overflow:auto;max-height:520px"><table style="font-size:.85rem"><thead><tr><th>เลขคำขอ PPIM</th><th>กฟฟ.</th><th>เฟส</th><th>PEA No.</th><th>วันที่รายงานสับเปลี่ยน</th><th>สถานะ</th><th>CA 82</th><th>เอกสาร</th></tr></thead><tbody>
+      ${L.map((r,i)=>`<tr><td><a href="#" onclick="caPick('${r.reqNo}');return false;" style="color:var(--pea);font-weight:700">${escHtml(r.reqNo)}</a></td><td>${escHtml(r.areaCheck||r.area||'-')}</td><td>${escHtml(r.meterPhase||'-')}</td><td>${escHtml(r.peaNo||'-')}</td><td>${r.dSwapReport?fmtD(r.dSwapReport):'-'}</td>
+        <td>${r.step>=10?'<span style="color:#1E7A3C;font-weight:700">🏁 COD แล้ว</span>':'<span style="color:#2c66ad;font-weight:700">🔧 รอ ผบส.กด COD</span>'}</td>
+        <td>${r.caCreated?`<span style="color:#1f9d57;font-weight:700">✅ ${escHtml(r.ca82NoSys||r.ca82No||'สร้างแล้ว')}</span>`:'<span style="color:var(--danger);font-weight:700">⬜ ยังไม่สร้าง</span>'}${r.ca82Note?`<br><span style="font-size:.75rem;color:#7a5b00">📝 ${escHtml(r.ca82Note)}</span>`:''}</td>
+        <td><button class="btn btn-outline btn-sm" style="white-space:nowrap" onclick="caSwFiles('${r.reqNo}','caSwF${i}')">📎 เอกสาร ผมต.</button></td></tr>
+        <tr id="caSwF${i}" style="display:none"><td colspan="8" style="background:#f4f8fd"><div id="caSwF${i}_in"></div></td></tr>`).join('')}
+    </tbody></table></div>`:'<div class="note">— ไม่มีรายการ —</div>'}
+  </div>`;
+}
+function caSwFiles(reqNo, id){
+  const tr=$('#'+id); if(!tr) return;
+  const open = tr.style.display==='none'; tr.style.display = open ? '' : 'none';
+  if(open && !tr.dataset.loaded){ tr.dataset.loaded='1'; loadFilesInto('#'+id+'_in', reqNo, {onlyPhotos:true}); }   // เฉพาะเอกสาร ผมต. (ไม่รวมบัตร ปชช./ภพ.20)
 }
 // กดเลือก PPIM จากตารางจุดร่วมงาน → ตั้ง dropdown + โชว์รายละเอียด + เลื่อนไปหา
 function caPick(reqNo){ const sel=$('#ca82Req'); if(sel) sel.value=reqNo; renderCaDetail(reqNo); const d=$('#ca82Detail'); if(d) setTimeout(()=>d.scrollIntoView({behavior:'smooth',block:'start'}),50); }
@@ -1706,7 +1734,7 @@ async function loadFilesInto(sel, reqNo, opts){
     if(!r||!r.ok){ el.innerHTML='<span style="color:var(--danger)">โหลดเอกสารไม่ได้: '+((r&&r.error)||'')+'</span>'; return; }
     let fs=r.files||[];
     if(opts.onlyPhotos) fs=fs.filter(f=>!isPersonalDoc(f.name));   // หน้ามิเตอร์: ไม่แสดงบัตร ปชช./ภพ.20
-    if(!fs.length){ el.innerHTML='<span style="color:var(--gray)">— ไม่พบ'+(opts.onlyPhotos?'รูปสับเปลี่ยน':'เอกสารแนบ')+'ของคำขอนี้ —</span>'; return; }
+    if(!fs.length){ el.innerHTML='<span style="color:var(--gray)">— ไม่พบ'+(opts.onlyPhotos?'เอกสาร/รูปสับเปลี่ยนจาก ผมต.':'เอกสารแนบ')+'ของคำขอนี้ —</span>'; return; }
     const docLabel=nm=>{ const u=nm.toUpperCase();
       if(/_ID|บัตร/i.test(nm)) return '🪪 สำเนาบัตรประชาชน';
       if(/VAT20|VAT_?20|ภพ/i.test(u)||/ภพ/.test(nm)) return '🧾 สำเนา ภพ.20';
