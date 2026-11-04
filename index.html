@@ -1803,7 +1803,7 @@ function renderMeterFlow(){
         <b style="color:var(--pea)">📊 ${S.ic} ${S.l} — แยกจุดรวมงาน</b><button class="btn btn-outline btn-sm no-print" onclick="meterFlowPick(null)">✕ ปิด</button></div>
       ${E.length?'<div style="position:relative;height:340px"><canvas id="meterFlowChart"></canvas></div>':'<div class="note">ไม่มีรายการในสถานะนี้</div>'}
       ${['doc','alloc','swap','ca82'].includes(S.k)?meterFlowAreaHtml(S):''}
-      ${S.since?`<div style="margin-top:12px;font-weight:700">⚠ ค้างเกิน ${METER_AGE_WARN} วัน (นับจากวัน${S.since}) · ${fmtN(late.length)} ราย${late.length>50?' — แสดง 50 รายการที่ค้างนานสุด':''}</div>
+      ${S.since&&S.k!=='swap'?`<div style="margin-top:12px;font-weight:700">⚠ ค้างเกิน ${METER_AGE_WARN} วัน (นับจากวัน${S.since}) · ${fmtN(late.length)} ราย${late.length>50?' — แสดง 50 รายการที่ค้างนานสุด':''}</div>
       ${late.length?`<div style="overflow:auto;max-height:360px;margin-top:6px"><table style="font-size:.85rem"><thead><tr><th>เลขคำขอ</th><th>ผู้ยื่น</th><th>จุดรวมงาน</th><th>กฟฟ.</th><th style="text-align:right">ค้าง (วัน)</th><th>หมายเหตุ CA 82</th></tr></thead><tbody>
         ${late.slice(0,50).map(x=>`<tr><td><b>${escHtml(x.r.reqNo)}</b></td><td>${escHtml(maskName(x.r.custName))}</td><td>${escHtml(reqHub(x.r)||'-')}</td><td>${escHtml(x.r.areaCheck||x.r.area||'-')}</td><td style="text-align:right;font-weight:800;color:${x.d>METER_AGE_WARN*2?'var(--danger)':'#B07C00'}">${fmtN(x.d)}</td><td>${ca82NoteCell(x.r)}</td></tr>`).join('')}
       </tbody></table></div>`:'<div class="note">✅ ไม่มีงานค้างเกินกำหนด</div>'}`:''}
