@@ -401,7 +401,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     </div>
 
     <div class="card purple" id="sec-overview" data-view="overview">
-      <h2>ภาพรวมของโครงการโซลาร์ภาคประชาชน ปี 2569</h2>
+      <h2 style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span>ภาพรวมของโครงการโซลาร์ภาคประชาชน ปี 2569</span><button class="btn btn-outline btn-sm no-print" onclick="exportHubSummary()" title="ดาวน์โหลด Excel สรุปแยกจุดรวมงาน/ขั้น สำหรับ Google Sheets / Canva">📥 Export สรุปจุดรวมงาน</button></h2>
       <div class="kpis" id="kpis" style="margin-bottom:0"></div>
       <div id="kpiChartBox" class="hidden" style="margin-top:14px;background:#fff;border-radius:14px;padding:12px 14px">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
@@ -2832,6 +2832,31 @@ function hubKey(s){ return String(s||'').replace(/^กฟ[จอสฟน]\.?\s*
 function canonHub(s){ const k=hubKey(s); return k ? (HUB_LIST.find(h=>hubKey(h)===k)||'') : ''; }
 // จุดร่วมงานของคำขอ = พื้นที่ / กฟฟ.ที่ตรวจสอบ (ค่าเดียวกันในชีต) → คืนชื่อมาตรฐานใน HUB_LIST
 // ยึดค่าตรงก่อน (area/areaCheck) แล้วค่อย fallback เป็น hub / map
+// ===== Export สรุป (Excel) สำหรับ Google Sheets / Canva — ยกเลิก (ขั้น 0) / ระหว่างดำเนินการ (ขั้น 1–9) / COD เรียบร้อย (ขั้น 10) / ไม่ทราบสถานะ =====
+function exportHubSummary(){
+  if(typeof XLSX==='undefined'){ alert('โหลดไลบรารี Excel ไม่สำเร็จ — ลองรีเฟรชหน้า'); return; }
+  if(!rows.length){ alert('ยังไม่มีข้อมูล'); return; }
+  const d=new Date(), p2=n=>String(n).padStart(2,'0');
+  const dt=d, dtTh=`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()+543} ${p2(d.getHours())}:${p2(d.getMinutes())} น.`;
+  const pct=(n,t)=>t?Math.round(n/t*1000)/10:0;
+  const g={}; rows.forEach(r=>{ const h=reqHub(r)||'ไม่ระบุจุดรวมงาน', x=g[h]=g[h]||{h,t:0,c:0,p:0,cod:0,u:0,kw:0};
+    x.t++; if(r.step===0)x.c++; else if(r.step===10)x.cod++; else if(r.step==null)x.u++; else x.p++; if(r.step!==0)x.kw+=(r.kw||0); });
+  const H=Object.values(g).sort((a,b)=>a.t-b.t||a.h.localeCompare(b.h,'th'));
+  const hubAoA=[['วันที่อัปเดต','วันที่อัปเดต (พ.ศ.)','ลำดับ (น้อย→มาก)','จุดรวมงาน / กฟฟ.','คำขอทั้งหมด (รายการ)','❌ ยกเลิก / ไม่ผ่าน','🔄 อยู่ระหว่างดำเนินการ (ขั้น 1–9)','🏁 COD เรียบร้อย (ขั้น 10)','ไม่ทราบสถานะ','% ยกเลิก','% ระหว่างดำเนินการ','% COD','กำลังไฟ (kW ไม่รวมยกเลิก)']]
+    .concat(H.map((x,i)=>[dt,dtTh,i+1,x.h,x.t,x.c,x.p,x.cod,x.u,pct(x.c,x.t),pct(x.p,x.t),pct(x.cod,x.t),Math.round(x.kw*10)/10]));
+  const T=H.reduce((a,x)=>({t:a.t+x.t,c:a.c+x.c,p:a.p+x.p,cod:a.cod+x.cod,u:a.u+x.u,kw:a.kw+x.kw}),{t:0,c:0,p:0,cod:0,u:0,kw:0});
+  hubAoA.push([dt,dtTh,'','รวม',T.t,T.c,T.p,T.cod,T.u,pct(T.c,T.t),pct(T.p,T.t),pct(T.cod,T.t),Math.round(T.kw*10)/10]);
+  const stAoA=[['วันที่อัปเดต','วันที่อัปเดต (พ.ศ.)','ลำดับ','ขั้น','สถานะ','จำนวน (รายการ)','ร้อยละ (%)','กำลังไฟ (kW)']];
+  let i=0; STEPS.filter(st=>st.id!==0).forEach(st=>{ const L=rows.filter(r=>r.step===st.id); stAoA.push([dt,dtTh,++i,'ขั้น '+st.id,STEP_DISP[st.id]||st.name,L.length,pct(L.length,rows.length),Math.round(L.reduce((a,r)=>a+(r.kw||0),0)*10)/10]); });
+  const c0=rows.filter(r=>r.step===0).length, un=rows.filter(r=>r.step==null).length;
+  stAoA.push([dt,dtTh,++i,'ยกเลิก','ยกเลิก / ไม่ผ่าน',c0,pct(c0,rows.length),0]);
+  if(un) stAoA.push([dt,dtTh,++i,'ไม่ทราบ','ไม่ทราบสถานะ',un,pct(un,rows.length),'']);
+  const wb=XLSX.utils.book_new(), mk=a=>{ const ws=XLSX.utils.aoa_to_sheet(a,{cellDates:true}); ws['!cols']=a[0].map((h,j)=>({wch:j===3?22:Math.max(12,String(h).length+2)}));
+    a.forEach((row,r)=>{ if(r){ const c=ws[XLSX.utils.encode_cell({r,c:0})]; if(c){ c.t='d'; c.z='dd/mm/yyyy hh:mm'; } } }); return ws; };
+  XLSX.utils.book_append_sheet(wb, mk(hubAoA), '3_จุดรวมงาน');
+  XLSX.utils.book_append_sheet(wb, mk(stAoA), '2_คำขอแยกขั้น');
+  XLSX.writeFile(wb, `สรุปจุดรวมงาน_${d.getFullYear()+543}${p2(d.getMonth()+1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}.xlsx`);
+}
 function reqHub(r){
   return canonHub(r.areaCheck) || canonHub(r.area) || canonHub(r.hub)
       || canonHub(hubMapping()[r.area]) || canonHub(hubMapping()[r.areaCheck]) || '';
