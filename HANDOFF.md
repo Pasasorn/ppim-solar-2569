@@ -16,7 +16,7 @@ Dashboard ภายในสำหรับเจ้าหน้าที่ ก
 | ข้อมูล | Google Sheets 2 ไฟล์ (private — อ่านผ่าน Apps Script เท่านั้น) | ดูข้อ 3 |
 | ไฟล์แนบ | Google Drive 2 โฟลเดอร์ | ดูข้อ 3 |
 
-**ไฟล์ใน repo:** `index.html` · `apps-script-meter.gs` · `pea-logo.png` · `.nojekyll` · `HANDOFF.md` · `.github/workflows/deploy-apps-script.yml` (auto deploy .gs) · `templates/` (สรุปรายรอบ)
+**ไฟล์ใน repo:** `index.html` · `apps-script-meter.gs` · `pea-logo.png` · `.nojekyll` · `HANDOFF.md` · `.github/workflows/deploy-apps-script.yml` (auto deploy .gs) · `templates/` (สรุปรายรอบ) · `apps-script-summary.gs` + `tools/` (ชีตสรุปสำหรับ Canva — ข้อ 9)
 
 **Deploy routine ทุกครั้งที่แก้:**
 ```
@@ -163,3 +163,13 @@ node -e "const fs=require('fs');const h=fs.readFileSync('index.html','utf8');con
   ตรวจซ้ำใน Console: `(()=>{const c={};rows.forEach(r=>{if(!rowCEO(r)){const n=[reqHub(r),r.areaCheck,r.area,r.respOffice].filter(Boolean).join(' | ')||'(ว่าง)';c[n]=(c[n]||0)+1;}});return Object.entries(c).map(x=>x[1]+' × '+x[0]).join('\n')||'ครบ';})()`
 - [x] ย้ายคอลัมน์ที่อ่านตามตำแหน่ง (R/AB/AX/AZ) ไปผูกตามชื่อหัวคอลัมน์ (มีสำรองตำแหน่งเดิม) · ชื่อหัวจริง: `แผงพลังงานแสงอาทิตย์` · `เลขที่สัญญา` · `kWp` · `กฟฟ.` (ตรงทั้งคำเท่านั้น — `kwExact`)
   ตรวจใน Console: `['panelRaw','contractNo','kwp','respOffice'].map(k=>k+' → '+(mapping[k]||'ใช้ตำแหน่งเดิม')).join('\n')`
+
+---
+
+## 9. ชีตสรุปสำหรับทำกราฟใน Canva (5 พ.ย. 2569)
+- ไฟล์: **สรุป PPIM Solar 2569 (สำหรับ Canva)** — `docs.google.com/spreadsheets/d/1arMek7DIKid063kYOV2_E447HkmT3YVdRRdZD3wGXNg` (เจ้าของ pasasorn@gmail.com · เก็บเฉพาะตัวเลขสรุป ไม่มีข้อมูลส่วนบุคคล)
+- สคริปต์: `apps-script-summary.gs` (วางใน ส่วนขยาย → Apps Script ของชีตสรุป · Run `setup` 1 ครั้ง) → อ่านชีตหลัก + ชีต SLA แบบอ่านอย่างเดียว → เขียน 8 tab: `อัปเดต` (วันที่อัปเดต + ตัวเลขหลัก) · `Pipeline` · `จุดรวมงาน×ขั้น` · `SLA แยก CEO` · `SLA แยกจุดรวมงาน` · `สถานะมิเตอร์` · `มิเตอร์แยกจุดรวมงาน` · `ประวัติรายวัน` (1 แถว/วัน ไว้ทำกราฟแนวโน้ม)
+- อัปเดตอัตโนมัติทุกวัน 07:00 น. (trigger `updateSummary`) · อัปเดตทันที: เมนู "📊 สรุป PPIM → อัปเดตตอนนี้"
+- **ห้ามแก้ `apps-script-summary.gs` ตรง ๆ** — ไฟล์นี้สร้างด้วย `node tools/build-summary-gs.js` ซึ่งคัดลอกฟังก์ชันจาก `index.html` (classifyStatus, buildRowsFrom, mergeRows, reqHub, hubCEO, slaStat, METER_FLOW ฯลฯ) มาประกอบกับ `tools/summary-template.gs` → **ถ้าแก้ตรรกะใน index.html ให้ build ใหม่ แล้ววางทับใน Apps Script ของชีตสรุป** (ไม่ผ่าน workflow auto deploy)
+- ต่างจาก Dashboard: ไม่อ่านการตั้งค่าจุดรวมงานที่แก้เองใน localStorage (ใช้ `DEFAULT_HUB_MAP`)
+
