@@ -9,7 +9,8 @@
  *   1) เปิด Google Sheet สรุป → ส่วนขยาย (Extensions) → Apps Script
  *   2) ลบโค้ดเดิม วางไฟล์นี้ทั้งไฟล์ → บันทึก
  *   3) เลือกฟังก์ชัน `setup` → Run → อนุญาตสิทธิ์ (อ่านชีต PPIM + เขียนชีตนี้ + ตั้งเวลา)
- *   → ระบบสร้าง tab สรุปทั้งหมด + ตั้งเวลาอัปเดตทุกวัน 07:00 น. (เวลาไทย)
+ *   → ระบบสร้าง tab สรุปทั้งหมด + ตั้งเวลาอัปเดตทุก 1 ชั่วโมง
+ *   อัปเดตโค้ดใหม่ภายหลัง: วางทับ → บันทึก → เมนู "📊 สรุป PPIM" → ตั้งเวลาอัปเดตใหม่ (หรือ Run `setup` อีกครั้ง)
  *   อัปเดตเองได้ทุกเมื่อ: เมนู "📊 สรุป PPIM" → อัปเดตตอนนี้
  *
  * ชีตนี้อ่านอย่างเดียวจากชีตหลัก (ไม่แก้ข้อมูล PPIM) และเก็บเฉพาะตัวเลขสรุป — ไม่มีข้อมูลส่วนบุคคล
@@ -19,7 +20,7 @@ var SRC_SHEET_ID     = '15MinRHg79n2zToLiOsacmm2Br7N9FUIEaHOxl2eqelo';   // ช�
 var SRC_MAIN_TAB     = 'PPIM Solar Update';
 var SRC_SLA_SHEET_ID = '1SFqBINbiTy7OsQ_OrDLzv_8slFymddakAkpgAcnWKXE';   // ชีต SLA/Grid (เติมวันที่ข้ามชีต เหมือน Dashboard)
 var TZ               = 'Asia/Bangkok';
-var UPDATE_HOUR      = 7;                                              // อัปเดตทุกวันเวลา 07:00 น.
+var UPDATE_EVERY_HOURS = 1;                                            // อัปเดตทุก 1 ชั่วโมง (ตั้งได้ 1, 2, 4, 6, 8, 12)
 
 var TAB = {
   info:    'อัปเดต',
@@ -43,7 +44,7 @@ function hubMapping(){ return DEFAULT_HUB_MAP; }   // Dashboard รวมค่�
 function onOpen() {
   SpreadsheetApp.getUi().createMenu('📊 สรุป PPIM')
     .addItem('อัปเดตตอนนี้', 'updateSummary')
-    .addItem('ตั้งเวลาอัปเดตทุกวันใหม่', 'installTrigger')
+    .addItem('ตั้งเวลาอัปเดตใหม่', 'installTrigger')
     .addToUi();
 }
 function setup() {
@@ -54,7 +55,7 @@ function installTrigger() {
   ScriptApp.getProjectTriggers().forEach(function(t){
     if (t.getHandlerFunction() === 'updateSummary') ScriptApp.deleteTrigger(t);
   });
-  ScriptApp.newTrigger('updateSummary').timeBased().everyDays(1).atHour(UPDATE_HOUR).inTimezone(TZ).create();
+  ScriptApp.newTrigger('updateSummary').timeBased().everyHours(UPDATE_EVERY_HOURS).create();
 }
 
 /* ================= อ่านข้อมูล (แบบเดียวกับ action 'data' ใน apps-script-meter.gs) ================= */
@@ -247,10 +248,10 @@ function updateSummary() {
     ['สร้าง CA 82 แล้ว (ขั้น 8+)', cnt(function(r){ return r.step >= 8 && r.caCreated; }), 'ราย']
   ];
   var tz = Session.getScriptTimeZone();
-  writeTab_(ss, TAB.info, info, tz === TZ ? 'อัปเดตอัตโนมัติทุกวัน ' + UPDATE_HOUR + ':00 น. · กดเมนู "📊 สรุป PPIM → อัปเดตตอนนี้" เพื่ออัปเดตทันที'
+  writeTab_(ss, TAB.info, info, tz === TZ ? 'อัปเดตอัตโนมัติทุก ' + UPDATE_EVERY_HOURS + ' ชั่วโมง · Canva ต้องกดรีเฟรชข้อมูลกราฟเองก่อนนำเสนอ · กดเมนู "📊 สรุป PPIM → อัปเดตตอนนี้" เพื่ออัปเดตทันที'
     : '⚠ Time zone ของสคริปต์เป็น ' + tz + ' — ตั้งเป็น (GMT+07:00) Bangkok ที่ Apps Script → ⚙️ Project Settings เพื่อให้นับวันตรงกับ Dashboard');
 
-  // ---- ประวัติรายวัน (1 แถว/วัน — อัปเดตซ้ำวันเดิมจะเขียนทับแถวเดิม) ใช้ทำกราฟเส้นแนวโน้ม ----
+  // ---- ประวัติรายวัน (1 แถว/วัน — อัปเดตซ้ำวันเดิมทุกชั่วโมงจะเขียนทับแถวเดิม = ค่าล่าสุดของวัน) ใช้ทำกราฟเส้นแนวโน้ม ----
   var hs = ss.getSheetByName(TAB.hist) || ss.insertSheet(TAB.hist);
   var hHead = ['วันที่'].concat(STEP_IDS.map(stepLabel_), ['ไม่ผ่าน/ยกเลิก', 'คำขอทั้งหมด', 'kW รวม', 'kW COD แล้ว', 'ในเกณฑ์ SLA (%)', 'เกิน SLA (ราย)']);
   if (hs.getLastRow() === 0) {

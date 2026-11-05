@@ -169,7 +169,7 @@ node -e "const fs=require('fs');const h=fs.readFileSync('index.html','utf8');con
 ## 9. ชีตสรุปสำหรับทำกราฟใน Canva (5 พ.ย. 2569)
 - ไฟล์: **สรุป PPIM Solar 2569 (สำหรับ Canva)** — `docs.google.com/spreadsheets/d/1arMek7DIKid063kYOV2_E447HkmT3YVdRRdZD3wGXNg` (เจ้าของ pasasorn@gmail.com · เก็บเฉพาะตัวเลขสรุป ไม่มีข้อมูลส่วนบุคคล)
 - สคริปต์: `apps-script-summary.gs` (วางใน ส่วนขยาย → Apps Script ของชีตสรุป · Run `setup` 1 ครั้ง) → อ่านชีตหลัก + ชีต SLA แบบอ่านอย่างเดียว → เขียน 8 tab: `อัปเดต` (วันที่อัปเดต + ตัวเลขหลัก) · `Pipeline` · `จุดรวมงาน×ขั้น` · `SLA แยก CEO` · `SLA แยกจุดรวมงาน` · `สถานะมิเตอร์` · `มิเตอร์แยกจุดรวมงาน` · `ประวัติรายวัน` (1 แถว/วัน ไว้ทำกราฟแนวโน้ม)
-- อัปเดตอัตโนมัติทุกวัน 07:00 น. (trigger `updateSummary`) · อัปเดตทันที: เมนู "📊 สรุป PPIM → อัปเดตตอนนี้"
+- อัปเดตอัตโนมัติทุก 1 ชั่วโมง (trigger `updateSummary` · ปรับที่ `UPDATE_EVERY_HOURS`) · Canva ไม่ดึงข้อมูลใหม่เอง ต้องรีเฟรชกราฟก่อนนำเสนอ · อัปเดตทันที: เมนู "📊 สรุป PPIM → อัปเดตตอนนี้"
 - **ห้ามแก้ `apps-script-summary.gs` ตรง ๆ** — ไฟล์นี้สร้างด้วย `node tools/build-summary-gs.js` ซึ่งคัดลอกฟังก์ชันจาก `index.html` (classifyStatus, buildRowsFrom, mergeRows, reqHub, hubCEO, slaStat, METER_FLOW ฯลฯ) มาประกอบกับ `tools/summary-template.gs` → **ถ้าแก้ตรรกะใน index.html ให้ build ใหม่ แล้ววางทับใน Apps Script ของชีตสรุป** (ไม่ผ่าน workflow auto deploy)
 - ต่างจาก Dashboard: ไม่อ่านการตั้งค่าจุดรวมงานที่แก้เองใน localStorage (ใช้ `DEFAULT_HUB_MAP`)
 
