@@ -17,6 +17,8 @@ concurrency:
 env:
   # deployment เดิมที่ Dashboard เรียกใช้ (ตรงกับ URL /exec ใน index.html)
   GAS_DEPLOYMENT_ID: AKfycbxtZZeNznb3LOMF_P4YrsI7OMcd-DqbKIXrdpeiftFcy4v7s2Bnf0ks-t7U6OjVfTk
+  # Script ID ของโปรเจกต์ที่ผูกกับชีต (⚙️ Project Settings → IDs) — ไม่ใช่ความลับ · secret GAS_SCRIPT_ID ถ้าตั้งไว้จะใช้แทน
+  GAS_SCRIPT_ID_DEFAULT: 1iPVVjNJabRWQU8dyUBaXXEQgJ24QT1nZz1dPKtA5t0RXQWR-bs2ZEd0b
 
 jobs:
   deploy:
@@ -31,7 +33,7 @@ jobs:
         run: |
           bad=0
           if [ -z "$CLASPRC_JSON" ]; then echo "::error::ยังไม่ได้ตั้ง secret CLASPRC_JSON (Settings → Secrets and variables → Actions)"; bad=1; fi
-          if [ -z "$GAS_SCRIPT_ID" ]; then echo "::notice::ไม่ได้ตั้ง GAS_SCRIPT_ID — จะค้นหาโปรเจกต์ที่มี Deployment ของ Dashboard ให้อัตโนมัติ"
+          if [ -z "$GAS_SCRIPT_ID" ]; then echo "ไม่ได้ตั้ง secret GAS_SCRIPT_ID — ใช้ค่า GAS_SCRIPT_ID_DEFAULT ใน workflow"
           elif [[ "$GAS_SCRIPT_ID" == AKfycb* ]]; then echo "::error::GAS_SCRIPT_ID ขึ้นต้น AKfycb… = Deployment ID (ผิดช่อง) — ต้องใช้ Script ID จาก ⚙️ Project Settings → IDs"; bad=1
           elif ! [[ "$GAS_SCRIPT_ID" =~ ^[A-Za-z0-9_-]{40,80}$ ]]; then echo "::error::GAS_SCRIPT_ID รูปแบบไม่ถูกต้อง (ยาว ${#GAS_SCRIPT_ID} ตัว · มีช่องว่าง/อักขระแปลก?) — คัดลอก Script ID ใหม่ทั้งบรรทัด"; bad=1; fi
           exit $bad
@@ -63,6 +65,7 @@ jobs:
           GAS_SCRIPT_ID: ${{ secrets.GAS_SCRIPT_ID }}
         run: |
           if [ -n "$GAS_SCRIPT_ID" ]; then echo "SCRIPT_ID=$GAS_SCRIPT_ID" >> "$GITHUB_ENV"; echo "ใช้ Script ID จาก secret"; exit 0; fi
+          if [ -n "$GAS_SCRIPT_ID_DEFAULT" ]; then echo "SCRIPT_ID=$GAS_SCRIPT_ID_DEFAULT" >> "$GITHUB_ENV"; echo "ใช้ Script ID ค่าตั้งต้นใน workflow"; exit 0; fi
           clasp list-scripts --noShorten > scripts.txt 2>&1 || clasp list-scripts > scripts.txt 2>&1 || true
           cat scripts.txt
           ids=$(grep -oE '/d/[A-Za-z0-9_-]{20,}' scripts.txt | cut -d/ -f3 | sort -u | head -60)
