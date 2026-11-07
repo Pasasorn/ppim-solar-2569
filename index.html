@@ -1933,8 +1933,8 @@ const METER_STEPS = [
    long:'เมื่อได้รับมิเตอร์ตามเอกสารขอจัดสรร ผมต.กบล. กด <b>✅ บันทึกผลการจัดสรร</b> → เลือกเลขที่เอกสาร + กรอกเลขที่บันทึกผล → รายการจะเป็น “จัดสรรแล้ว” พร้อมให้ ผมม./ผมต. สับเปลี่ยน'},
   {k:'swap', c:'#E4572E', bg:'#fdf0ec', no:'④', how:'ดาวน์โหลดรายการงานของจุดร่วมงาน → สับเปลี่ยนหน้างาน → กดรายงานผล + แนบเอกสาร 3 รายการ', btn:'📝 รายงานผลการสับเปลี่ยน', go:"openMeterModal('meter')",
    long:'ผมม./ผมต. เข้าสู่ระบบ → <b>📥 ดาวน์โหลดรายการงานสับเปลี่ยน</b> (เฉพาะจุดร่วมงานของตน) → ออกสับเปลี่ยนหน้างาน → กด <b>📝 รายงานผลการสับเปลี่ยน</b> เลือกเลขที่คำขอ ใส่วันที่สับเปลี่ยน และแนบ (1) แบบฟอร์มตรวจสอบการขนาน (2) แบบฟอร์มอ่าน TOU (3) รูปมิเตอร์เห็น PEA No. · รายการ “⛔ ไม่พร้อม” = ยังไม่มี CA 82 ให้ประสาน ผซฟ.'},
-  {k:'pbs', c:'#0E9F8E', bg:'#eaf8f6', no:'⑤', how:'ผบส. ตรวจรายงาน แล้วกด COD ในระบบ PPIM — Dashboard อัปเดตจาก PPIM อัตโนมัติ', btn:'', go:'',
-   long:'หลัง ผมต. รายงานผลแล้ว ผบส. ตรวจเอกสาร/รูปที่แนบ (ดูได้ในหน้ารายงาน) แล้วกด <b>COD</b> ในระบบ PPIM · เมื่อชีต PPIM Solar อัปเดต คำขอจะย้ายไป “COD เรียบร้อย” เอง'},
+  {k:'pbs', c:'#0E9F8E', bg:'#eaf8f6', no:'⑤', how:'ผบส. นำเอกสารจาก ผมต. สแกนแนบไฟล์ในระบบ PPIM แล้วกดวันที่เริ่มต้น COD', btn:'', go:'',
+   long:'หลัง ผมต. รายงานผลแล้ว ผบส. นำเอกสารจาก ผมต. (ดาวน์โหลดได้ในหน้ารายงาน) <b>สแกนแนบไฟล์ในระบบ PPIM</b> แล้วกด <b>วันที่เริ่มต้น COD</b> · เมื่อชีต PPIM Solar อัปเดต คำขอจะย้ายไป “COD เรียบร้อย” เอง'},
   {k:'cod', c:'#1F9D57', bg:'#ecf8f1', no:'🏁', how:'งานเสร็จสมบูรณ์', btn:'', go:'', long:''}
 ];
 function meterStepGo(k){ const s=METER_STEPS.find(x=>x.k===k); if(s&&s.go){ try{ (new Function(s.go))(); }catch(e){ alert('เปิดไม่สำเร็จ: '+e.message); } } }
@@ -2195,7 +2195,7 @@ function renderMeterHowto(){
 function renderMeterMine(){
   const el=$('#meterMine'); if(!el) return;
   if(!mmSession){
-    el.innerHTML=`<div class="mh"><span>👤 งานของฉัน</span></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>เข้าสู่ระบบเพื่อดูงานที่ต้องทำ</span><button class="btn btn-primary btn-sm" onclick="openMeterModal('meter')">🔐 เข้าสู่ระบบ</button></div>`;
+    el.innerHTML=`<div class="mh"><span>👤 งานของฉัน</span></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>ผมม. เข้าสู่ระบบ · หากยังไม่ได้ลงทะเบียน โปรดลงทะเบียนก่อนการใช้งาน</span><button class="btn btn-primary btn-sm" onclick="openMeterModal('meter')">🔐 เข้าสู่ระบบ</button><button class="btn btn-outline btn-sm" onclick="openMeterModal('meter');mmShowRegister()">📝 ลงทะเบียน</button></div>`;
     return;
   }
   const rl=String(mmSession.role||''), isAdm=rl.toLowerCase().indexOf('admin')>=0, isCa=!isAdm&&rl.indexOf('ผซฟ')>=0;
