@@ -973,7 +973,7 @@ const SHEET_GID = '1459120099';                                     // แท็
 // ชีตแยกสำหรับ "การควบคุม SLA" (ประมวลผลคนละแหล่งกับข้อมูลหลัก)
 const SLA_SHEET_ID = '1SFqBINbiTy7OsQ_OrDLzv_8slFymddakAkpgAcnWKXE';
 let slaRows = null;                                                 // ข้อมูล SLA จากชีตแยก
-const slaData = () => (slaRows && slaRows.length) ? slaRows : rows;  // มีชีต SLA ใช้อันนั้น ไม่งั้น fallback ข้อมูลหลัก
+const slaData = () => rows;   // ทุกหน้าใช้ชีตหลัก PPIM Solar · ชีต SLA/Grid (For P'Gift) ใช้เติมเฉพาะข้อมูล Grid Capacity (ดู mergeRows)
 async function loadSlaSource(){
   try{
     const url = 'https://docs.google.com/spreadsheets/d/'+SLA_SHEET_ID+'/gviz/tq?tqx=out:csv&headers=1&nocache='+Date.now();
@@ -1252,34 +1252,17 @@ function buildRowsFrom(rawArr, map){
     return o;
   }).filter(o=>o.reqNo);
 }
-// รวมข้อมูล 2 ชีตตาม reqNo — เติมช่องว่างในชุดหลักด้วยข้อมูลจากชีต SLA/Grid (1SFqBINb)
+// ชีต SLA/Grid (1SFqBINb "For P'Gift") ใช้เฉพาะข้อมูล Grid Capacity — เติมให้คำขอในชีตหลัก PPIM Solar ตาม reqNo
+// ไม่เพิ่มคำขอที่มีเฉพาะในชีต Grid · ไม่ใช้วันที่/สถานะ/จุดรวมงาน/ข้อมูลอื่นจากชีต Grid (ยึดชีต PPIM Solar อย่างเดียว)
+const GRID_FIELDS = ['gridChk','tr','kva','trOwner'];
 function mergeRows(){
-  if(!slaRows || !slaRows.length) return;
   if(!rows) rows = [];
-  const fillStr  = ['gridChk','hub','ca','peaNo','lat','lng','kva','tr','trOwner','meterV','phaseNo','areaCheck','caStatus'];
-  const fillDate = ['dAnnounce','dSign','dPay','dConnReq','dConnApprove','dCod','dSwapReport'];
-  const idxMain = {}; rows.forEach(r=>{ if(r.reqNo) idxMain[r.reqNo] = r; });
-  slaRows.forEach(s=>{
-    const r = idxMain[s.reqNo];
-    if(r){   // reqNo ตรงกัน → เติมช่องว่างในชุดหลักด้วยข้อมูลจากชีต SLA/Grid
-      fillStr.forEach(k=>{ if((r[k]===''||r[k]==null) && s[k]) r[k]=s[k]; });
-      fillDate.forEach(k=>{ if(!r[k] && s[k]) r[k]=s[k]; });
-    } else {  // union: คำขอที่มีเฉพาะในชีต SLA → เพิ่มเข้าชุดหลักด้วย (ไม่ให้ตกหล่น)
-      rows.push(s); idxMain[s.reqNo]=s;
-    }
-  });
+  if(slaRows && slaRows.length){
+    const idxGrid = {}; slaRows.forEach(s=>{ if(s.reqNo) idxGrid[s.reqNo] = s; });
+    rows.forEach(r=>{ const s = idxGrid[r.reqNo]; if(!s) return;
+      GRID_FIELDS.forEach(k=>{ if((r[k]===''||r[k]==null) && s[k]) r[k]=s[k]; }); });
+  }
   rows.forEach(r=>{ r.gridPass = (r.gridChk||'').includes('ผ่าน') && !(r.gridChk||'').includes('ไม่ผ่าน'); });
-  // ↔ เติมย้อนกลับ: ชีต SLA แถวไหนไม่มีวันที่อ้างอิง → ดึงจากชีตหลักมาเติม แล้วคำนวณ SLA ใหม่
-  // (การ์ด SLA อ่านจาก slaData()=slaRows เป็นหลัก จึงต้องเติมวันที่ให้ครบก่อน)
-  const fillDate2 = ['dSubmit','dAnnounce','dConnApprove','dSign','dPay','dConnReq','dCod','dSwapReport'];
-  slaRows.forEach(s=>{
-    const m = idxMain[s.reqNo];
-    if(m){
-      let changed=false;
-      fillDate2.forEach(k=>{ if(!s[k] && m[k]){ s[k]=m[k]; changed=true; } });
-      if(changed) computeSla(s);   // มีวันที่เพิ่ม → คำนวณ SLA ใหม่
-    }
-  });
 }
 function process(){
   rows = buildRowsFrom(raw, mapping);
@@ -1631,7 +1614,7 @@ function hubMapping(){
 }
 function renderHubOverview(){
   const el = $('#hubOverview'); if(!el) return;
-  const src = slaData();   // จุดรวมงานใช้ข้อมูลชีต SLA แยก (ถ้ามี)
+  const src = slaData();   // ชีตหลัก PPIM Solar (Grid เติมจากชีต For P'Gift แล้ว)
   const map = hubMapping();
   const g = {};
   src.forEach(r=>{
@@ -1672,7 +1655,7 @@ function renderHubOverview(){
 }
 function renderHubs(){
   const el = $('#hubBody'); if(!el) return;
-  const src = slaData();   // จุดรวมงานใช้ข้อมูลชีต SLA แยก (ถ้ามี)
+  const src = slaData();   // ชีตหลัก PPIM Solar (Grid เติมจากชีต For P'Gift แล้ว)
   const map = hubMapping();
   const groups = {};
   src.forEach(r=>{

@@ -8,7 +8,7 @@ const tpl = fs.readFileSync(path.join(__dirname, 'summary-template.gs'), 'utf8')
 
 // ชื่อ const/function ที่ต้องคัดลอกจาก index.html (ตามลำดับ)
 const NAMES = ['STEPS', 'FIELDS', 'SLA', 'STEP_DISP', 'parseDate', 'classifyStatus', 'computeSla', 'daysBetween', 'addD',
-  'computeMapping', 'buildRowsFrom', 'mergeRows', 'DEFAULT_HUB_MAP', 'METER_AGE_WARN', 'daysSince', 'METER_FLOW',
+  'computeMapping', 'buildRowsFrom', 'GRID_FIELDS', 'mergeRows', 'DEFAULT_HUB_MAP', 'METER_AGE_WARN', 'daysSince', 'METER_FLOW',
   'HUB_LIST', 'CEO_LIST', 'CEO_DISTRICTS', 'hubCEO', 'rowCEO', 'SLA_PHASES', 'slaStat', 'hubKey', 'canonHub', 'reqHub'];
 
 const lines = html.split('\n');

@@ -1,7 +1,7 @@
 /**
  * ชีตสรุป Dashboard PPIM Solar 2569 (กฟน.1) — สำหรับนำไปทำกราฟใน Canva
  * -----------------------------------------------------------------------
- * ⚠ ไฟล์นี้สร้างอัตโนมัติด้วย `node tools/build-summary-gs.js` (build 2026-11-05)
+ * ⚠ ไฟล์นี้สร้างอัตโนมัติด้วย `node tools/build-summary-gs.js` (build 2026-11-07)
  *   ห้ามแก้ไฟล์ apps-script-summary.gs ตรง ๆ — แก้ที่ tools/summary-template.gs แล้ว build ใหม่
  *   ตรรกะจัดขั้น/จุดรวมงาน/SLA/มิเตอร์ คัดลอกจาก index.html ทุกครั้งที่ build → ตัวเลขตรงกับ Dashboard
  *
@@ -289,34 +289,18 @@ function buildRowsFrom(rawArr, map){
   }).filter(o=>o.reqNo);
 }
 
+// ---- GRID_FIELDS (จาก index.html)
+const GRID_FIELDS = ['gridChk','tr','kva','trOwner'];
+
 // ---- mergeRows (จาก index.html)
 function mergeRows(){
-  if(!slaRows || !slaRows.length) return;
   if(!rows) rows = [];
-  const fillStr  = ['gridChk','hub','ca','peaNo','lat','lng','kva','tr','trOwner','meterV','phaseNo','areaCheck','caStatus'];
-  const fillDate = ['dAnnounce','dSign','dPay','dConnReq','dConnApprove','dCod','dSwapReport'];
-  const idxMain = {}; rows.forEach(r=>{ if(r.reqNo) idxMain[r.reqNo] = r; });
-  slaRows.forEach(s=>{
-    const r = idxMain[s.reqNo];
-    if(r){   // reqNo ตรงกัน → เติมช่องว่างในชุดหลักด้วยข้อมูลจากชีต SLA/Grid
-      fillStr.forEach(k=>{ if((r[k]===''||r[k]==null) && s[k]) r[k]=s[k]; });
-      fillDate.forEach(k=>{ if(!r[k] && s[k]) r[k]=s[k]; });
-    } else {  // union: คำขอที่มีเฉพาะในชีต SLA → เพิ่มเข้าชุดหลักด้วย (ไม่ให้ตกหล่น)
-      rows.push(s); idxMain[s.reqNo]=s;
-    }
-  });
+  if(slaRows && slaRows.length){
+    const idxGrid = {}; slaRows.forEach(s=>{ if(s.reqNo) idxGrid[s.reqNo] = s; });
+    rows.forEach(r=>{ const s = idxGrid[r.reqNo]; if(!s) return;
+      GRID_FIELDS.forEach(k=>{ if((r[k]===''||r[k]==null) && s[k]) r[k]=s[k]; }); });
+  }
   rows.forEach(r=>{ r.gridPass = (r.gridChk||'').includes('ผ่าน') && !(r.gridChk||'').includes('ไม่ผ่าน'); });
-  // ↔ เติมย้อนกลับ: ชีต SLA แถวไหนไม่มีวันที่อ้างอิง → ดึงจากชีตหลักมาเติม แล้วคำนวณ SLA ใหม่
-  // (การ์ด SLA อ่านจาก slaData()=slaRows เป็นหลัก จึงต้องเติมวันที่ให้ครบก่อน)
-  const fillDate2 = ['dSubmit','dAnnounce','dConnApprove','dSign','dPay','dConnReq','dCod','dSwapReport'];
-  slaRows.forEach(s=>{
-    const m = idxMain[s.reqNo];
-    if(m){
-      let changed=false;
-      fillDate2.forEach(k=>{ if(!s[k] && m[k]){ s[k]=m[k]; changed=true; } });
-      if(changed) computeSla(s);   // มีวันที่เพิ่ม → คำนวณ SLA ใหม่
-    }
-  });
 }
 
 // ---- DEFAULT_HUB_MAP (จาก index.html)
