@@ -31,7 +31,7 @@
 1. **Deploy Apps Script** (`apps-script-meter.gs` ล่าสุด) → New version บน deployment เดิม — ครอบคลุม `dllogs` + PDPA + `empHub` + อีเมล
 2. ใน Apps Script เลือกฟังก์ชัน **`testMail`** → Run → อนุญาตสิทธิ์ "ส่งอีเมลในนามคุณ" → เช็กกล่องจดหมาย (tab `ตั้งค่า` จะมีแถว `อีเมลแจ้งเตือนผู้ลงทะเบียนใหม่` เพิ่ม — แก้/เพิ่มผู้รับได้)
 3. ชีตสรุป Canva: วาง `apps-script-summary.gs` ใหม่ทับ
-4. ตั้ง secret **`GAS_SCRIPT_ID`** (ตอนนี้ว่าง) = Script ID จาก ⚙️ Project Settings → IDs
+4. ~~ตั้ง secret `GAS_SCRIPT_ID`~~ ✅ ไม่ต้องแล้ว — Script ID (`1iPVVjNJ…` โปรเจกต์ผูกกับชีต) ใส่ใน workflow · **auto deploy สำเร็จ run #17 → deployment @28** (7 พ.ย. 2569 23:07)
 5. (ไม่บังคับ) จัดแท็บพนักงานมิเตอร์ตามคู่มือ
 6. ทดสอบ: ผมต. จุดหนึ่ง login → หัวฟอร์มขึ้นจุดร่วมงาน · แถวจุดอื่นชื่อปิดบัง · ดาวน์โหลดได้ · สมัครบัญชีทดสอบ → Admin ได้อีเมล+ป๊อปอัป → กดลิงก์ในอีเมลไปหน้าอนุมัติ
 
@@ -47,6 +47,6 @@
 ```
 ทำงานต่อ Dashboard ppim-solar-2569 (repo pasasorn/ppim-solar-2569)
 อ่าน HANDOFF.md และ templates/session-summary-2569-11-07b.md ก่อน แล้วยึดข้อตกลง: ตอบภาษาไทย · แก้บน main โดยตรง ตรวจ syntax แล้ว push main เลย · เรื่องกำกวมให้ถามก่อน · เสนอตัวเลือกขั้นต่อไปทุกครั้ง
-สถานะล่าสุด (7 พ.ย. 2569 บ่าย): หน้าจอโหลด · เมนูอนุมัติ+ป๊อปอัป · ชีต Grid ใช้เฉพาะ Grid เสร็จแล้ว · รอ deploy Apps Script (dllogs + PDPA ตามจุดร่วมงาน + empHub + อีเมลแจ้ง Admin → Run testMail) · auto deploy รอตั้ง secret GAS_SCRIPT_ID
+สถานะล่าสุด (7 พ.ย. 2569 บ่าย): หน้าจอโหลด · เมนูอนุมัติ+ป๊อปอัป · ชีต Grid ใช้เฉพาะ Grid เสร็จแล้ว · รอ deploy Apps Script (dllogs + PDPA ตามจุดร่วมงาน + empHub + อีเมลแจ้ง Admin → Run testMail) · auto deploy ใช้ได้แล้ว (push .gs → deploy เอง) · รอ Run testMail อนุญาตสิทธิ์ส่งอีเมล
 งานถัดไปที่อยากทำ: <พิมพ์งานที่ต้องการ>
 ```
