@@ -257,9 +257,82 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
 @keyframes tickerMove{0%{transform:translateX(0)}100%{transform:translateX(-100%)}}
 .container{padding-bottom:46px}
 @media print{#ticker{display:none!important}}
+/* ===== หน้าจอโหลดตอนเปิดเว็บ (พระอาทิตย์หน้าอ้อน + %) ===== */
+#splash{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(circle at 50% 38%,#FFFFFF 0%,#F4EEFA 55%,#E9DDF4 100%);transition:opacity .5s ease,visibility .5s}
+#splash.out{opacity:0;visibility:hidden}
+#splash .sp-box{text-align:center;padding:24px 16px;max-width:360px;width:100%}
+#splash .sp-sun{width:170px;height:170px;margin:0 auto 6px;display:block;animation:spBob 1.8s ease-in-out infinite}
+#splash .sp-rays{transform-origin:100px 100px;animation:spSpin 9s linear infinite}
+#splash .sp-tear{animation:spShine 1.6s ease-in-out infinite}
+#splash .sp-blink{transform-origin:center;transform-box:fill-box;animation:spBlink 4s infinite}
+#splash .sp-msg{color:var(--pea);font-weight:700;font-size:1.08rem;margin-top:4px}
+#splash .sp-sub{color:var(--gray);font-size:.86rem;margin-top:2px;min-height:1.2em}
+#splash .sp-pct{font-size:2.3rem;font-weight:800;color:var(--pea);line-height:1.1;margin-top:12px;font-variant-numeric:tabular-nums}
+#splash .sp-bar{height:12px;border-radius:99px;background:#E4D8EF;overflow:hidden;margin:8px auto 0;max-width:280px;box-shadow:inset 0 1px 2px rgba(0,0,0,.08)}
+#splash .sp-fill{height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#FFB800,#FFD23F,#8A4DB0);transition:width .3s ease}
+#splash .sp-err{display:none;margin-top:14px}
+#splash.err .sp-err{display:block}
+#splash.err .sp-pct,#splash.err .sp-bar{display:none}
+#splash .sp-err .sp-emsg{color:var(--danger);font-size:.86rem;margin-bottom:10px;word-break:break-word}
+#splash .sp-err button{font:inherit;border:0;border-radius:10px;padding:8px 16px;margin:0 4px;cursor:pointer;font-weight:700}
+#splash .sp-retry{background:var(--pea);color:#fff}
+#splash .sp-close{background:#EAE6F2;color:var(--pea)}
+@keyframes spBob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-8px) rotate(4deg)}}
+@keyframes spSpin{to{transform:rotate(360deg)}}
+@keyframes spShine{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes spBlink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+@media (prefers-reduced-motion: reduce){#splash .sp-sun,#splash .sp-rays,#splash .sp-tear,#splash .sp-blink{animation:none}}
+@media print{#splash{display:none!important}}
 </style>
 </head>
 <body>
+<div id="splash" class="no-print" role="status" aria-live="polite">
+  <div class="sp-box">
+    <svg class="sp-sun" viewBox="0 0 200 200" aria-hidden="true">
+      <g class="sp-rays" fill="#FFC21A"><rect x="96" y="8" width="8" height="22" rx="4" transform="rotate(0 100 100)"/><rect x="96" y="8" width="8" height="22" rx="4" transform="rotate(30 100 100)"/><rect x="96" y="8" width="8" height="22" rx="4" transform="rotate(60 100 100)"/><rect x="96" y="8" width="8" height="22" rx="4" transform="rotate(90 100 100)"/><rect x="96" y="8" width="8" height="22" rx="4" transform="rotate(120 100 100)"/><rect x="96" y="8" width="8" height="22" rx="4" transform="rotate(150 100 100)"/><rect x="96" y="8" width="8" height="22" rx="4" transform="rotate(180 100 100)"/><rect x="96" y="8" width="8" height="22" rx="4" transform="rotate(210 100 100)"/><rect x="96" y="8" width="8" height="22" rx="4" transform="rotate(240 100 100)"/><rect x="96" y="8" width="8" height="22" rx="4" transform="rotate(270 100 100)"/><rect x="96" y="8" width="8" height="22" rx="4" transform="rotate(300 100 100)"/><rect x="96" y="8" width="8" height="22" rx="4" transform="rotate(330 100 100)"/></g>
+      <circle cx="100" cy="100" r="58" fill="#FFD23F" stroke="#F5B400" stroke-width="3"/>
+      <ellipse cx="66" cy="116" rx="11" ry="7" fill="#FF9AA8" opacity=".75"/>
+      <ellipse cx="134" cy="116" rx="11" ry="7" fill="#FF9AA8" opacity=".75"/>
+      <path d="M64 78 q12 -10 24 -3" stroke="#7A4A00" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <path d="M136 78 q-12 -10 -24 -3" stroke="#7A4A00" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <g class="sp-blink">
+        <circle cx="78" cy="98" r="14" fill="#4A2A00"/><circle cx="122" cy="98" r="14" fill="#4A2A00"/>
+        <circle cx="83" cy="92" r="5.5" fill="#fff"/><circle cx="127" cy="92" r="5.5" fill="#fff"/>
+        <circle cx="73" cy="104" r="2.6" fill="#fff"/><circle cx="117" cy="104" r="2.6" fill="#fff"/>
+      </g>
+      <path class="sp-tear" d="M131 111 q5 9 0 13 q-5 -4 0 -13z" fill="#7CC8FF"/>
+      <path d="M90 132 q10 -8 20 0" stroke="#7A4A00" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div class="sp-msg" id="spMsg">รอแป๊บนะคะ กำลังโหลดข้อมูล…</div>
+    <div class="sp-sub" id="spSub">กำลังเชื่อมต่อระบบ PPIM</div>
+    <div class="sp-pct" id="spPct">0%</div>
+    <div class="sp-bar"><div class="sp-fill" id="spFill"></div></div>
+    <div class="sp-err">
+      <div class="sp-emsg" id="spErr"></div>
+      <button type="button" class="sp-retry" id="spRetry">🔄 ลองใหม่</button>
+      <button type="button" class="sp-close" id="spClose">เข้าหน้าเว็บ</button>
+    </div>
+  </div>
+</div>
+<script>
+// หน้าจอโหลดตอนเปิดเว็บ — % ประมาณการ (Apps Script ไม่บอกขนาดข้อมูล): วิ่งเร็วช่วงแรก ช้าลง ค้างไม่เกิน 95% → เสร็จ = 100% แล้วจางหาย
+window.splash=(function(){
+  const el=document.getElementById('splash'), pct=document.getElementById('spPct'), fill=document.getElementById('spFill'), sub=document.getElementById('spSub');
+  let p=0, t0=Date.now(), timer=null, done=false;
+  const subs=[[0,'กำลังเชื่อมต่อระบบ PPIM'],[30,'กำลังรับข้อมูลคำขอ'],[65,'กำลังประมวลผล/สร้างกราฟ'],[88,'อีกนิดเดียวค่ะ 🙏']];
+  function show(v){ p=v; const n=Math.floor(v); pct.textContent=n+'%'; fill.style.width=v+'%';
+    let s=subs[0][1]; subs.forEach(x=>{ if(n>=x[0]) s=x[1]; }); sub.textContent=s; }
+  function tick(){ if(done) return; const sec=(Date.now()-t0)/1000; show(Math.max(p, 95*(1-Math.exp(-sec/4)))); }
+  const msgEl=document.getElementById('spMsg');
+  function start(){ msgEl.textContent='รอแป๊บนะคะ กำลังโหลดข้อมูล…'; done=false; t0=Date.now(); p=0; el.classList.remove('err','out'); show(0); clearInterval(timer); timer=setInterval(tick,120); }
+  function finish(){ if(done) return; done=true; clearInterval(timer); show(100); setTimeout(()=>el.classList.add('out'),450); }
+  function fail(msg){ done=true; clearInterval(timer); msgEl.textContent='ขอโทษนะคะ 🥺 โหลดข้อมูลไม่สำเร็จ'; sub.textContent='ลองใหม่อีกครั้ง หรือเข้าหน้าเว็บไปก่อนได้ค่ะ'; el.classList.add('err'); document.getElementById('spErr').textContent=msg||''; }
+  document.getElementById('spClose').onclick=()=>el.classList.add('out');
+  start();
+  return {start, finish, fail, active:()=>!el.classList.contains('out')};
+})();
+</script>
 <!-- ปุ่มเปิด/ปิดเมนู (มือถือ) -->
 <button id="navToggle" class="no-print" onclick="document.body.classList.toggle('nav-open')">☰</button>
 <!-- แถบเมนูด้านข้าง -->
@@ -3694,7 +3767,13 @@ document.querySelectorAll('#sidenav a[data-view]').forEach(a=>{
 showView('overview');   // หน้าเริ่มต้น
 
 // โหลดภาพรวมได้เลยไม่ต้อง login (อ่านผ่าน Apps Script — ชีตยัง private ได้) · login เฉพาะมิเตอร์+CA82
-loadDashboardData();
+async function firstLoad(){
+  splash.start();
+  const ok = await loadDashboardData();
+  if(ok) splash.finish(); else splash.fail(($('#lastUpdate').textContent||'').replace(/^โหลดข้อมูลไม่สำเร็จ:\s*/,''));
+}
+$('#spRetry').onclick = firstLoad;
+firstLoad();
 </script>
 <script>
 // ===== favicon พระอาทิตย์หมุน (วาดด้วย canvas แล้วสลับเฟรม) =====
