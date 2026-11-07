@@ -168,6 +168,15 @@ function colIndex(headerRow, name) {
   }
   return -1;
 }
+// จุดร่วมงานของพนักงาน 1 แถว — ทะเบียนจริงบางบัญชีเก็บจุดไว้ในคอลัมน์หัว "กฟน.1" (คอลัมน์ "จุดร่วมงาน" ว่าง)
+// ลำดับ: จุดร่วมงาน → คอลัมน์ "กฟน.1" → เดาจาก "สังกัด" (เช่น ผมต.กฟส.แม่สาย) · คืนชื่อมาตรฐานตาม HUB_LIST ถ้าจับคู่ได้
+function empHub(row, h) {
+  var cands = [colIndex(h,'จุดร่วมงาน'), colIndex(h,'กฟน.1')].map(function(i){ return i>=0 ? String(row[i]||'').trim() : ''; });
+  var iD = colIndex(h,'สังกัด'), dept = iD>=0 ? String(row[iD]||'') : '';
+  var m = dept.match(/กฟ[จอสฟ]\.?\s*\S+(\s+2)?/); if (m) cands.push(m[0]);
+  for (var k=0;k<cands.length;k++){ if (!cands[k]) continue; var c = canonHub(cands[k]); if (c) return c; }
+  return cands[0] || '';
+}
 
 // ===== รหัสผ่าน: เก็บเป็น hash (SHA-256 + salt รายคน) รูปแบบ "h1$<salt>$<hex>" =====
 // ยังรับรหัสข้อความธรรมดา (บัญชีเดิม/Admin พิมพ์ทับในชีต) แล้วแปลงเป็น hash ให้ตอน login สำเร็จ
@@ -257,7 +266,7 @@ function doLogin(b) {
     }
     if (String(data[r][iE]).trim() === emp && pwMatch(data[r][iP], pw)) {
       if (!isHashed(data[r][iP])) sh.getRange(r+1, iP+1).setValue(makeHash(pw));   // รหัสแบบเดิม → แปลงเป็น hash อัตโนมัติ
-      var nm=String(data[r][iN]||''), rl=iR>=0?String(data[r][iR]||''):'', hb=iH>=0?String(data[r][iH]||''):'';
+      var nm=String(data[r][iN]||''), rl=iR>=0?String(data[r][iR]||''):'', hb=empHub(data[r], h);
       logUser(emp, nm, rl, hb, 'เข้าสู่ระบบ');
       return { ok:true, name:nm, dept:String(data[r][iD]||''), hub:hb, role:rl };
     }
@@ -397,7 +406,7 @@ function doLogDownload(b) {
   var u = null;
   for (var r=1;r<data.length;r++){
     if (String(data[r][iE]).trim() === String(b.emp||'').trim() && pwMatch(data[r][iP], b.pw)) {
-      u = { emp:String(data[r][iE]), name:String(data[r][iN]||''), role:iR>=0?String(data[r][iR]||''):'', hub:iH>=0?String(data[r][iH]||''):'' }; break;
+      u = { emp:String(data[r][iE]), name:String(data[r][iN]||''), role:iR>=0?String(data[r][iR]||''):'', hub:empHub(data[r], h) }; break;
     }
   }
   if (!u) return { ok:false, error:'forbidden' };
@@ -457,7 +466,7 @@ function getAuthUser(emp, pw) {
   var iE = colIndex(h,'รหัสพนักงาน'), iP = colIndex(h,'password'), iR = colIndex(h,'ตำแหน่ง'), iH = colIndex(h,'จุดร่วมงาน');
   for (var r=1;r<data.length;r++){
     if (String(data[r][iE]).trim() === String(emp||'').trim() && pwMatch(data[r][iP], pw))
-      return { role: iR>=0 ? String(data[r][iR]||'') : '', hub: iH>=0 ? String(data[r][iH]||'') : '' };
+      return { role: iR>=0 ? String(data[r][iR]||'') : '', hub: empHub(data[r], h) };
   }
   return null;
 }
