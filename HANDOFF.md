@@ -62,7 +62,7 @@ git add index.html apps-script-meter.gs && git commit -m "..." && git push
 |---|---|
 | `SHEET_ID = 15MinRHg79…` | ชีตหลัก (PPIM + สถานะระบบ + ทะเบียนพนักงาน + log) |
 | `MAIN_TAB = 'PPIM Solar Update'` | ข้อมูลคำขอ (sync จาก PPIM) |
-| `SLA_SHEET_ID = 1SFqBINb…` | ชีต SLA/Grid รายจุดรวมงาน (ใช้เติมวันที่ข้ามชีต) |
+| `SLA_SHEET_ID = 1SFqBINb…` | ชีต Grid "For P'Gift" — **ใช้เฉพาะข้อมูล Grid Capacity** (ผลตรวจ Grid · TR PEA No. · kVA · เจ้าของหม้อแปลง) เติมให้คำขอในชีตหลักตาม reqNo (`mergeRows`/`GRID_FIELDS`) · ไม่เพิ่มคำขอที่มีเฉพาะในชีตนี้ · สถานะ/วันที่/จุดรวมงาน/ชื่อ ยึดชีตหลัก PPIM Solar อย่างเดียว (7 พ.ย. 2569) |
 | `PHOTO_FOLDER_ID = 1iL62z_…` | Drive "เอกสาร ผบฟ." — เก็บบัตร ปชช./ภพ.20/เอกสารสับเปลี่ยน (ชื่อไฟล์ขึ้นต้นเลข PPIM) |
 | `SIGN_FOLDER_ID = 1WagmOQ…` | Drive เก็บไฟล์ลายเซ็น (PNG โปร่งใส) ระบบเลือกไฟล์รูปอัตโนมัติ |
 | `ADMIN_SECRET` | รหัสสมัคร Admin ค่าตั้งต้น (ของจริงอ่านจาก tab `ตั้งค่า` B1) |
