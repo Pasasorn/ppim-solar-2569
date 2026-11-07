@@ -327,6 +327,11 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <label>สังกัด (ระบุให้ครบ)</label><input id="mmRDept" placeholder="เช่น ผมต.กฟส.นางแล">
       <label>จุดร่วมงาน</label><select id="mmRHub"></select>
       <label>ตั้งรหัสผ่าน</label><input id="mmRPw" type="password">
+      <div id="mmRPhotoWrap"><label>📷 รูปถ่ายผู้ลงทะเบียน (ใช้ยืนยันตัวตน · จำเป็น)</label>
+        <input id="mmRPhoto" type="file" accept="image/*" capture="user" style="padding:6px">
+        <div class="note" style="margin-top:2px">ถ่ายรูปหน้าตรง หรือรูปบัตรพนักงาน · ระบบย่อรูปให้อัตโนมัติ</div>
+        <img id="mmRPhotoPrev" alt="" class="hidden" style="margin-top:6px;max-width:140px;max-height:140px;border-radius:10px;border:1px solid var(--border);object-fit:cover"></div>
+      <div class="note" style="margin-top:8px;background:#fff7e6;border-left:3px solid #e0a800;padding:6px 9px;border-radius:6px">⏳ บัญชีใหม่ต้องรอแอดมินอนุมัติก่อนใช้งาน — ติดต่อ <b>ผสอ.กวว.น.1 โทร 10130</b></div>
       <div id="mmRAdminWrap" class="hidden"><label>🔑 รหัสอนุมัติ Admin</label><input id="mmRAdminCode" type="password" placeholder="รหัสลับสำหรับสมัคร Admin"><div class="note" style="margin-top:2px">ต้องกรอกรหัสนี้ให้ถูกต้องจึงจะสมัคร Admin ได้</div></div>
       <div class="mmsg" id="mmRegMsg"></div>
       <div class="toolbar" style="margin-top:14px">
@@ -531,6 +536,12 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     <div class="card" id="sec-log" data-view="log">
       <h2 style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>📜 บันทึกการเข้าใช้งาน (เฉพาะ Admin)</span>
         <button class="btn btn-outline btn-sm no-print" id="btnLogRefresh">⟳ โหลดล่าสุด</button></h2>
+      <div class="no-print" style="margin-bottom:14px;background:#fffaf0;border:1px solid #f0d77a;border-radius:12px;padding:10px 12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          <b style="color:var(--pea)">👤 อนุมัติผู้ลงทะเบียนใหม่ <span id="apCount"></span></b>
+          <button class="btn btn-outline btn-sm" id="btnApRefresh">⟳ โหลดรายชื่อ</button></div>
+        <div id="apContent"><div class="note">เข้าสู่ระบบด้วยตำแหน่ง Admin เพื่อดูรายชื่อรออนุมัติ</div></div>
+      </div>
       <div id="logContent"><div class="note">เข้าสู่ระบบด้วยตำแหน่ง Admin เพื่อดูบันทึกการใช้งาน</div></div>
       <div class="no-print" style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
         <label style="font-weight:700;font-size:.85rem;display:block;margin-bottom:4px">🔑 รีเซ็ตรหัสผ่านพนักงาน (เฉพาะ Admin · ทีละคน)</label>
@@ -2882,6 +2893,8 @@ function mmShowRegister(){
   const sel=$('#mmRRole'); if(sel){ sel.value=g.regRole; sel.disabled=!!g.lockRole; sel.style.opacity=g.lockRole?'.6':'1'; }
   // ช่องรหัสอนุมัติ Admin: แสดงเฉพาะประตู Admin
   const aw=$('#mmRAdminWrap'); if(aw){ const showAdmin=(g.regRole==='Admin'); aw.classList.toggle('hidden',!showAdmin); if(!showAdmin){ const ac=$('#mmRAdminCode'); if(ac) ac.value=''; } }
+  // รูปถ่าย: จำเป็นสำหรับ ผมต./ผซฟ. (Admin ใช้รหัสอนุมัติแทน)
+  const pw=$('#mmRPhotoWrap'); if(pw) pw.classList.toggle('hidden', g.regRole==='Admin');
   // จุดร่วมงาน: Admin ไม่ต้องเลือก
   const hubWrap=$('#mmRHub'); if(hubWrap){ const showHub = (g.regRole==='ผมต.'); hubWrap.style.display=showHub?'':'none'; const lbl=hubWrap.previousElementSibling; if(lbl&&lbl.tagName==='LABEL') lbl.style.display=showHub?'':'none'; }
   $('#mmRegMsg').textContent='';
@@ -3028,6 +3041,49 @@ function openMeterModal(gate){
 if($('#btnMeterReport')) $('#btnMeterReport').onclick = ()=>openMeterModal('meter');
 if($('#btnCaLogin')) $('#btnCaLogin').onclick = ()=>{ if(caAuthed){ renderCA(); } else openMeterModal('ca'); };
 if($('#navLogin')) $('#navLogin').onclick = (e)=>{ e.preventDefault(); openMeterModal('admin'); };
+// ===== อนุมัติบัญชีใหม่ (Admin) =====
+const PENDING_CONTACT = 'รอแอดมินอนุมัติ ติดต่อ ผสอ.กวว.น.1 โทร 10130';
+async function loadPendingUsers(){
+  const el=$('#apContent'); if(!el||!mmSession) return;
+  el.innerHTML='<div class="note">กำลังโหลด...</div>';
+  try{
+    const r=await meterApi({action:'pendingusers', emp:mmSession.emp, pw:mmSession.pw});
+    if(!r||!r.ok){ el.innerHTML='<div class="note" style="color:var(--danger)">โหลดไม่ได้: '+escHtml((r&&r.error)||'')+((r&&r.error)==='unknown action'?' (ยังไม่ได้ deploy Apps Script เวอร์ชันใหม่)':'')+'</div>'; return; }
+    const L=r.rows||[], P=L.filter(x=>x.status==='รออนุมัติ'), H=L.filter(x=>x.status!=='รออนุมัติ').reverse().slice(0,30);
+    const c=$('#apCount'); if(c) c.innerHTML=P.length?`<span style="background:var(--danger);color:#fff;border-radius:999px;padding:1px 9px;font-size:.78rem">${P.length} ราย</span>`:'';
+    el.innerHTML=(P.length?P.map(x=>`<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px">
+        ${x.photo?`<a href="${x.photo}" target="_blank" rel="noopener"><img src="${x.photo}" alt="รูปถ่าย ${escHtml(x.name)}" style="width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--border)"></a>`
+          :`<div style="width:96px;height:96px;border-radius:10px;background:#f1f2f4;display:grid;place-items:center;color:#999;font-size:.75rem;text-align:center">${x.photoUrl?`<a href="${escHtml(x.photoUrl)}" target="_blank" rel="noopener">เปิดรูปใน Drive</a>`:'ไม่มีรูป'}</div>`}
+        <div style="flex:1;min-width:200px;line-height:1.6;font-size:.88rem"><b>${escHtml(x.name)}</b> · รหัส ${escHtml(x.emp)}<br>ตำแหน่ง ${escHtml(x.role||'-')} · สังกัด ${escHtml(x.dept||'-')}<br>จุดร่วมงาน ${escHtml(x.hub||'-')} · ลงทะเบียน ${fmtLogTime(x.regDate)}</div>
+        <div style="display:flex;flex-direction:column;gap:6px"><button class="btn btn-primary btn-sm" onclick="approveUser('${escHtml(x.emp)}','approve')">✅ อนุมัติ</button><button class="btn btn-outline btn-sm" style="color:var(--danger)" onclick="approveUser('${escHtml(x.emp)}','reject')">✕ ไม่อนุมัติ</button></div>
+      </div>`).join(''):'<div class="note">✅ ไม่มีบัญชีรออนุมัติ</div>')
+      +(H.length?`<details style="margin-top:6px"><summary class="note" style="cursor:pointer">ประวัติการอนุมัติล่าสุด (${H.length})</summary><div style="overflow-x:auto"><table style="font-size:.82rem"><thead><tr><th>รหัส</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>สถานะ</th><th>ผู้อนุมัติ</th><th>เมื่อ</th><th>รูป</th><th></th></tr></thead><tbody>
+        ${H.map(x=>`<tr><td>${escHtml(x.emp)}</td><td>${escHtml(x.name)}</td><td>${escHtml(x.role)}</td><td style="font-weight:700;color:${x.status==='ไม่อนุมัติ'?'var(--danger)':'var(--green)'}">${escHtml(x.status)}</td><td>${escHtml(x.approver||'-')}</td><td>${x.appDate?fmtLogTime(x.appDate):'-'}</td><td>${x.photoUrl?`<a href="${escHtml(x.photoUrl)}" target="_blank" rel="noopener">เปิด</a>`:'-'}</td><td>${x.status==='ไม่อนุมัติ'?`<button class="btn btn-outline btn-sm" onclick="approveUser('${escHtml(x.emp)}','approve')">อนุมัติ</button>`:''}</td></tr>`).join('')}
+        </tbody></table></div></details>`:'');
+  }catch(e){ el.innerHTML='<div class="note" style="color:var(--danger)">เชื่อมต่อไม่ได้: '+escHtml(e.message)+'</div>'; }
+}
+async function approveUser(target, decision){
+  if(!mmSession) return;
+  if(!confirm((decision==='approve'?'อนุมัติ':'ไม่อนุมัติ')+'บัญชีรหัส '+target+' ?')) return;
+  try{ const r=await meterApi({action:'approveuser', emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name, target, decision});
+    if(!(r&&r.ok)) alert('ไม่สำเร็จ: '+((r&&r.error)||''));
+  }catch(e){ alert('เชื่อมต่อไม่ได้'); }
+  loadPendingUsers();
+}
+if($('#btnApRefresh')) $('#btnApRefresh').onclick = loadPendingUsers;
+// รูปถ่ายตอนลงทะเบียน: ย่อเป็น JPEG ด้านยาว ≤ 800px ก่อนส่ง
+let mmRegPhoto = '';
+function shrinkImage(file, max){ return new Promise((ok,ng)=>{ const rd=new FileReader(); rd.onerror=()=>ng(new Error('อ่านไฟล์ไม่ได้'));
+  rd.onload=()=>{ const im=new Image(); im.onerror=()=>ng(new Error('ไฟล์นี้ไม่ใช่รูปภาพ'));
+    im.onload=()=>{ const k=Math.min(1,max/Math.max(im.width,im.height)), c=document.createElement('canvas'); c.width=Math.round(im.width*k); c.height=Math.round(im.height*k);
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height); ok(c.toDataURL('image/jpeg',0.82)); };
+    im.src=rd.result; }; rd.readAsDataURL(file); }); }
+if($('#mmRPhoto')) $('#mmRPhoto').onchange = async (ev)=>{
+  const f=ev.target.files&&ev.target.files[0], pv=$('#mmRPhotoPrev'); mmRegPhoto='';
+  if(!f){ pv.classList.add('hidden'); return; }
+  try{ mmRegPhoto=await shrinkImage(f,800); pv.src=mmRegPhoto; pv.classList.remove('hidden'); }
+  catch(e){ pv.classList.add('hidden'); $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">'+escHtml(e.message)+'</span>'; }
+};
 // ===== log การใช้งาน (Admin) =====
 function fmtLogTime(t){ const d=new Date(t); return isNaN(d)?(t||'-'):d.toLocaleString('th-TH'); }
 async function loadLog(){
@@ -3113,7 +3169,7 @@ if($('#mmDoLogin')) $('#mmDoLogin').onclick = async ()=>{
         caAuthed=true;
         const c=$('#uploadCard'); if(c){ c.classList.remove('hidden'); $('#uploadBody').classList.remove('hidden'); $('#uploadArrow').textContent='▾'; }
         if($('#navLog')) $('#navLog').classList.remove('hidden');   // เปิดเมนู log
-        loadLog();
+        loadLog(); loadPendingUsers();
       } else if(kind==='ca'){ caAuthed=true; }
       renderCA();
       // ไปหน้าตามประตูที่เข้ามา
@@ -3123,6 +3179,8 @@ if($('#mmDoLogin')) $('#mmDoLogin').onclick = async ()=>{
         showView(mmGate==='ca' ? 'ca' : 'overview');
       }
     }
+    else if(r && r.error==='pending') $('#mmLoginMsg').innerHTML='<div style="background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:8px 10px;color:#8a5a00;font-weight:700">⏳ '+PENDING_CONTACT+'</div>';
+    else if(r && r.error==='rejected') $('#mmLoginMsg').innerHTML='<span style="color:var(--danger)">'+escHtml(r.msg||'บัญชีนี้ไม่ได้รับการอนุมัติ ติดต่อ ผสอ.กวว.น.1 โทร 10130')+'</span>';
     else $('#mmLoginMsg').innerHTML='<span style="color:var(--danger)">รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง — ยังไม่ได้ลงทะเบียน? กด “ลงทะเบียนพนักงานมิเตอร์” ด้านล่าง</span>';
   }catch(e){ $('#mmLoginMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
 };
@@ -3135,13 +3193,19 @@ if($('#mmDoRegister')) $('#mmDoRegister').onclick = async ()=>{
   const needHub = (role==='ผมต.');   // เฉพาะ ผมต. ที่ต้องเลือกจุดร่วมงาน · ผซฟ.(กฟน.1) และ Admin ไม่ต้อง
   if(!emp||!name||!dept||(needHub&&!hub)||!pw){ $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">กรอกให้ครบ: รหัสพนักงาน ชื่อ-สกุล ตำแหน่ง สังกัด'+(needHub?' จุดร่วมงาน':'')+' และรหัสผ่าน</span>'; return; }
   if(isAdminReg && !adminCode){ $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">กรอกรหัสอนุมัติ Admin</span>'; return; }
+  if(!isAdminReg && !mmRegPhoto){ $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">กรุณาแนบรูปถ่ายผู้ลงทะเบียน</span>'; return; }
   $('#mmRegMsg').textContent='กำลังลงทะเบียน...';
   try{
-    const r = await meterApi({action:'register', emp, name, role, dept, hub, pw, adminCode});
+    const r = await meterApi({action:'register', emp, name, role, dept, hub, pw, adminCode, photo: isAdminReg ? '' : mmRegPhoto});
     if(r && r.ok){
-      alert('ขอบคุณครับ ลงทะเบียนเรียบร้อย');
-      $('#mmRPw').value=''; if($('#mmRAdminCode')) $('#mmRAdminCode').value=''; $('#mmEmp').value=emp; $('#mmPw').value=''; mmShowLogin();  // ไปหน้า login ให้ล็อกอินเอง
+      alert(r.pending ? 'ลงทะเบียนเรียบร้อย\n\n'+PENDING_CONTACT : 'ขอบคุณครับ ลงทะเบียนเรียบร้อย');
+      $('#mmRPw').value=''; if($('#mmRAdminCode')) $('#mmRAdminCode').value=''; $('#mmEmp').value=emp; $('#mmPw').value='';
+      mmRegPhoto=''; if($('#mmRPhoto')) $('#mmRPhoto').value=''; if($('#mmRPhotoPrev')) $('#mmRPhotoPrev').classList.add('hidden');
+      mmShowLogin();  // ไปหน้า login ให้ล็อกอินเอง
+      if(r.pending) $('#mmLoginMsg').innerHTML='<div style="background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:8px 10px;color:#8a5a00;font-weight:700">✅ ลงทะเบียนแล้ว · ⏳ '+PENDING_CONTACT+'</div>';
     }
+    else if(r && r.error==='no_photo') $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">กรุณาแนบรูปถ่ายผู้ลงทะเบียน</span>';
+    else if(r && r.error==='unknown action') $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">ระบบหลังบ้านยังไม่อัปเดต (Apps Script) — แจ้ง ผสอ.กวว.น.1 โทร 10130</span>';
     else if(r && r.error==='bad_admin_code') $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">รหัสอนุมัติ Admin ไม่ถูกต้อง — สมัคร Admin ไม่ได้</span>';
     else if(r && r.error==='not_pszf') $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">สมัคร ผซฟ. ได้เฉพาะพนักงานสังกัด ผซฟ. — ช่อง “สังกัด” ต้องมีคำว่า “ผซฟ.”</span>';
     else if(r && r.error==='exists') $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">รหัสพนักงานนี้ลงทะเบียนแล้ว — กลับไปเข้าสู่ระบบ</span>';

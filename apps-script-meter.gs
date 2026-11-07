@@ -28,6 +28,15 @@ var LOG_TAB   = 'ผลสับเปลี่ยนมิเตอร์';
 var LOG_USER_TAB = 'บันทึกการเข้าใช้งาน';   // log ผู้ใช้ (login/register/รายงาน) ใคร-เมื่อไหร่-ทำอะไร
 var TICKER_TAB   = 'ประกาศวิ่ง';            // ข้อความแถบวิ่งด้านล่าง (Admin แก้ไขได้) เก็บใน A1
 var PHOTO_FOLDER_ID = '1iL62z_4VPx9DBFH4S482jhbJ3phnHyvK';        // โฟลเดอร์ Drive เก็บรูปสับเปลี่ยนมิเตอร์
+var REG_PHOTO_FOLDER = 'รูปถ่ายผู้ลงทะเบียน';   // โฟลเดอร์ย่อยใน PHOTO_FOLDER_ID เก็บรูปถ่ายตอนลงทะเบียน
+// ===== อนุมัติบัญชีใหม่ (Admin) =====
+// บัญชีที่ลงทะเบียนใหม่ = "รออนุมัติ" → เข้าใช้งานไม่ได้จน Admin อนุมัติ · บัญชีเดิม (คอลัมน์สถานะว่าง) = ใช้งานได้ตามปกติ
+// กันทุกจุดที่ตรวจรหัสผ่าน: บัญชีที่ยังไม่อนุมัติ เก็บ password ขึ้นต้นด้วย PENDING_PREFIX → pwMatch() ไม่ผ่านเสมอ
+var COL_ACC_STATUS = 'สถานะบัญชี', COL_ACC_PHOTO = 'รูปถ่าย', COL_ACC_REGDATE = 'วันที่ลงทะเบียน',
+    COL_ACC_APPROVER = 'ผู้อนุมัติ', COL_ACC_APPDATE = 'วันที่อนุมัติ';
+var ACC_PENDING = 'รออนุมัติ', ACC_APPROVED = 'อนุมัติแล้ว', ACC_REJECTED = 'ไม่อนุมัติ';
+var PENDING_PREFIX = 'pending:';
+var PENDING_CONTACT = 'รอแอดมินอนุมัติ ติดต่อ ผสอ.กวว.น.1 โทร 10130';
 var STATUS_AFTER_SWAP = 'รอ ผบส.กรอกข้อมูล COD ในระบบ PPIM';   // ผมต. รายงานเสร็จ (ขั้น 9)
 var STATUS_AFTER_COD  = 'แจ้งผล COD เรียบร้อย';                 // ผบส. ยืนยันเสร็จ (ขั้น 10)
 var STATUS_REVERT     = 'รอทดสอบเชื่อมต่อ/COD';                 // ย้อนกลับเป็น "รอสับเปลี่ยนมิเตอร์" (ขั้น 8)
@@ -102,6 +111,8 @@ function doPost(e) {
     if (body.action === 'data')     return json(doGetData(body));
     if (body.action === 'register') return json(doRegister(body));
     if (body.action === 'resetpw')  return json(doResetPw(body));
+    if (body.action === 'pendingusers') return json(doGetPendingUsers(body));
+    if (body.action === 'approveuser')  return json(doApproveUser(body));
     if (body.action === 'report')   return json(doReport(body));
     if (body.action === 'revert')   return json(doRevert(body));
     if (body.action === 'ca82')     return json(doCreateCA82(body));
@@ -168,6 +179,7 @@ function makeHash(pw) {
 function pwMatch(stored, pw) {
   stored = String(stored==null?'':stored); pw = String(pw==null?'':pw);
   if (!pw) return false;
+  if (stored.indexOf(PENDING_PREFIX) === 0) return false;   // บัญชีรออนุมัติ/ไม่อนุมัติ → ใช้รหัสผ่านไม่ได้ทุกจุด
   if (isHashed(stored)) { var p = stored.split('$'); return sha256Hex(p[1] + pw) === p[2]; }
   return stored !== '' && stored === pw;   // รหัสแบบเดิม (ข้อความธรรมดา)
 }
@@ -182,7 +194,8 @@ function doResetPw(b) {
   if (iE<0 || iP<0) return { ok:false, error:'ไม่พบคอลัมน์ รหัสพนักงาน/password' };
   for (var r=1;r<data.length;r++){
     if (String(data[r][iE]).trim() === target) {
-      sh.getRange(r+1, iP+1).setValue(makeHash(npw));
+      var wasPending = String(data[r][iP]).indexOf(PENDING_PREFIX) === 0;
+      sh.getRange(r+1, iP+1).setValue((wasPending ? PENDING_PREFIX : '') + makeHash(npw));   // รีเซ็ตไม่ถือเป็นการอนุมัติ
       logUser(b.emp, b.name, 'Admin', '', 'รีเซ็ตรหัสผ่าน: '+target+' ('+String(data[r][iN]||'')+')');
       return { ok:true, name:String(data[r][iN]||''), role:iR>=0?String(data[r][iR]||''):'', hub:iH>=0?String(data[r][iH]||''):'' };
     }
@@ -195,7 +208,7 @@ function migratePasswords() {
   var data = sh.getDataRange().getValues(), iP = colIndex(data[0],'password'), n = 0;
   for (var r=1;r<data.length;r++){
     var v = data[r][iP];
-    if (String(v) !== '' && !isHashed(v)) { sh.getRange(r+1, iP+1).setValue(makeHash(v)); n++; }
+    if (String(v) !== '' && !isHashed(v) && String(v).indexOf(PENDING_PREFIX) !== 0) { sh.getRange(r+1, iP+1).setValue(makeHash(v)); n++; }
   }
   Logger.log('แปลงรหัสผ่านเป็น hash แล้ว '+n+' บัญชี');
 }
@@ -210,7 +223,14 @@ function doLogin(b) {
   var h = data[0];
   var iE = colIndex(h,'รหัสพนักงาน'), iN = colIndex(h,'ชื่อ-สกุล'), iR = colIndex(h,'ตำแหน่ง'),
       iD = colIndex(h,'สังกัด'), iH = colIndex(h,'จุดร่วมงาน'), iP = colIndex(h,'password');
+  var iS = colIndex(h, COL_ACC_STATUS);
   for (var r=1;r<data.length;r++){
+    var st = String(data[r][iP]==null?'':data[r][iP]);
+    if (String(data[r][iE]).trim() === emp && st.indexOf(PENDING_PREFIX) === 0 && pwMatch(st.slice(PENDING_PREFIX.length), pw)) {
+      var acc = iS>=0 ? String(data[r][iS]||'') : ACC_PENDING;
+      if (acc === ACC_REJECTED) return { ok:false, error:'rejected', msg:'บัญชีนี้ไม่ได้รับการอนุมัติ ติดต่อ ผสอ.กวว.น.1 โทร 10130' };
+      return { ok:false, error:'pending', msg:PENDING_CONTACT, name:String(data[r][iN]||'') };
+    }
     if (String(data[r][iE]).trim() === emp && pwMatch(data[r][iP], pw)) {
       if (!isHashed(data[r][iP])) sh.getRange(r+1, iP+1).setValue(makeHash(pw));   // รหัสแบบเดิม → แปลงเป็น hash อัตโนมัติ
       var nm=String(data[r][iN]||''), rl=iR>=0?String(data[r][iR]||''):'', hb=iH>=0?String(data[r][iH]||''):'';
@@ -252,12 +272,79 @@ function doRegister(b) {
   for (var r=1;r<data.length;r++){
     if (String(data[r][iE]).trim() === emp) return { ok:false, error:'exists' };
   }
+  var isAdm = role.toLowerCase().indexOf('admin') >= 0;   // Admin ผ่านรหัสอนุมัติแล้ว → ใช้งานได้ทันที
+  if (!isAdm && !b.photo) return { ok:false, error:'no_photo' };
+  var photoUrl = '';
+  if (b.photo) { try { photoUrl = saveRegPhoto(emp, name, b.photo); } catch (e) { return { ok:false, error:'บันทึกรูปถ่ายไม่สำเร็จ: '+e.message }; } }
+  var iS = ensureCol(COL_ACC_STATUS), iPh = ensureCol(COL_ACC_PHOTO), iRd = ensureCol(COL_ACC_REGDATE);
+  if (iP < 0) iP = ensureCol('password');
   var row = []; for (var c=0;c<h.length;c++) row.push('');
   row[iE]=emp; row[iN]=name; row[iR]=role; row[iD]=dept; row[iH]=hub;
-  if (iP>=0) row[iP]=makeHash(pw); else row.push(makeHash(pw));
+  row[iP] = (isAdm ? '' : PENDING_PREFIX) + makeHash(pw);
+  row[iS] = isAdm ? ACC_APPROVED : ACC_PENDING; row[iPh] = photoUrl; row[iRd] = new Date();
   sh.appendRow(row);
-  logUser(emp, name, role, hub, 'ลงทะเบียน');
-  return { ok:true, name:name, dept:dept, hub:hub, role:role };
+  logUser(emp, name, role, hub, isAdm ? 'ลงทะเบียน (Admin)' : 'ลงทะเบียน — รอแอดมินอนุมัติ');
+  return { ok:true, pending:!isAdm, msg:isAdm ? '' : PENDING_CONTACT, name:name, dept:dept, hub:hub, role:role };
+}
+
+// บันทึกรูปถ่ายผู้ลงทะเบียน (data URL base64) ลงโฟลเดอร์ย่อย → คืน URL ไฟล์ (ไม่แชร์สาธารณะ)
+function saveRegPhoto(emp, name, dataUrl) {
+  var m = String(dataUrl).match(/^data:(image\/(?:jpeg|png|webp));base64,(.+)$/);
+  if (!m) throw new Error('รูปแบบรูปไม่ถูกต้อง');
+  var bytes = Utilities.base64Decode(m[2]);
+  if (bytes.length > 3*1024*1024) throw new Error('รูปใหญ่เกิน 3 MB');
+  var parent = DriveApp.getFolderById(PHOTO_FOLDER_ID), it = parent.getFoldersByName(REG_PHOTO_FOLDER);
+  var folder = it.hasNext() ? it.next() : parent.createFolder(REG_PHOTO_FOLDER);
+  var ext = m[1] === 'image/png' ? 'png' : m[1] === 'image/webp' ? 'webp' : 'jpg';
+  var ts = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd_HHmmss');
+  var f = folder.createFile(Utilities.newBlob(bytes, m[1], emp + '_' + ts + '.' + ext));
+  f.setDescription('รูปถ่ายลงทะเบียน: ' + emp + ' ' + name);
+  return f.getUrl();
+}
+function driveIdFromUrl(u) { var m = String(u||'').match(/[-\w]{25,}/); return m ? m[0] : ''; }
+
+// Admin: รายชื่อบัญชีรออนุมัติ (+ ไม่อนุมัติ/อนุมัติล่าสุด) พร้อมรูปถ่าย (base64)
+function doGetPendingUsers(b) {
+  if (!isAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  var sh = sheet(EMP_TAB); if (!sh) return { ok:true, rows:[] };
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iE = colIndex(h,'รหัสพนักงาน'), iN = colIndex(h,'ชื่อ-สกุล'), iR = colIndex(h,'ตำแหน่ง'), iD = colIndex(h,'สังกัด'), iH = colIndex(h,'จุดร่วมงาน'),
+      iS = colIndex(h,COL_ACC_STATUS), iPh = colIndex(h,COL_ACC_PHOTO), iRd = colIndex(h,COL_ACC_REGDATE), iAp = colIndex(h,COL_ACC_APPROVER), iAd = colIndex(h,COL_ACC_APPDATE);
+  if (iS < 0) return { ok:true, rows:[] };
+  var out = [];
+  for (var r=1;r<data.length;r++){
+    var st = String(data[r][iS]||''); if (!st) continue;   // บัญชีเดิม (ไม่มีสถานะ) ไม่ต้องแสดง
+    var x = { emp:String(data[r][iE]||''), name:String(data[r][iN]||''), role:iR>=0?String(data[r][iR]||''):'', dept:iD>=0?String(data[r][iD]||''):'',
+      hub:iH>=0?String(data[r][iH]||''):'', status:st, regDate:iRd>=0?String(data[r][iRd]||''):'', approver:iAp>=0?String(data[r][iAp]||''):'',
+      appDate:iAd>=0?String(data[r][iAd]||''):'', photoUrl:iPh>=0?String(data[r][iPh]||''):'', photo:'' };
+    if (st === ACC_PENDING && x.photoUrl) {   // ส่งรูปเฉพาะบัญชีรออนุมัติ (ลดขนาด response)
+      try { var bl = DriveApp.getFileById(driveIdFromUrl(x.photoUrl)).getBlob(); x.photo = 'data:' + bl.getContentType() + ';base64,' + Utilities.base64Encode(bl.getBytes()); } catch (e) {}
+    }
+    out.push(x);
+  }
+  return { ok:true, rows:out };
+}
+
+// Admin: อนุมัติ / ไม่อนุมัติ บัญชี
+function doApproveUser(b) {
+  if (!isAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  var target = String(b.target||'').trim(), approve = b.decision === 'approve';
+  var sh = sheet(EMP_TAB); if (!sh) return { ok:false, error:'ไม่พบแท็บ '+EMP_TAB };
+  var data = sh.getDataRange().getValues(), h = data[0];
+  function ensureCol(nm){ var i=colIndex(h,nm); if(i<0){ i=h.length; sh.getRange(1,i+1).setValue(nm); h.push(nm);} return i; }
+  var iE = colIndex(h,'รหัสพนักงาน'), iN = colIndex(h,'ชื่อ-สกุล'), iP = colIndex(h,'password'),
+      iS = ensureCol(COL_ACC_STATUS), iAp = ensureCol(COL_ACC_APPROVER), iAd = ensureCol(COL_ACC_APPDATE);
+  for (var r=1;r<data.length;r++){
+    if (String(data[r][iE]).trim() !== target) continue;
+    var pw = String(data[r][iP]==null?'':data[r][iP]), raw = pw.indexOf(PENDING_PREFIX)===0 ? pw.slice(PENDING_PREFIX.length) : pw;
+    sh.getRange(r+1, iP+1).setValue(approve ? raw : PENDING_PREFIX + raw);
+    sh.getRange(r+1, iS+1).setValue(approve ? ACC_APPROVED : ACC_REJECTED);
+    sh.getRange(r+1, iAp+1).setValue(String(b.name||b.emp||''));
+    sh.getRange(r+1, iAd+1).setValue(new Date());
+    logUser(b.emp, b.name, 'Admin', '', (approve ? 'อนุมัติบัญชี: ' : 'ไม่อนุมัติบัญชี: ') + target + ' (' + String(data[r][iN]||'') + ')');
+    return { ok:true, status: approve ? ACC_APPROVED : ACC_REJECTED };
+  }
+  return { ok:false, error:'ไม่พบรหัสพนักงาน '+target };
 }
 
 // ข้อความแถบวิ่ง — อ่าน (สาธารณะ)
