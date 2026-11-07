@@ -316,7 +316,21 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <label>รหัสผ่าน</label><input id="mmPw" type="password" autocomplete="current-password">
       <div class="mmsg" id="mmLoginMsg"></div>
       <div class="toolbar" style="margin-top:14px"><button class="btn btn-primary" id="mmDoLogin">เข้าสู่ระบบ</button></div>
-      <div class="note" style="margin-top:12px">ยังไม่ได้ลงทะเบียน? <a href="#" id="mmGoRegister" style="color:var(--pea);font-weight:700">ลงทะเบียนพนักงานมิเตอร์</a></div>
+      <div class="note" style="margin-top:12px">ยังไม่ได้ลงทะเบียน? <a href="#" id="mmGoRegister" style="color:var(--pea);font-weight:700">ลงทะเบียนพนักงานมิเตอร์</a>
+        · <a href="#" id="mmGoChangePw" style="color:var(--pea);font-weight:700">🔑 เปลี่ยนรหัสผ่าน</a></div>
+      <div class="note" style="margin-top:4px">ลืมรหัสผ่าน? ติดต่อ ผสอ.กวว.น.1 โทร 10130 ให้ Admin รีเซ็ต</div>
+    </div>
+    <!-- CHANGE PASSWORD -->
+    <div id="mmChangePw" class="hidden">
+      <label>รหัสพนักงาน</label><input id="mmCEmp" autocomplete="username">
+      <label>รหัสผ่านเดิม</label><input id="mmCOld" type="password" autocomplete="current-password">
+      <label>รหัสผ่านใหม่ (อย่างน้อย 4 ตัวอักษร)</label><input id="mmCNew" type="password" autocomplete="new-password">
+      <label>ยืนยันรหัสผ่านใหม่</label><input id="mmCNew2" type="password" autocomplete="new-password">
+      <div class="mmsg" id="mmCMsg"></div>
+      <div class="toolbar" style="margin-top:14px">
+        <button class="btn btn-primary" id="mmDoChangePw">💾 บันทึกรหัสผ่านใหม่</button>
+        <button class="btn btn-outline btn-sm" id="mmCBack">← กลับ</button>
+      </div>
     </div>
     <!-- REGISTER -->
     <div id="mmRegister" class="hidden">
@@ -374,6 +388,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <div class="toolbar" style="margin-top:14px">
         <button class="btn btn-primary" id="mmDoReport">💾 บันทึกผลการสับเปลี่ยน</button>
         <button class="btn btn-outline btn-sm" id="mmLogout">ออกจากระบบ</button>
+        <button class="btn btn-outline btn-sm" id="mmGoChangePw2">🔑 เปลี่ยนรหัสผ่าน</button>
       </div>
       <!-- แผงย้อนสถานะ (เฉพาะ Admin) -->
       <div id="mmRevertWrap" class="hidden" style="margin-top:16px;border-top:1px dashed var(--border);padding-top:12px">
@@ -2879,7 +2894,41 @@ async function meterApi(payload){
   const res = await fetch(METER_API_URL, {method:'POST', body:JSON.stringify(payload)});
   return res.json();
 }
+// เปลี่ยนรหัสผ่านเอง (ทุกตำแหน่ง · ใช้ได้ทั้งก่อนและหลัง login)
+let mmCBackTo = 'login';
+function mmShowChangePw(from){
+  mmCBackTo = from||'login';
+  ['#mmLogin','#mmReport','#mmRegister'].forEach(id=>$(id).classList.add('hidden')); $('#mmChangePw').classList.remove('hidden');
+  $('#mmTitle').textContent='🔑 เปลี่ยนรหัสผ่าน';
+  $('#mmCEmp').value = mmSession ? mmSession.emp : ($('#mmEmp').value.trim()||'');
+  $('#mmCEmp').readOnly = !!mmSession;
+  ['#mmCOld','#mmCNew','#mmCNew2'].forEach(id=>$(id).value=''); $('#mmCMsg').textContent='';
+}
+if($('#mmGoChangePw')) $('#mmGoChangePw').onclick = e=>{ e.preventDefault(); mmShowChangePw('login'); };
+if($('#mmGoChangePw2')) $('#mmGoChangePw2').onclick = ()=>mmShowChangePw('report');
+if($('#mmCBack')) $('#mmCBack').onclick = ()=>{ (mmCBackTo==='report'&&mmSession) ? mmShowReport() : mmShowLogin(); };
+if($('#mmDoChangePw')) $('#mmDoChangePw').onclick = async ()=>{
+  const msg=$('#mmCMsg'), err=t=>msg.innerHTML='<span style="color:var(--danger)">'+t+'</span>';
+  const emp=$('#mmCEmp').value.trim(), oldPw=$('#mmCOld').value, newPw=$('#mmCNew').value, n2=$('#mmCNew2').value;
+  if(!emp||!oldPw) return err('กรอกรหัสพนักงานและรหัสผ่านเดิม');
+  if(newPw.length<4) return err('รหัสผ่านใหม่ต้องมีอย่างน้อย 4 ตัวอักษร');
+  if(newPw!==n2) return err('รหัสผ่านใหม่ 2 ช่องไม่ตรงกัน');
+  if(newPw===oldPw) return err('รหัสผ่านใหม่ต้องไม่ซ้ำรหัสเดิม');
+  msg.textContent='กำลังบันทึก...';
+  try{ const r=await meterApi({action:'changepw', emp, oldPw, newPw});
+    if(r&&r.ok){
+      if(mmSession && mmSession.emp===emp) mmSession.pw=newPw;   // ใช้งานต่อได้ด้วยรหัสใหม่
+      ['#mmCOld','#mmCNew','#mmCNew2'].forEach(id=>$(id).value='');
+      msg.innerHTML='<span style="color:var(--green)">✅ เปลี่ยนรหัสผ่านเรียบร้อย'+(mmSession?'':' — เข้าสู่ระบบด้วยรหัสใหม่')+'</span>';
+      if(!mmSession){ $('#mmEmp').value=emp; setTimeout(()=>{ mmShowLogin(); $('#mmLoginMsg').innerHTML='<span style="color:var(--green)">✅ เปลี่ยนรหัสผ่านแล้ว — เข้าสู่ระบบด้วยรหัสใหม่</span>'; },1200); }
+    }
+    else if(r&&r.error==='invalid') err('รหัสพนักงานหรือรหัสผ่านเดิมไม่ถูกต้อง');
+    else if(r&&r.error==='pending') msg.innerHTML='<div style="background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:8px 10px;color:#8a5a00;font-weight:700">⏳ '+PENDING_CONTACT+'</div>';
+    else err('ไม่สำเร็จ: '+escHtml((r&&r.error)||'')+((r&&r.error)==='unknown action'?' (ระบบหลังบ้านยังไม่อัปเดต)':''));
+  }catch(e){ err('เชื่อมต่อไม่ได้'); }
+};
 function mmShowLogin(){
+  $('#mmChangePw').classList.add('hidden');
   $('#mmLogin').classList.remove('hidden'); $('#mmReport').classList.add('hidden'); $('#mmRegister').classList.add('hidden');
   const g = GATE_INFO[mmGate] || GATE_INFO.meter;
   $('#mmTitle').textContent = g.title;
@@ -2888,6 +2937,7 @@ function mmShowLogin(){
   $('#mmLoginMsg').textContent='';
 }
 function mmShowRegister(){
+  $('#mmChangePw').classList.add('hidden');
   $('#mmLogin').classList.add('hidden'); $('#mmReport').classList.add('hidden'); $('#mmRegister').classList.remove('hidden');
   const g = GATE_INFO[mmGate] || GATE_INFO.meter;
   $('#mmTitle').textContent = mmGate==='admin' ? '📋 ลงทะเบียนผู้ดูแลระบบ (Admin)' : (mmGate==='ca' ? '📋 ลงทะเบียน ผซฟ. (CA 82)' : '📋 ลงทะเบียนพนักงานมิเตอร์ (ผมต.)');
@@ -2903,6 +2953,7 @@ function mmShowRegister(){
   $('#mmRegMsg').textContent='';
 }
 function mmShowReport(){
+  $('#mmChangePw').classList.add('hidden');
   $('#mmLogin').classList.add('hidden'); $('#mmReport').classList.remove('hidden'); $('#mmRegister').classList.add('hidden');
   $('#mmTitle').textContent='📝 รายงานผลการสับเปลี่ยนมิเตอร์';
   const myHub = canonHub(mmSession.hub)||mmSession.hub||'';   // บัญชีเก่าที่เก็บ "กฟจ.เชียงใหม่ 2" → ชื่อมาตรฐานปัจจุบัน

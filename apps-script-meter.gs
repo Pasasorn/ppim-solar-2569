@@ -112,6 +112,7 @@ function doPost(e) {
     if (body.action === 'data')     return json(doGetData(body));
     if (body.action === 'register') return json(doRegister(body));
     if (body.action === 'resetpw')  return json(doResetPw(body));
+    if (body.action === 'changepw') return json(doChangePw(body));
     if (body.action === 'pendingusers') return json(doGetPendingUsers(body));
     if (body.action === 'dllog')        return json(doLogDownload(body));
     if (body.action === 'approveuser')  return json(doApproveUser(body));
@@ -203,6 +204,26 @@ function doResetPw(b) {
     }
   }
   return { ok:false, error:'ไม่พบรหัสพนักงาน '+target };
+}
+// ผู้ใช้เปลี่ยนรหัสผ่านเอง (ต้องใส่รหัสเดิมถูก · บัญชีรออนุมัติเปลี่ยนไม่ได้ เพราะ pwMatch ไม่ผ่าน)
+function doChangePw(b) {
+  var emp = String(b.emp||'').trim(), oldPw = String(b.oldPw||''), npw = String(b.newPw||'');
+  if (!emp || !oldPw) return { ok:false, error:'กรอกรหัสพนักงานและรหัสผ่านเดิม' };
+  if (npw.length < 4) return { ok:false, error:'รหัสผ่านใหม่ต้องมีอย่างน้อย 4 ตัวอักษร' };
+  if (npw === oldPw) return { ok:false, error:'รหัสผ่านใหม่ต้องไม่ซ้ำรหัสเดิม' };
+  var sh = sheet(EMP_TAB); if (!sh) return { ok:false, error:'ไม่พบแท็บ '+EMP_TAB };
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iE = colIndex(h,'รหัสพนักงาน'), iN = colIndex(h,'ชื่อ-สกุล'), iR = colIndex(h,'ตำแหน่ง'), iH = colIndex(h,'จุดร่วมงาน'), iP = colIndex(h,'password');
+  for (var r=1;r<data.length;r++){
+    if (String(data[r][iE]).trim() !== emp) continue;
+    var st = String(data[r][iP]==null?'':data[r][iP]);
+    if (st.indexOf(PENDING_PREFIX) === 0 && pwMatch(st.slice(PENDING_PREFIX.length), oldPw)) return { ok:false, error:'pending', msg:PENDING_CONTACT };
+    if (!pwMatch(st, oldPw)) return { ok:false, error:'invalid' };
+    sh.getRange(r+1, iP+1).setValue(makeHash(npw));
+    logUser(emp, String(data[r][iN]||''), iR>=0?String(data[r][iR]||''):'', iH>=0?String(data[r][iH]||''):'', 'เปลี่ยนรหัสผ่านเอง');
+    return { ok:true };
+  }
+  return { ok:false, error:'invalid' };
 }
 // รันเองใน Apps Script ครั้งเดียว (เลือกฟังก์ชันนี้ → Run): แปลงรหัสข้อความธรรมดาที่เหลือทั้งหมดเป็น hash
 function migratePasswords() {
