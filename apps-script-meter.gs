@@ -26,7 +26,7 @@ var MAIN_TAB  = 'PPIM Solar Update';
 var EMP_TAB   = 'พนักงานมิเตอร์';
 var LOG_TAB   = 'ผลสับเปลี่ยนมิเตอร์';
 var LOG_USER_TAB = 'บันทึกการเข้าใช้งาน';   // log ผู้ใช้ (login/register/รายงาน) ใคร-เมื่อไหร่-ทำอะไร
-var DL_LOG_TAB   = 'บันทึกการดาวน์โหลด';   // log การดาวน์โหลดไฟล์งานสับเปลี่ยน (เก็บหลังบ้านเท่านั้น ไม่แสดงในหน้าเว็บ)
+var DL_LOG_TAB   = 'บันทึกการดาวน์โหลด';   // log การดาวน์โหลดไฟล์งานสับเปลี่ยน (Admin ดูได้ในเมนู Admin · action dllogs)
 var TICKER_TAB   = 'ประกาศวิ่ง';            // ข้อความแถบวิ่งด้านล่าง (Admin แก้ไขได้) เก็บใน A1
 var PHOTO_FOLDER_ID = '1iL62z_4VPx9DBFH4S482jhbJ3phnHyvK';        // โฟลเดอร์ Drive เก็บรูปสับเปลี่ยนมิเตอร์
 var REG_PHOTO_FOLDER = 'รูปถ่ายผู้ลงทะเบียน';   // โฟลเดอร์ย่อยใน PHOTO_FOLDER_ID เก็บรูปถ่ายตอนลงทะเบียน
@@ -115,6 +115,7 @@ function doPost(e) {
     if (body.action === 'changepw') return json(doChangePw(body));
     if (body.action === 'pendingusers') return json(doGetPendingUsers(body));
     if (body.action === 'dllog')        return json(doLogDownload(body));
+    if (body.action === 'dllogs')       return json(doGetDownloadLogs(body));
     if (body.action === 'approveuser')  return json(doApproveUser(body));
     if (body.action === 'report')   return json(doReport(body));
     if (body.action === 'revert')   return json(doRevert(body));
@@ -415,6 +416,16 @@ function doLogDownload(b) {
   if (!lg) { lg = ss.insertSheet(DL_LOG_TAB); lg.appendRow(['เวลา','รหัสพนักงาน','ชื่อ-สกุล','ตำแหน่ง','จุดร่วมงาน (ทะเบียน)','ขอบเขตที่ดาวน์โหลด','จำนวนรายการ','ชื่อไฟล์','เลขที่คำขอ']); }
   lg.appendRow([ new Date(), u.emp, u.name, u.role, u.hub, String(b.scope||'').slice(0,200), reqs.length, String(b.file||'').slice(0,200), reqs.join(', ').slice(0, 45000) ]);
   return { ok:true };
+}
+
+// Admin: อ่าน log การดาวน์โหลด (ล่าสุด 1,000 รายการ)
+function doGetDownloadLogs(b) {
+  if (!isAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  var lg = sheet(DL_LOG_TAB); if (!lg) return { ok:true, rows:[] };
+  var d = lg.getDataRange().getValues();
+  return { ok:true, rows: d.slice(1).slice(-1000).map(function(x){
+    return { time:String(x[0]), emp:String(x[1]), name:String(x[2]), role:String(x[3]), hub:String(x[4]), scope:String(x[5]), n:Number(x[6])||0, file:String(x[7]), reqs:String(x[8]||'') };
+  }) };
 }
 
 // อ่านค่าทั้งชีต → {headers, rows} (แปลงวันที่เป็นสตริง เพื่อให้ frontend parse ได้)

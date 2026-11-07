@@ -560,6 +560,15 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
           <button class="btn btn-outline btn-sm" id="btnApRefresh">⟳ โหลดรายชื่อ</button></div>
         <div id="apContent"><div class="note">เข้าสู่ระบบด้วยตำแหน่ง Admin เพื่อดูรายชื่อรออนุมัติ</div></div>
       </div>
+      <div class="no-print" style="margin-bottom:14px;background:#f4f8fd;border:1px solid #cfe0f5;border-radius:12px;padding:10px 12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+          <b style="color:#2c66ad">📥 บันทึกการดาวน์โหลดไฟล์งานสับเปลี่ยน <span id="dlCount" class="note"></span></b>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <select id="dlHub" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:8px"><option value="">ทุกจุดร่วมงาน</option></select>
+            <select id="dlDays" style="padding:5px 8px;border:1.5px solid var(--border);border-radius:8px"><option value="7">7 วันล่าสุด</option><option value="30" selected>30 วันล่าสุด</option><option value="0">ทั้งหมด</option></select>
+            <button class="btn btn-outline btn-sm" id="btnDlRefresh">⟳ โหลด</button></div></div>
+        <div id="dlContent"><div class="note">เข้าสู่ระบบด้วยตำแหน่ง Admin เพื่อดูบันทึกการดาวน์โหลด</div></div>
+      </div>
       <div id="logContent"><div class="note">เข้าสู่ระบบด้วยตำแหน่ง Admin เพื่อดูบันทึกการใช้งาน</div></div>
       <div class="no-print" style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
         <label style="font-weight:700;font-size:.85rem;display:block;margin-bottom:4px">🔑 รีเซ็ตรหัสผ่านพนักงาน (เฉพาะ Admin · ทีละคน)</label>
@@ -3140,6 +3149,32 @@ if($('#mmRPhoto')) $('#mmRPhoto').onchange = async (ev)=>{
   try{ mmRegPhoto=await shrinkImage(f,800); pv.src=mmRegPhoto; pv.classList.remove('hidden'); }
   catch(e){ pv.classList.add('hidden'); $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">'+escHtml(e.message)+'</span>'; }
 };
+// ===== log การดาวน์โหลด (Admin) =====
+let dlRows = [];
+async function loadDlLogs(){
+  const el=$('#dlContent'); if(!el||!mmSession) return;
+  el.innerHTML='<div class="note">กำลังโหลด...</div>';
+  try{ const r=await meterApi({action:'dllogs', emp:mmSession.emp, pw:mmSession.pw});
+    if(!r||!r.ok){ el.innerHTML='<div class="note" style="color:var(--danger)">โหลดไม่ได้: '+escHtml((r&&r.error)||'')+((r&&r.error)==='unknown action'?' (ยังไม่ได้ deploy Apps Script เวอร์ชันใหม่)':'')+'</div>'; return; }
+    dlRows=(r.rows||[]).reverse();
+    const hs=[...new Set(dlRows.map(x=>x.hub||'(ไม่ระบุ)'))].sort((a,b)=>a.localeCompare(b,'th')), sel=$('#dlHub'), cur=sel.value;
+    sel.innerHTML='<option value="">ทุกจุดร่วมงาน</option>'+hs.map(h=>`<option${h===cur?' selected':''}>${escHtml(h)}</option>`).join('');
+    renderDlLogs();
+  }catch(e){ el.innerHTML='<div class="note" style="color:var(--danger)">เชื่อมต่อไม่ได้: '+escHtml(e.message)+'</div>'; }
+}
+function renderDlLogs(){
+  const el=$('#dlContent'); if(!el) return;
+  const hub=$('#dlHub').value, days=+$('#dlDays').value, from=days?Date.now()-days*864e5:0;
+  const L=dlRows.filter(x=>(!hub||(x.hub||'(ไม่ระบุ)')===hub)&&(!from||new Date(x.time).getTime()>=from));
+  $('#dlCount').textContent=L.length?`· ${fmtN(L.length)} ครั้ง · ${fmtN(L.reduce((a,x)=>a+x.n,0))} รายการ`:'';
+  el.innerHTML=L.length?`<div style="overflow:auto;max-height:380px"><table style="font-size:.83rem"><thead><tr><th>เวลา</th><th>รหัส</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>จุดร่วมงาน</th><th>ขอบเขต</th><th style="text-align:right">รายการ</th><th>เลขที่คำขอ</th></tr></thead><tbody>
+    ${L.map((x,i)=>`<tr><td style="white-space:nowrap">${fmtLogTime(x.time)}</td><td>${escHtml(x.emp)}</td><td>${escHtml(x.name)}</td><td>${escHtml(x.role)}</td><td>${escHtml(x.hub||'-')}</td><td>${escHtml(x.scope)}</td><td style="text-align:right;font-weight:700">${fmtN(x.n)}</td>
+      <td>${x.reqs?`<details><summary style="cursor:pointer;color:var(--pea)">ดู</summary><div style="max-width:420px;white-space:normal;font-size:.78rem;color:#555">${escHtml(x.reqs)}</div></details>`:'-'}</td></tr>`).join('')}
+    </tbody></table></div>`:'<div class="note">ไม่มีการดาวน์โหลดในช่วงที่เลือก</div>';
+}
+if($('#btnDlRefresh')) $('#btnDlRefresh').onclick = loadDlLogs;
+if($('#dlHub')) $('#dlHub').onchange = renderDlLogs;
+if($('#dlDays')) $('#dlDays').onchange = renderDlLogs;
 // ===== log การใช้งาน (Admin) =====
 function fmtLogTime(t){ const d=new Date(t); return isNaN(d)?(t||'-'):d.toLocaleString('th-TH'); }
 async function loadLog(){
@@ -3225,7 +3260,7 @@ if($('#mmDoLogin')) $('#mmDoLogin').onclick = async ()=>{
         caAuthed=true;
         const c=$('#uploadCard'); if(c){ c.classList.remove('hidden'); $('#uploadBody').classList.remove('hidden'); $('#uploadArrow').textContent='▾'; }
         if($('#navLog')) $('#navLog').classList.remove('hidden');   // เปิดเมนู log
-        loadLog(); loadPendingUsers();
+        loadLog(); loadPendingUsers(); loadDlLogs();
       } else if(kind==='ca'){ caAuthed=true; }
       renderCA();
       // ไปหน้าตามประตูที่เข้ามา
