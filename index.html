@@ -2024,19 +2024,19 @@ function renderMeterFlow(){
       plugins:[{id:'barValues',afterDatasetsDraw(ch){ const {ctx}=ch; ctx.save(); ctx.font='700 12px sans-serif'; ctx.fillStyle='#3b3f46'; ctx.textAlign='center'; ctx.textBaseline='bottom';
         ch.getDatasetMeta(0).data.forEach((bar,i)=>ctx.fillText(fmtN(E[i][1]), bar.x, bar.y-4)); ctx.restore(); }}]});
   } else {
-    // ภาพรวมทุกขั้น (ยังไม่เลือกการ์ด): แท่งซ้อนแยกจุดรวมงาน สีตามขั้น 2–5 (+ COD ซ่อนไว้ กดคำอธิบายเพื่อแสดง)
+    // ภาพรวมทุกขั้น (ยังไม่เลือกการ์ด): แท่งซ้อนแยกจุดรวมงาน สีตามขั้น 2–5 + 🏁 COD
     // ขั้น 1 (CA 82) ทำคู่ขนาน นับซ้ำกับขั้นอื่น จึงไม่นำมาซ้อน
     const ks=['doc','alloc','swap','pbs','cod'], hubOf=r=>reqHub(r)||'ไม่ระบุจุดรวมงาน';
     const gp={}; ks.forEach(k=>{ const f=st.find(x=>x.k===k); (f?f.L:[]).forEach(r=>{ const hb=hubOf(r); (gp[hb]=gp[hb]||{})[k]=((gp[hb]||{})[k]||0)+1; }); });
     const H=HUB_LIST.filter(hb=>hb!==CENTRAL_HUB||gp[hb]).concat(Object.keys(gp).filter(hb=>!HUB_LIST.includes(hb)));
     h += `<div style="margin-top:14px;background:#fff;border-radius:14px;padding:12px 14px">
       <div style="font-weight:800;color:var(--pea)">📊 ภาพรวมทุกขั้น — แยกจุดรวมงาน</div>
-      <div class="note" style="margin-bottom:6px">กดการ์ดด้านบนเพื่อดูทีละขั้น · กดชื่อขั้นใต้กราฟเพื่อซ่อน/แสดง (🏁 COD ซ่อนไว้) · ขั้น 1 (CA 82) ทำคู่ขนาน ไม่นำมาซ้อน</div>
+      <div class="note" style="margin-bottom:6px">กดการ์ดด้านบนเพื่อดูทีละขั้น · กดชื่อขั้นใต้กราฟเพื่อซ่อน/แสดง · ขั้น 1 (CA 82) ทำคู่ขนาน ไม่นำมาซ้อน</div>
       <div style="position:relative;height:360px"><canvas id="meterFlowChart"></canvas></div></div>`;
     el.innerHTML = h;
     const lab=k=>{ const f=st.find(x=>x.k===k)||{}, m=METER_STEPS.find(x=>x.k===k)||{}; return (m.no&&m.no!=='🏁'?m.no+'. ':'🏁 ')+(f.l||k); };
     mflowChart = new Chart($('#meterFlowChart'),{type:'bar',
-      data:{labels:H,datasets:ks.map(k=>({label:lab(k),data:H.map(hb=>(gp[hb]||{})[k]||0),backgroundColor:(METER_STEPS.find(m=>m.k===k)||{}).c,stack:'s',hidden:k==='cod',maxBarThickness:40,borderColor:'#fff',borderWidth:{top:1}}))},
+      data:{labels:H,datasets:ks.map(k=>({label:lab(k),data:H.map(hb=>(gp[hb]||{})[k]||0),backgroundColor:(METER_STEPS.find(m=>m.k===k)||{}).c,stack:'s',maxBarThickness:40,borderColor:'#fff',borderWidth:{top:1}}))},
       options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},
         onClick:(e,els,ch)=>{ if(els&&els.length){ const k=ks[els[0].datasetIndex]; meterFlowPick(k); } },
         plugins:{legend:{position:'bottom',labels:{boxWidth:14,font:{size:12}}},tooltip:{mode:'index',intersect:false}},
