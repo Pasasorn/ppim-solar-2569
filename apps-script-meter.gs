@@ -388,16 +388,6 @@ function doSetTicker(b) {
   return { ok:true };
 }
 // ตรวจสิทธิ์ Admin (ไม่บันทึก log)
-// ตรวจว่าเป็นพนักงานที่ลงทะเบียนไว้ไหม (ทุกตำแหน่ง) — ใช้ก่อนส่งข้อมูลให้ดู
-function isRegistered(emp, pw) {
-  var sh = sheet(EMP_TAB); if (!sh) return false;
-  var data = sh.getDataRange().getValues(), h = data[0];
-  var iE = colIndex(h,'รหัสพนักงาน'), iP = colIndex(h,'password');
-  for (var r=1;r<data.length;r++){
-    if (String(data[r][iE]).trim() === String(emp||'').trim() && pwMatch(data[r][iP], pw)) return true;
-  }
-  return false;
-}
 
 // บันทึกการดาวน์โหลดไฟล์งานสับเปลี่ยนมิเตอร์ — ใช้ข้อมูลผู้ใช้จากทะเบียน (ไม่เชื่อค่าที่หน้าเว็บส่งมา) · ไม่มี API อ่านกลับ
 function doLogDownload(b) {
@@ -449,14 +439,94 @@ function readSheetValues(ss, tabName) {
 // ส่งข้อมูลทั้ง 2 ชีตให้ dashboard (ต้อง login ก่อน) — แทนการอ่าน gviz ตรงๆ เพื่อให้ชีตเป็น private ได้
 function doGetData(b) {
   // อ่านข้อมูลภาพรวมได้โดยไม่ต้อง login (ภาพรวม/SLA/กราฟ ดูได้เลย) — ชีตยังเป็น private ได้เพราะอ่านผ่าน Apps Script
-  // PDPA: ไม่ได้ login เป็นพนักงาน → ปิดบังข้อมูลส่วนบุคคลก่อนส่งออก (ดูจาก F12/เรียก API ตรงก็ไม่เห็น)
-  var authed = !!(b && b.emp && isRegistered(b.emp, b.pw));
+  // PDPA: ไม่ login → ปิดบังข้อมูลส่วนบุคคลทุกแถว · ผมต. จุดร่วมงานทั่วไป → เห็นเต็มเฉพาะแถวในจุดร่วมงานตัวเอง (แถวอื่นปิดบัง)
+  //       Admin / ผซฟ. / จุดกลาง กบล.กฟน.1 → เห็นเต็มทุกแถว · สิทธิ์อ่านจากทะเบียนพนักงาน (ไม่เชื่อค่าที่หน้าเว็บส่งมา)
+  var u = (b && b.emp) ? getAuthUser(b.emp, b.pw) : null;
   var main = readSheetValues(SpreadsheetApp.openById(SHEET_ID), MAIN_TAB);
   var sla;
   try { sla = readSheetValues(SpreadsheetApp.openById(SLA_SHEET_ID), null); }
   catch(e){ sla = { headers:[], rows:[] }; }
-  if (!authed) { maskPii(main); maskPii(sla); }
-  return { ok:true, main:main, sla:sla, masked:!authed };
+  var scope = dataScope(u);   // 'all' | 'none' | ชื่อจุดร่วมงาน
+  if (scope !== 'all') { maskPii(main, scope); maskPii(sla, scope); }
+  return { ok:true, main:main, sla:sla, masked: scope !== 'all', scope: scope === 'all' ? 'all' : (scope === 'none' ? 'none' : 'hub'), hub: (scope !== 'all' && scope !== 'none') ? scope : '' };
+}
+// ผู้ใช้ที่ login ถูกต้อง (บัญชีรออนุมัติ pwMatch ไม่ผ่าน → null)
+function getAuthUser(emp, pw) {
+  var sh = sheet(EMP_TAB); if (!sh) return null;
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iE = colIndex(h,'รหัสพนักงาน'), iP = colIndex(h,'password'), iR = colIndex(h,'ตำแหน่ง'), iH = colIndex(h,'จุดร่วมงาน');
+  for (var r=1;r<data.length;r++){
+    if (String(data[r][iE]).trim() === String(emp||'').trim() && pwMatch(data[r][iP], pw))
+      return { role: iR>=0 ? String(data[r][iR]||'') : '', hub: iH>=0 ? String(data[r][iH]||'') : '' };
+  }
+  return null;
+}
+function dataScope(u) {
+  if (!u) return 'none';
+  var rl = String(u.role||'');
+  if (rl.toLowerCase().indexOf('admin') >= 0 || rl.indexOf('ผซฟ') >= 0) return 'all';
+  var hub = canonHub(u.hub) || '';
+  if (hub === CENTRAL_HUB) return 'all';
+  return hub || 'none';   // บัญชีไม่มีจุดร่วมงาน → ปิดบังทั้งหมด
+}
+
+// ===== จุดร่วมงานของแต่ละแถว (ตรรกะเดียวกับ reqHub()/canonHub() ใน index.html — แก้ที่หนึ่งต้องแก้อีกที่) =====
+var HUB_LIST = ['กบล.กฟน.1','กฟจ.เชียงราย','กฟจ.เชียงใหม่','กฟส.เมืองเชียงใหม่ 2','กฟจ.พะเยา','กฟจ.ลำปาง','กฟจ.ลำพูน','กฟจ.แม่ฮ่องสอน','กฟส.เกาะคา','กฟส.จอมทอง','กฟส.เทิง','กฟส.ฝาง','กฟส.พาน','กฟส.แม่ริม','กฟส.แม่สาย','กฟส.สันกำแพง','กฟส.สันทราย','กฟส.สันป่าตอง','กฟส.หางดง'];
+var DEFAULT_HUB_MAP = {
+  'กฟจ.พะเยา':'กฟจ.พะเยา','กฟย.แม่กา':'กฟจ.พะเยา','กฟส.จุน':'กฟจ.พะเยา','กฟส.เชียงคำ':'กฟจ.พะเยา',
+  'กฟส.เชียงม่วน':'กฟจ.พะเยา','กฟส.ดอกคำใต้':'กฟจ.พะเยา','กฟส.ปง':'กฟจ.พะเยา','กฟส.ภูกามยาว':'กฟจ.พะเยา',
+  'กฟส.ภูซาง':'กฟจ.พะเยา','กฟส.แม่ใจ':'กฟจ.พะเยา',
+  'กฟจ.แม่ฮ่องสอน':'กฟจ.แม่ฮ่องสอน','กฟส.กัลยาณิวัฒนา':'กฟจ.แม่ฮ่องสอน','กฟส.ขุนยวม':'กฟจ.แม่ฮ่องสอน',
+  'กฟส.ปางมะผ้า':'กฟจ.แม่ฮ่องสอน','กฟส.ปาย':'กฟจ.แม่ฮ่องสอน','กฟส.แม่ลาน้อย':'กฟจ.แม่ฮ่องสอน',
+  'กฟส.แม่สะเรียง':'กฟจ.แม่ฮ่องสอน','กฟส.สบเมย':'กฟจ.แม่ฮ่องสอน',
+  'กฟน.1':'กฟน.1',
+  'กฟส.เกาะคา':'กฟส.เกาะคา','กฟส.เถิน':'กฟส.เกาะคา','กฟส.แม่ทะ':'กฟส.เกาะคา','กฟส.แม่พริก':'กฟส.เกาะคา',
+  'กฟส.สบปราบ':'กฟส.เกาะคา','กฟส.เสริมงาม':'กฟส.เกาะคา','กฟส.ห้างฉัตร':'กฟส.เกาะคา',
+  'กฟส.จอมทอง':'กฟส.จอมทอง','กฟส.ดอยเต่า':'กฟส.จอมทอง','กฟส.ดอยหล่อ':'กฟส.จอมทอง','กฟส.แม่แจ่ม':'กฟส.จอมทอง',
+  'กฟส.อมก๋อย':'กฟส.จอมทอง','กฟส.ฮอด':'กฟส.จอมทอง','กฟต.บ่อหลวง':'กฟส.จอมทอง',
+  'กฟจ.เชียงราย':'กฟจ.เชียงราย','กฟต.ห้วยสัก':'กฟจ.เชียงราย','กฟส.นางแล':'กฟจ.เชียงราย',
+  'กฟส.เวียงชัย':'กฟจ.เชียงราย','กฟส.เวียงเชียงรุ้ง':'กฟจ.เชียงราย',
+  'กฟส.ขุนตาล':'กฟส.เทิง','กฟส.เชียงของ':'กฟส.เทิง','กฟส.เทิง':'กฟส.เทิง','กฟส.พญาเม็งราย':'กฟส.เทิง','กฟส.เวียงแก่น':'กฟส.เทิง',
+  'กฟส.ไชยปราการ':'กฟส.ฝาง','กฟส.ฝาง':'กฟส.ฝาง','กฟส.แม่อาย':'กฟส.ฝาง',
+  'กฟส.ป่าแดด':'กฟส.พาน','กฟส.พาน':'กฟส.พาน','กฟส.แม่ลาว':'กฟส.พาน','กฟส.แม่สรวย':'กฟส.พาน','กฟส.เวียงป่าเป้า':'กฟส.พาน',
+  'กฟจ.เชียงใหม่':'กฟจ.เชียงใหม่','กฟส.สารภี':'กฟจ.เชียงใหม่',
+  'กฟจ.เชียงใหม่ 2':'กฟส.เมืองเชียงใหม่ 2','กฟส.เมืองเชียงใหม่ 2':'กฟส.เมืองเชียงใหม่ 2','กฟส.ดอยสะเก็ด':'กฟส.เมืองเชียงใหม่ 2',
+  'กฟต.ป่าแป๋':'กฟส.แม่ริม','กฟส.เชียงดาว':'กฟส.แม่ริม','กฟส.แม่แตง':'กฟส.แม่ริม','กฟส.แม่ริม':'กฟส.แม่ริม',
+  'กฟส.เวียงแหง':'กฟส.แม่ริม',
+  'กฟต.แม่สลองนอก':'กฟส.แม่สาย','กฟบ.เทอดไทย':'กฟส.แม่สาย','กฟฟ.ดอยตุง':'กฟส.แม่สาย','กฟส.ดอยหลวง':'กฟส.แม่สาย',
+  'กฟส.แม่ฟ้าหลวง':'กฟส.แม่สาย','กฟส.เชียงแสน':'กฟส.แม่สาย','กฟส.แม่จัน':'กฟส.แม่สาย','กฟส.แม่สาย':'กฟส.แม่สาย',
+  'กฟจ.ลำปาง':'กฟจ.ลำปาง','กฟต.พบชส.':'กฟจ.ลำปาง','กฟส.งาว':'กฟจ.ลำปาง','กฟส.แจ้ห่ม':'กฟจ.ลำปาง',
+  'กฟส.เมืองปาน':'กฟจ.ลำปาง','กฟส.แม่เมาะ':'กฟจ.ลำปาง','กฟส.วังเหนือ':'กฟจ.ลำปาง',
+  'กฟจ.ลำพูน':'กฟจ.ลำพูน','กฟต.นครเจดีย์':'กฟจ.ลำพูน','กฟส.ป่าซาง':'กฟจ.ลำพูน','กฟส.ทุ่งหัวช้าง':'กฟจ.ลำพูน',
+  'กฟส.บ้านธิ':'กฟจ.ลำพูน','กฟส.บ้านโฮ่ง':'กฟจ.ลำพูน','กฟส.แม่ทา':'กฟจ.ลำพูน','กฟส.ลี้':'กฟจ.ลำพูน',
+  'กฟส.เวียงหนองล่อง':'กฟจ.ลำพูน','กฟส.แม่ตืน':'กฟจ.ลำพูน',
+  'กฟส.แม่ออน':'กฟส.สันกำแพง','กฟส.สันกำแพง':'กฟส.สันกำแพง',
+  'กฟส.พร้าว':'กฟส.สันทราย','กฟส.สันทราย':'กฟส.สันทราย','กฟส.สันทราย':'กฟส.สันทราย',
+  'กฟส.แม่วาง':'กฟส.สันป่าตอง','กฟส.สันป่าตอง':'กฟส.สันป่าตอง',
+  'กฟส.หางดง':'กฟส.หางดง','กฟส.สะเมิง':'กฟส.หางดง'
+};
+function hubKey(s) { return String(s||'').replace(/^กฟ[จอสฟน]\.?\s*/,'').replace(/\s+/g,'').replace(/^เมือง(?=เชียงใหม่|เชียงราย|ลำพูน|ลำปาง|พะเยา|แม่ฮ่องสอน)/,'').trim(); }
+function canonHub(s) { var k = hubKey(s); if (!k) return ''; for (var i=0;i<HUB_LIST.length;i++) if (hubKey(HUB_LIST[i]) === k) return HUB_LIST[i]; return ''; }
+// หาคอลัมน์ area / areaCheck / hub ตามชื่อหัว (ลำดับคำค้นเดียวกับ FIELDS ใน index.html)
+function hubCols(headers) {
+  var norm = function(x){ return String(x||'').toLowerCase().replace(/\s+/g,''); };
+  var H = headers.map(norm), used = {};
+  function find(kws) {
+    var modes = ['eq','start','inc'];
+    for (var m=0;m<3;m++) for (var k=0;k<kws.length;k++) { var q = norm(kws[k]);
+      for (var i=0;i<H.length;i++) { if (used[i]) continue;
+        if ((modes[m]==='eq' && H[i]===q) || (modes[m]==='start' && H[i].indexOf(q)===0) || (modes[m]==='inc' && H[i].indexOf(q)>=0)) { used[i]=1; return i; } } }
+    return -1;
+  }
+  var iArea = find(['กฟฟ.พื้นที่','พื้นที่ กฟฟ','พื้นที่','การไฟฟ้า','สังกัด']);
+  var iChk  = find(['กฟฟ.ที่ตรวจสอบ','กฟฟ.ตรวจสอบ']);
+  var iHub  = find(['กฟฟ.จุดรวมงาน','จุดรวมงาน','จุดร่วมงาน']);
+  return { area:iArea, chk:iChk, hub:iHub };
+}
+function rowHub(row, c) {
+  var g = function(i){ return i>=0 ? String(row[i]||'').trim() : ''; };
+  var area = g(c.area), chk = g(c.chk), hub = g(c.hub);
+  return canonHub(chk) || canonHub(area) || canonHub(hub) || canonHub(DEFAULT_HUB_MAP[area]) || canonHub(DEFAULT_HUB_MAP[chk]) || '';
 }
 
 // ===== PDPA: ปิดบังข้อมูลส่วนบุคคล (ผูกตามชื่อหัวคอลัมน์) =====
@@ -479,10 +549,12 @@ function piiKind(header) {
   if (n === 'ca' || n.indexOf('peano') === 0 || PII_BLANK_COLS.some(function(k){ return n.indexOf(k) >= 0; })) return 'blank';   // PEA No. แต่ไม่ใช่ TR PEA No.
   return '';
 }
-function maskPii(tbl) {
+function maskPii(tbl, keepHub) {
   if (!tbl || !tbl.headers) return;
   var kinds = tbl.headers.map(piiKind);
+  var c = (keepHub && keepHub !== 'none') ? hubCols(tbl.headers) : null;   // ผมต.: แถวในจุดร่วมงานตัวเองไม่ต้องปิดบัง
   tbl.rows.forEach(function(row){
+    if (c && rowHub(row, c) === keepHub) return;
     for (var i=0;i<kinds.length;i++){
       if (kinds[i] === 'name') row[i] = maskPersonName(row[i]);
       else if (kinds[i] === 'blank') row[i] = '';
