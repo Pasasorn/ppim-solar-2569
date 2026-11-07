@@ -31,7 +31,7 @@ jobs:
         run: |
           bad=0
           if [ -z "$CLASPRC_JSON" ]; then echo "::error::ยังไม่ได้ตั้ง secret CLASPRC_JSON (Settings → Secrets and variables → Actions)"; bad=1; fi
-          if [ -z "$GAS_SCRIPT_ID" ]; then echo "::error::ยังไม่ได้ตั้ง secret GAS_SCRIPT_ID — ใส่ Script ID จาก Apps Script → ⚙️ Project Settings → IDs → Script ID"; bad=1
+          if [ -z "$GAS_SCRIPT_ID" ]; then echo "::notice::ไม่ได้ตั้ง GAS_SCRIPT_ID — จะค้นหาโปรเจกต์ที่มี Deployment ของ Dashboard ให้อัตโนมัติ"
           elif [[ "$GAS_SCRIPT_ID" == AKfycb* ]]; then echo "::error::GAS_SCRIPT_ID ขึ้นต้น AKfycb… = Deployment ID (ผิดช่อง) — ต้องใช้ Script ID จาก ⚙️ Project Settings → IDs"; bad=1
           elif ! [[ "$GAS_SCRIPT_ID" =~ ^[A-Za-z0-9_-]{40,80}$ ]]; then echo "::error::GAS_SCRIPT_ID รูปแบบไม่ถูกต้อง (ยาว ${#GAS_SCRIPT_ID} ตัว · มีช่องว่าง/อักขระแปลก?) — คัดลอก Script ID ใหม่ทั้งบรรทัด"; bad=1; fi
           exit $bad
@@ -58,9 +58,26 @@ jobs:
             require("fs").writeFileSync(process.env.HOME + "/.clasprc.json", JSON.stringify(j));
           '
 
-      - name: ดึงโปรเจกต์เดิม (เก็บ appsscript.json เดิมไว้) แล้ววางโค้ดใหม่ทับ
+      - name: หา Script ID (ใช้ secret ถ้ามี · ไม่มี → ค้นจากโปรเจกต์ในบัญชีที่มี Deployment ID ของ Dashboard)
         env:
           GAS_SCRIPT_ID: ${{ secrets.GAS_SCRIPT_ID }}
+        run: |
+          if [ -n "$GAS_SCRIPT_ID" ]; then echo "SCRIPT_ID=$GAS_SCRIPT_ID" >> "$GITHUB_ENV"; echo "ใช้ Script ID จาก secret"; exit 0; fi
+          clasp list-scripts --noShorten > scripts.txt 2>&1 || clasp list-scripts > scripts.txt 2>&1 || true
+          cat scripts.txt
+          ids=$(grep -oE '/d/[A-Za-z0-9_-]{20,}' scripts.txt | cut -d/ -f3 | sort -u | head -60)
+          [ -z "$ids" ] && { echo "::error::ไม่พบโปรเจกต์ Apps Script ในบัญชีของ CLASPRC_JSON (โปรเจกต์อาจผูกกับชีต — ต้องตั้ง secret GAS_SCRIPT_ID เอง)"; exit 1; }
+          for id in $ids; do
+            d=$(mktemp -d); printf '{"scriptId":"%s","rootDir":"."}' "$id" > "$d/.clasp.json"
+            if (cd "$d" && clasp list-deployments 2>/dev/null) | grep -q "$GAS_DEPLOYMENT_ID"; then
+              echo "พบ Script ID ของ Dashboard: $id"; echo "::notice::Script ID ของ Dashboard = $id (นำไปตั้งเป็น secret GAS_SCRIPT_ID ได้ จะเร็วขึ้น)"
+              echo "SCRIPT_ID=$id" >> "$GITHUB_ENV"; exit 0; fi
+          done
+          echo "::error::ไม่พบโปรเจกต์ที่มี Deployment $GAS_DEPLOYMENT_ID ในบัญชีนี้ (บัญชีที่ clasp login อาจไม่ใช่เจ้าของสคริปต์ หรือโปรเจกต์ผูกกับชีต) — ตั้ง secret GAS_SCRIPT_ID เอง"; exit 1
+
+      - name: ดึงโปรเจกต์เดิม (เก็บ appsscript.json เดิมไว้) แล้ววางโค้ดใหม่ทับ
+        env:
+          GAS_SCRIPT_ID: ${{ env.SCRIPT_ID }}
         run: |
           mkdir gas && cd gas
           printf '{"scriptId":"%s","rootDir":"."}' "$GAS_SCRIPT_ID" > .clasp.json
