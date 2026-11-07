@@ -264,7 +264,7 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
 #splash .sp-box{text-align:center;padding:24px 16px;max-width:360px;width:100%}
 #splash .sp-sun{width:170px;height:170px;margin:0 auto 6px;display:block;animation:spBob 1.8s ease-in-out infinite}
 #splash .sp-rays{transform-origin:100px 100px;animation:spSpin 9s linear infinite}
-#splash .sp-tear{animation:spShine 1.6s ease-in-out infinite}
+#splash .sp-tongue{transform-origin:111px 124px;animation:spWag 1.2s ease-in-out infinite}
 #splash .sp-blink{transform-origin:center;transform-box:fill-box;animation:spBlink 4s infinite}
 #splash .sp-msg{color:var(--pea);font-weight:700;font-size:1.08rem;margin-top:4px}
 #splash .sp-sub{color:var(--gray);font-size:.86rem;margin-top:2px;min-height:1.2em}
@@ -280,9 +280,9 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
 #splash .sp-close{background:#EAE6F2;color:var(--pea)}
 @keyframes spBob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-8px) rotate(4deg)}}
 @keyframes spSpin{to{transform:rotate(360deg)}}
-@keyframes spShine{0%,100%{opacity:1}50%{opacity:.45}}
+@keyframes spWag{0%,100%{transform:rotate(-8deg)}50%{transform:rotate(10deg)}}
 @keyframes spBlink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
-@media (prefers-reduced-motion: reduce){#splash .sp-sun,#splash .sp-rays,#splash .sp-tear,#splash .sp-blink{animation:none}}
+@media (prefers-reduced-motion: reduce){#splash .sp-sun,#splash .sp-rays,#splash .sp-tongue,#splash .sp-blink{animation:none}}
 @media print{#splash{display:none!important}}
 </style>
 </head>
@@ -294,15 +294,16 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
       <circle cx="100" cy="100" r="58" fill="#FFD23F" stroke="#F5B400" stroke-width="3"/>
       <ellipse cx="66" cy="116" rx="11" ry="7" fill="#FF9AA8" opacity=".75"/>
       <ellipse cx="134" cy="116" rx="11" ry="7" fill="#FF9AA8" opacity=".75"/>
-      <path d="M64 78 q12 -10 24 -3" stroke="#7A4A00" stroke-width="3.5" fill="none" stroke-linecap="round"/>
-      <path d="M136 78 q-12 -10 -24 -3" stroke="#7A4A00" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <path d="M64 74 q13 -12 26 -4" stroke="#7A4A00" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <path d="M110 80 q12 -5 24 2" stroke="#7A4A00" stroke-width="3.5" fill="none" stroke-linecap="round"/>
       <g class="sp-blink">
-        <circle cx="78" cy="98" r="14" fill="#4A2A00"/><circle cx="122" cy="98" r="14" fill="#4A2A00"/>
-        <circle cx="83" cy="92" r="5.5" fill="#fff"/><circle cx="127" cy="92" r="5.5" fill="#fff"/>
-        <circle cx="73" cy="104" r="2.6" fill="#fff"/><circle cx="117" cy="104" r="2.6" fill="#fff"/>
+        <circle cx="77" cy="96" r="12" fill="#4A2A00"/>
+        <circle cx="81" cy="91" r="4.5" fill="#fff"/><circle cx="73" cy="101" r="2.2" fill="#fff"/>
       </g>
-      <path class="sp-tear" d="M131 111 q5 9 0 13 q-5 -4 0 -13z" fill="#7CC8FF"/>
-      <path d="M90 132 q10 -8 20 0" stroke="#7A4A00" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <path d="M110 98 q12 -12 24 0" stroke="#4A2A00" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M74 120 q26 26 52 0 q-26 8 -52 0z" fill="#7A2E00" stroke="#7A4A00" stroke-width="3" stroke-linejoin="round"/>
+      <g class="sp-tongue"><path d="M104 125 q10 -1 14 -3 q4 16 -6 18 q-9 1 -8 -15z" fill="#FF6F8E" stroke="#C94466" stroke-width="2"/>
+        <path d="M111 126 l1 8" stroke="#C94466" stroke-width="1.6" stroke-linecap="round"/></g>
     </svg>
     <div class="sp-msg" id="spMsg">รอแป๊บนะคะ กำลังโหลดข้อมูล…</div>
     <div class="sp-sub" id="spSub">กำลังเชื่อมต่อระบบ PPIM</div>
@@ -327,7 +328,7 @@ window.splash=(function(){
   const msgEl=document.getElementById('spMsg');
   function start(){ msgEl.textContent='รอแป๊บนะคะ กำลังโหลดข้อมูล…'; done=false; t0=Date.now(); p=0; el.classList.remove('err','out'); show(0); clearInterval(timer); timer=setInterval(tick,120); }
   function finish(){ if(done) return; done=true; clearInterval(timer); show(100); setTimeout(()=>el.classList.add('out'),450); }
-  function fail(msg){ done=true; clearInterval(timer); msgEl.textContent='ขอโทษนะคะ 🥺 โหลดข้อมูลไม่สำเร็จ'; sub.textContent='ลองใหม่อีกครั้ง หรือเข้าหน้าเว็บไปก่อนได้ค่ะ'; el.classList.add('err'); document.getElementById('spErr').textContent=msg||''; }
+  function fail(msg){ done=true; clearInterval(timer); msgEl.textContent='อุ๊ย! 😜 โหลดข้อมูลไม่สำเร็จ'; sub.textContent='ลองใหม่อีกครั้ง หรือเข้าหน้าเว็บไปก่อนได้ค่ะ'; el.classList.add('err'); document.getElementById('spErr').textContent=msg||''; }
   document.getElementById('spClose').onclick=()=>el.classList.add('out');
   start();
   return {start, finish, fail, active:()=>!el.classList.contains('out')};
