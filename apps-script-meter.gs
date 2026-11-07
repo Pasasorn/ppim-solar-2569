@@ -317,6 +317,7 @@ function doRegister(b) {
   row[iS] = isAdm ? ACC_APPROVED : ACC_PENDING; row[iPh] = photoUrl; row[iRd] = new Date();
   sh.appendRow(row);
   logUser(emp, name, role, hub, isAdm ? 'ลงทะเบียน (Admin)' : 'ลงทะเบียน — รอแอดมินอนุมัติ');
+  if (!isAdm) notifyAdminsNewReg({ emp:emp, name:name, role:role, dept:dept, hub:hub, photoUrl:photoUrl });   // ส่งอีเมลไม่สำเร็จ ไม่กระทบการลงทะเบียน
   return { ok:true, pending:!isAdm, msg:isAdm ? '' : PENDING_CONTACT, name:name, dept:dept, hub:hub, role:role };
 }
 
@@ -974,6 +975,52 @@ function testFindFiles() {
   while (it.hasNext()) { var f=it.next(); if(f.getName().toUpperCase().indexOf(REQ.toUpperCase())>=0){ n++; Logger.log('เจอ: '+f.getName()+' ('+f.getMimeType()+')'); } }
   Logger.log('รวมไฟล์ที่ชื่อมี '+REQ+' = '+n+' ไฟล์ · โฟลเดอร์: '+folder.getName());
 }
+// ===== อีเมลแจ้ง Admin เมื่อมีผู้ลงทะเบียนใหม่ =====
+// รายชื่ออีเมลอยู่ที่ tab "ตั้งค่า" แถวที่คอลัมน์ A = NOTIFY_LABEL (คอลัมน์ B ใส่หลายอีเมลคั่นด้วย , ได้) — แก้ได้ไม่ต้อง redeploy
+// ยังไม่มีแถวนี้ → สร้างให้อัตโนมัติ โดยใส่อีเมลเจ้าของสคริปต์ (บัญชีที่ deploy) เป็นค่าเริ่มต้น · เว้นว่าง = ปิดการแจ้งเตือน
+var NOTIFY_LABEL = 'อีเมลแจ้งเตือนผู้ลงทะเบียนใหม่';
+var DASHBOARD_URL = 'https://pasasorn.github.io/ppim-solar-2569/';
+function getNotifyEmails() {
+  var t = SpreadsheetApp.openById(SHEET_ID).getSheetByName('ตั้งค่า');
+  if (!t) { getAdminSecret(); t = SpreadsheetApp.openById(SHEET_ID).getSheetByName('ตั้งค่า'); }
+  var v = t.getDataRange().getValues();
+  for (var r=0;r<v.length;r++) if (String(v[r][0]).trim() === NOTIFY_LABEL) return String(v[r][1]||'');
+  var me = ''; try { me = Session.getEffectiveUser().getEmail(); } catch (e) {}
+  t.appendRow([NOTIFY_LABEL, me]);
+  return me;
+}
+function notifyAdminsNewReg(u) {
+  try {
+    var to = getNotifyEmails().split(/[,;\s]+/).filter(function(x){ return /@/.test(x); }).join(',');
+    if (!to) return;
+    var esc = function(x){ return String(x||'-').replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); };
+    var link = DASHBOARD_URL + '#approve';
+    MailApp.sendEmail({
+      to: to,
+      subject: '🔔 มีผู้ลงทะเบียนใหม่รออนุมัติ: ' + u.name + ' (' + u.role + ')',
+      htmlBody: '<div style="font-family:Sarabun,Tahoma,sans-serif;font-size:15px">'
+        + '<p>มีผู้ลงทะเบียนใช้งาน Dashboard โซลาร์ภาคประชาชน ปี 2569 รออนุมัติ</p>'
+        + '<table cellpadding="4" style="border-collapse:collapse">'
+        + '<tr><td><b>รหัสพนักงาน</b></td><td>' + esc(u.emp) + '</td></tr>'
+        + '<tr><td><b>ชื่อ-สกุล</b></td><td>' + esc(u.name) + '</td></tr>'
+        + '<tr><td><b>ตำแหน่ง</b></td><td>' + esc(u.role) + '</td></tr>'
+        + '<tr><td><b>สังกัด</b></td><td>' + esc(u.dept) + '</td></tr>'
+        + '<tr><td><b>จุดร่วมงาน</b></td><td>' + esc(u.hub) + '</td></tr>'
+        + (u.photoUrl ? '<tr><td><b>รูปถ่าย</b></td><td><a href="' + esc(u.photoUrl) + '">เปิดรูปใน Drive</a></td></tr>' : '')
+        + '</table>'
+        + '<p><a href="' + link + '" style="display:inline-block;background:#6B2C91;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:bold">👤 เปิดหน้าอนุมัติ</a></p>'
+        + '<p style="color:#888;font-size:12px">เข้าสู่ระบบด้วยบัญชี Admin แล้วระบบจะพาไปหน้าอนุมัติ · เปลี่ยนผู้รับอีเมลได้ที่ tab "ตั้งค่า" แถว "' + NOTIFY_LABEL + '"</p></div>',
+      name: 'PPIM Solar Dashboard'
+    });
+  } catch (e) { Logger.log('ส่งอีเมลแจ้ง Admin ไม่สำเร็จ: ' + e.message); }
+}
+// กด Run ครั้งแรกหลังวางโค้ด เพื่ออนุญาตสิทธิ์ส่งอีเมล (MailApp) แล้วเช็กกล่องจดหมาย
+function testMail() {
+  Logger.log('ผู้รับ: ' + getNotifyEmails() + ' · โควตาอีเมลเหลือวันนี้: ' + MailApp.getRemainingDailyQuota());
+  notifyAdminsNewReg({ emp:'TEST', name:'ทดสอบ ระบบแจ้งเตือน', role:'ผมต.', dept:'ทดสอบ', hub:'กฟจ.ลำปาง', photoUrl:'' });
+  return 'OK';
+}
+
 function testDrive() {
   var folder = DriveApp.getFolderById(PHOTO_FOLDER_ID);
   Logger.log('✅ เข้าถึงโฟลเดอร์ได้: ' + folder.getName());

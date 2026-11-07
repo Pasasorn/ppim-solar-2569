@@ -3215,7 +3215,7 @@ async function approveUser(target, decision){
 }
 if($('#btnApRefresh')) $('#btnApRefresh').onclick = loadPendingUsers;
 // แจ้งเตือน Admin: ตัวเลขแดงที่เมนู + ป๊อปอัปเมื่อมีรายชื่อรออนุมัติที่ยังไม่เคยแจ้ง · ตรวจซ้ำทุก 2 นาทีระหว่าง login
-let apSeen = new Set(), apTimer = null;
+let apSeen = new Set(), apTimer = null, apGoAfterLogin = false;   // apGoAfterLogin: เปิดจากลิงก์อีเมล #approve
 function apNotify(P){
   const nb=$('#nvAp'); if(nb){ nb.textContent=P.length; nb.classList.toggle('hidden', !P.length); }
   const fresh=P.filter(x=>!apSeen.has(String(x.emp)));
@@ -3361,7 +3361,7 @@ if($('#mmDoLogin')) $('#mmDoLogin').onclick = async ()=>{
       if(mmGate==='meter'){ mmShowReport(); }   // ประตูมิเตอร์ → ฟอร์มรายงาน (ผมต./Admin)
       else {
         $('#meterModal').classList.remove('show');
-        showView(mmGate==='ca' ? 'ca' : 'overview');
+        showView(isAdm && apGoAfterLogin ? 'approve' : (mmGate==='ca' ? 'ca' : 'overview')); apGoAfterLogin=false;
       }
     }
     else if(r && r.error==='pending') $('#mmLoginMsg').innerHTML='<div style="background:#fff7e6;border:1px solid #f0c36d;border-radius:8px;padding:8px 10px;color:#8a5a00;font-weight:700">⏳ '+PENDING_CONTACT+'</div>';
@@ -3792,6 +3792,12 @@ async function firstLoad(){
   splash.start();
   const ok = await loadDashboardData();
   if(ok) splash.finish(); else splash.fail(($('#lastUpdate').textContent||'').replace(/^โหลดข้อมูลไม่สำเร็จ:\s*/,''));
+  // ลิงก์จากอีเมลแจ้งผู้ลงทะเบียนใหม่ (…/#approve) → เปิดหน้า login Admin แล้วพาไปหน้าอนุมัติ
+  if(location.hash==='#approve'){
+    history.replaceState(null,'',location.pathname+location.search);
+    if(mmSession && String(mmSession.role||'').toLowerCase().indexOf('admin')>=0) showView('approve');
+    else { apGoAfterLogin=true; openMeterModal('admin'); }
+  }
 }
 $('#spRetry').onclick = firstLoad;
 firstLoad();
