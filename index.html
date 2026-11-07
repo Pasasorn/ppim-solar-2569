@@ -119,12 +119,12 @@ body{padding-left:236px}
 .kpi{background:#f7f2fb;border-radius:18px;padding:15px 15px 14px;box-shadow:0 4px 14px rgba(107,44,145,.07);border:1px solid #0000000d;text-align:left;transition:.18s}
 .kpi:hover{box-shadow:0 10px 24px rgba(107,44,145,.15);transform:translateY(-3px)}
 .kpi.clk{cursor:pointer} .kpi.sel{outline:2.5px solid var(--pea);outline-offset:-1px;background:#efe4f7}
-/* แท็บสับเปลี่ยนมิเตอร์: ขั้นตอน ①→⑤ + งานของฉัน */
+/* แท็บสับเปลี่ยนมิเตอร์: ขั้นตอน 1→5 + งานของฉัน */
 .msteps{grid-template-columns:repeat(6,1fr)}
 @media(max-width:1100px){.msteps{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:620px){.msteps{grid-template-columns:1fr 1fr}}
 .mstep{position:relative;display:flex;flex-direction:column}
-.mstep .no{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--sc,var(--pea));color:#fff;font-weight:800;font-size:.85rem;flex:none}
+.mstep .no{font-size:1.5rem;font-weight:800;line-height:1;color:var(--sc,var(--pea));flex:none}
 .mstep .v{color:var(--sc,var(--pea))}
 .mstep .dept{color:var(--sc,var(--pea));border-color:var(--sc,#e3d9f0)}
 .mstep .act{border-color:var(--sc,var(--pea));color:var(--sc,var(--pea))}
@@ -1923,17 +1923,17 @@ const METER_FLOW = [
   {k:'cod',  ic:'🏁', l:'COD เรียบร้อย',          who:'',          f:r=>r.step===10,                         age:()=>null},
   {k:'ca82', ic:'🧾', l:'รอสร้าง CA 82',          who:'ผซฟ.กบฟ.', f:r=>r.step>=8&&!r.caCreated,             age:r=>r.step===8?r.swapWaitDays:null, since:'อนุมัติเชื่อมต่อ', parallel:true}
 ];
-// ขั้นตอนการทำงาน ①→⑤ (เรียงตามลำดับงานจริง) — วิธีทำ + ปุ่มลัด ของแต่ละการ์ด
+// ขั้นตอนการทำงาน 1→5 (เรียงตามลำดับงานจริง) — วิธีทำ + ปุ่มลัด ของแต่ละการ์ด
 const METER_STEPS = [
-  {k:'ca82', c:'#2F7FD1', bg:'#eef5fd', no:'①', how:'ระบบสร้างบัญชี CA 82 ให้อัตโนมัติ — ตรวจสอบ/ใส่หมายเหตุถ้าติดปัญหา (ทำคู่ขนานกับขั้น ②–④ ได้)', btn:'🧾 ไปหน้าสร้างบัญชี CA 82', go:"showView('ca')",
-   long:'เมื่อคำขอได้รับอนุมัติเชื่อมต่อ (ขั้น 8) ระบบสร้างบัญชีแสดงสัญญาผู้ผลิตไฟฟ้า (CA 82) ให้อัตโนมัติ · ผซฟ. เข้าเมนู <b>สร้างบัญชี CA 82</b> เพื่อตรวจรายการที่ยังไม่มีเลข CA 82 และบันทึก <b>หมายเหตุ CA 82</b> ถ้าติดปัญหา (เอกสาร ผมต. ดูได้จากปุ่ม 📎) · ต้องมี CA 82 ก่อนจึงจะ “พร้อมเปลี่ยน” ในขั้น ④'},
-  {k:'doc', c:'#D98A00', bg:'#fff7e6', no:'②', how:'รวบรวมคำขอที่อนุมัติเชื่อมต่อแล้ว → ออกเอกสารขอจัดสรรมิเตอร์ (PDF)', btn:'📄 ออกเอกสารขอจัดสรร', go:'exportAllocReport()',
+  {k:'ca82', c:'#2F7FD1', bg:'#eef5fd', no:'1', how:'ระบบสร้างบัญชี CA 82 ให้อัตโนมัติ — ตรวจสอบ/ใส่หมายเหตุถ้าติดปัญหา (ทำคู่ขนานกับขั้น 2–4 ได้)', btn:'🧾 ไปหน้าสร้างบัญชี CA 82', go:"showView('ca')",
+   long:'เมื่อคำขอได้รับอนุมัติเชื่อมต่อ (ขั้น 8) ระบบสร้างบัญชีแสดงสัญญาผู้ผลิตไฟฟ้า (CA 82) ให้อัตโนมัติ · ผซฟ. เข้าเมนู <b>สร้างบัญชี CA 82</b> เพื่อตรวจรายการที่ยังไม่มีเลข CA 82 และบันทึก <b>หมายเหตุ CA 82</b> ถ้าติดปัญหา (เอกสาร ผมต. ดูได้จากปุ่ม 📎) · ต้องมี CA 82 ก่อนจึงจะ “พร้อมเปลี่ยน” ในขั้น 4'},
+  {k:'doc', c:'#D98A00', bg:'#fff7e6', no:'2', how:'รวบรวมคำขอที่อนุมัติเชื่อมต่อแล้ว → ออกเอกสารขอจัดสรรมิเตอร์ (PDF)', btn:'📄 ออกเอกสารขอจัดสรร', go:'exportAllocReport()',
    long:'ผมต.กบล. กดปุ่ม <b>📄 ออกเอกสารขอจัดสรร</b> (ต้องเข้าสู่ระบบ) → เลือกรายการที่ยังไม่ดึง → ระบบออกเลขที่เอกสาร + PDF ความต้องการมิเตอร์ และย้ายรายการไปสถานะ “รอจัดสรร” · ยกเลิกเอกสารได้ที่ส่วนที่ 3 (ประวัติเอกสาร)'},
-  {k:'alloc', c:'#8A4DB0', bg:'#f6effb', no:'③', how:'เมื่อ กบล. จัดสรรมิเตอร์แล้ว → บันทึกผลการจัดสรร อ้างอิงเลขที่เอกสาร', btn:'✅ บันทึกผลการจัดสรร', go:'openAllocDoneModal()',
+  {k:'alloc', c:'#8A4DB0', bg:'#f6effb', no:'3', how:'เมื่อ กบล. จัดสรรมิเตอร์แล้ว → บันทึกผลการจัดสรร อ้างอิงเลขที่เอกสาร', btn:'✅ บันทึกผลการจัดสรร', go:'openAllocDoneModal()',
    long:'เมื่อได้รับมิเตอร์ตามเอกสารขอจัดสรร ผมต.กบล. กด <b>✅ บันทึกผลการจัดสรร</b> → เลือกเลขที่เอกสาร + กรอกเลขที่บันทึกผล → รายการจะเป็น “จัดสรรแล้ว” พร้อมให้ ผมม./ผมต. สับเปลี่ยน'},
-  {k:'swap', c:'#E4572E', bg:'#fdf0ec', no:'④', how:'ดาวน์โหลดรายการงานของจุดร่วมงาน → สับเปลี่ยนหน้างาน → กดรายงานผล + แนบเอกสาร 3 รายการ', btn:'📝 รายงานผลการสับเปลี่ยน', go:"openMeterModal('meter')",
+  {k:'swap', c:'#E4572E', bg:'#fdf0ec', no:'4', how:'ดาวน์โหลดรายการงานของจุดร่วมงาน → สับเปลี่ยนหน้างาน → กดรายงานผล + แนบเอกสาร 3 รายการ', btn:'📝 รายงานผลการสับเปลี่ยน', go:"openMeterModal('meter')",
    long:'ผมม./ผมต. เข้าสู่ระบบ → <b>📥 ดาวน์โหลดรายการงานสับเปลี่ยน</b> (เฉพาะจุดร่วมงานของตน) → ออกสับเปลี่ยนหน้างาน → กด <b>📝 รายงานผลการสับเปลี่ยน</b> เลือกเลขที่คำขอ ใส่วันที่สับเปลี่ยน และแนบ (1) แบบฟอร์มตรวจสอบการขนาน (2) แบบฟอร์มอ่าน TOU (3) รูปมิเตอร์เห็น PEA No. · รายการ “⛔ ไม่พร้อม” = ยังไม่มี CA 82 ให้ประสาน ผซฟ.'},
-  {k:'pbs', c:'#0E9F8E', bg:'#eaf8f6', no:'⑤', how:'ผบส. นำเอกสารจาก ผมต. สแกนแนบไฟล์ในระบบ PPIM แล้วกดวันที่เริ่มต้น COD', btn:'', go:'',
+  {k:'pbs', c:'#0E9F8E', bg:'#eaf8f6', no:'5', how:'ผบส. นำเอกสารจาก ผมต. สแกนแนบไฟล์ในระบบ PPIM แล้วกดวันที่เริ่มต้น COD', btn:'', go:'',
    long:'หลัง ผมต. รายงานผลแล้ว ผบส. นำเอกสารจาก ผมต. (ดาวน์โหลดได้ในหน้ารายงาน) <b>สแกนแนบไฟล์ในระบบ PPIM</b> แล้วกด <b>วันที่เริ่มต้น COD</b> · เมื่อชีต PPIM Solar อัปเดต คำขอจะย้ายไป “COD เรียบร้อย” เอง'},
   {k:'cod', c:'#1F9D57', bg:'#ecf8f1', no:'🏁', how:'งานเสร็จสมบูรณ์', btn:'', go:'', long:''}
 ];
@@ -1990,8 +1990,8 @@ function renderMeterFlow(){
       ${M.btn?`<button class="btn btn-outline btn-sm act no-print" onclick="event.stopPropagation();meterStepGo('${x.k}')">${M.btn}</button>`:''}
     </div>`; };
   const ordered = METER_STEPS.map(m=>st.find(x=>x.k===m.k)).filter(Boolean);
-  let h = `<div style="font-weight:800;color:var(--pea);margin-bottom:2px">🧭 ขั้นตอนการทำงานสับเปลี่ยนมิเตอร์ (① → ⑤)</div>
-    <div class="note" style="margin-bottom:8px">ตัวเลข = งานที่ค้างอยู่ในขั้นนั้นตอนนี้ (ขั้น 8 ขึ้นไป รวม ${fmtN(tot)} ราย · 1 คำขอ = 1 สถานะตามงานถัดไป · ① ทำคู่ขนาน ไม่นับรวมยอด) · <b>กดการ์ด</b>เพื่อดูแยกจุดรวมงาน + รายการค้าง</div>
+  let h = `<div style="font-weight:800;color:var(--pea);margin-bottom:2px">🧭 ขั้นตอนการทำงานสับเปลี่ยนมิเตอร์ (1 → 5)</div>
+    <div class="note" style="margin-bottom:8px">ตัวเลข = งานที่ค้างอยู่ในขั้นนั้นตอนนี้ (ขั้น 8 ขึ้นไป รวม ${fmtN(tot)} ราย · 1 คำขอ = 1 สถานะตามงานถัดไป · 1 ทำคู่ขนาน ไม่นับรวมยอด) · <b>กดการ์ด</b>เพื่อดูแยกจุดรวมงาน + รายการค้าง</div>
     <div class="kpis msteps" style="margin-bottom:0">${ordered.map(card).join('')}</div>`;
   let S = st.find(x=>x.k===meterFlowSel);
   if(S && S.k==='swap' && meterFlowSub && SWAP_SUB[meterFlowSub]){ const ss=SWAP_SUB[meterFlowSub]; S={...S, L:S.L.filter(ss.f), l:S.l+' · '+ss.l}; }
@@ -2189,7 +2189,7 @@ function meterMineDl(){ const b=$('#mmDlJobs'), m=$('#mmMineMsg'); if(!b) return
 function renderMeterHowto(){
   const el=$('#meterHowtoBody'); if(!el) return;
   el.innerHTML='<ol>'+METER_STEPS.filter(m=>m.long).map(m=>{ const f=METER_FLOW.find(x=>x.k===m.k)||{};
-    return `<li><span class="no" style="display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:${m.c};color:#fff;font-weight:800;flex:none">${m.no}</span><div><div class="t">${f.ic||''} ${escHtml(f.l||'')}<span class="w">${escHtml(f.who||'')}</span></div><div class="d">${m.long}</div>${m.btn?`<button class="btn btn-outline btn-sm" style="margin-top:6px" onclick="meterStepGo('${m.k}')">${m.btn}</button>`:''}</div></li>`; }).join('')+'</ol>';
+    return `<li><span class="no" style="font-size:1.5rem;font-weight:800;line-height:1;color:${m.c};min-width:26px;text-align:center;flex:none">${m.no}</span><div><div class="t">${f.ic||''} ${escHtml(f.l||'')}<span class="w">${escHtml(f.who||'')}</span></div><div class="d">${m.long}</div>${m.btn?`<button class="btn btn-outline btn-sm" style="margin-top:6px" onclick="meterStepGo('${m.k}')">${m.btn}</button>`:''}</div></li>`; }).join('')+'</ol>';
 }
 // กล่อง "งานของฉัน" — ตามตำแหน่ง/จุดร่วมงานของผู้ที่เข้าสู่ระบบ
 function renderMeterMine(){
@@ -2212,7 +2212,7 @@ function renderMeterMine(){
     acts=btn('ca82','btn-primary');
   } else if(central){
     title=(isAdm?'Admin':'ผมต.กบล.')+' — ทุกจุดร่วมงาน';
-    chips=chip('doc','② รอออกเอกสารขอจัดสรร',cnt('doc'),true)+chip('alloc','③ รอบันทึกผลจัดสรร',cnt('alloc'),true)+chip('swap','④ รอสับเปลี่ยน',swapL)+chip('pbs','⑤ รอ ผบส. กด COD',cnt('pbs'))+(isAdm?chip('ca82','① รอสร้าง CA 82',cnt('ca82')):'');
+    chips=chip('doc','รอออกเอกสารขอจัดสรร (ขั้น 2)',cnt('doc'),true)+chip('alloc','รอบันทึกผลจัดสรร (ขั้น 3)',cnt('alloc'),true)+chip('swap','รอสับเปลี่ยน (ขั้น 4)',swapL)+chip('pbs','รอ ผบส. กด COD (ขั้น 5)',cnt('pbs'))+(isAdm?chip('ca82','รอสร้าง CA 82 (ขั้น 1)',cnt('ca82')):'');
     acts=btn('doc','btn-primary')+btn('alloc','btn-primary')+btn('swap')+`<button class="btn btn-outline btn-sm" onclick="meterMineDl()">📥 ดาวน์โหลดรายการงาน (Excel)</button>`;
   } else {
     title='ผมต. — จุดร่วมงาน '+(myHub||'(ไม่ระบุ — ติดต่อ Admin)');
