@@ -56,7 +56,7 @@ html{scroll-behavior:smooth}
 #sidenav a.nav-active::before,#sidenav a.nav-active::after{content:'';position:absolute;right:0;width:16px;height:16px;background:var(--pea-bg)}
 #sidenav a.nav-active::before{top:-16px;-webkit-mask:radial-gradient(circle 16px at 0 0,#0000 98%,#000);mask:radial-gradient(circle 16px at 0 0,#0000 98%,#000)}
 #sidenav a.nav-active::after{bottom:-16px;-webkit-mask:radial-gradient(circle 16px at 0 100%,#0000 98%,#000);mask:radial-gradient(circle 16px at 0 100%,#0000 98%,#000)}
-#sidenav a.hidden{display:none}   /* กันเมนู (เช่น log Admin) ที่ต้องซ่อน ให้ .hidden ชนะ specificity */
+#sidenav a.hidden,#sidenav a .b.hidden{display:none}   /* กันเมนู (เช่น log Admin) ที่ต้องซ่อน ให้ .hidden ชนะ specificity */
 #sidenav a .i{font-size:1.15rem;width:22px;height:22px;text-align:center;display:inline-flex;align-items:center;justify-content:center;flex:none;opacity:.92}
 #sidenav a .i svg{width:20px;height:20px;display:block}
 #sidenav a.nav-active .i{opacity:1}
@@ -65,6 +65,18 @@ html{scroll-behavior:smooth}
   padding:1px 9px;border-radius:11px;min-width:26px;text-align:center}
 #sidenav a .b.ok{background:#2ECC71;color:#fff}
 #sidenav a .b.warn{background:#F2C230;color:#4A1A6B}
+#sidenav a .b.danger,#sidenav a.nav-active .b.danger{background:#E74C3C;color:#fff;animation:apPulse 1.6s ease-in-out infinite}
+@keyframes apPulse{0%,100%{box-shadow:0 0 0 0 rgba(231,76,60,.6)}50%{box-shadow:0 0 0 6px rgba(231,76,60,0)}}
+/* ป๊อปอัปแจ้ง Admin มีผู้ลงทะเบียนใหม่ */
+#apToast{position:fixed;right:16px;bottom:16px;z-index:80;max-width:340px;width:calc(100% - 32px);background:#fff;border:2px solid #E74C3C;border-radius:14px;
+  box-shadow:0 10px 30px rgba(0,0,0,.18);padding:12px 14px;display:none;animation:apIn .35s ease}
+#apToast.show{display:block}
+#apToast .t{font-weight:800;color:#C0392B;margin-bottom:4px}
+#apToast .d{font-size:.86rem;color:#374151;margin-bottom:10px;line-height:1.5}
+#apToast .x{position:absolute;top:6px;right:10px;border:0;background:none;font-size:1.1rem;cursor:pointer;color:#999}
+@keyframes apIn{from{transform:translateY(20px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion: reduce){#sidenav a .b.danger,#apToast{animation:none}}
+@media print{#apToast{display:none!important}}
 #sidenav a:hover{background:rgba(255,255,255,.14);color:#fff}
 #sidenav a.active{background:#fff;color:var(--pea);box-shadow:0 3px 10px rgba(0,0,0,.18)}
 #sidenav a.active .b{background:var(--pea);color:#fff}
@@ -369,10 +381,14 @@ window.splash=(function(){
   <a href="#sec-tr" data-view="tr"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 4 14h7l-1 8 9-12h-7z"/></svg></span><span class="t">หม้อแปลง 25%</span></a>
   <a href="#sec-charts" data-view="charts"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg></span><span class="t">กราฟวิเคราะห์</span></a>
   <a href="#sec-table" data-view="table"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg></span><span class="t">ตารางคำขอ</span><span class="b ok" id="nvCod">0</span></a>
+  <a href="#sec-approve" data-view="approve" id="navApprove" class="hidden"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3.1-7 7-7 1.6 0 3 .4 4.2 1.2"/><path d="m15 18 2 2 4-4"/></svg></span><span class="t">อนุมัติผู้ลงทะเบียน (Admin)</span><span class="b danger hidden" id="nvAp">0</span></a>
   <a href="#sec-log" data-view="log" id="navLog" class="hidden"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3h9l4 4v14H8z"/><path d="M17 3v4h4M11 12h6M11 16h6M4 7v14h4"/></svg></span><span class="t">บันทึกการใช้งาน (Admin)</span></a>
   <a href="#" id="navLogin" style="margin-top:8px;background:rgba(255,255,255,.12)"><span class="i"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></span><span class="t">เข้าสู่ระบบเจ้าหน้าที่</span></a>
   <div class="brand-foot">การไฟฟ้าส่วนภูมิภาค เขต 1 (ภาคเหนือ)</div>
 </nav>
+<div id="apToast" class="no-print" role="alert"><button type="button" class="x" aria-label="ปิด" onclick="apToastHide()">✕</button>
+  <div class="t">🔔 มีผู้ลงทะเบียนใหม่</div><div class="d" id="apToastMsg"></div>
+  <button type="button" class="btn btn-primary btn-sm" onclick="apToastHide();showView('approve')">👤 ไปหน้าอนุมัติ</button></div>
 <div id="navOverlay" class="no-print" onclick="document.body.classList.remove('nav-open')"></div>
 <div id="ticker" class="no-print"><span class="tk" id="tickerText"></span></div>
 
@@ -625,15 +641,19 @@ window.splash=(function(){
     </div>
 
     <!-- LOG (Admin) -->
-    <div class="card" id="sec-log" data-view="log">
-      <h2 style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>📜 บันทึกการเข้าใช้งาน (เฉพาะ Admin)</span>
-        <button class="btn btn-outline btn-sm no-print" id="btnLogRefresh">⟳ โหลดล่าสุด</button></h2>
-      <div class="no-print" style="margin-bottom:14px;background:#fffaf0;border:1px solid #f0d77a;border-radius:12px;padding:10px 12px">
+    <div class="card" id="sec-approve" data-view="approve">
+      <h2>👤 อนุมัติผู้ลงทะเบียนใหม่ (เฉพาะ Admin)</h2>
+      <div class="note no-print" style="margin-bottom:10px">ระบบตรวจรายชื่อรออนุมัติให้อัตโนมัติทุก 2 นาทีระหว่างที่ Admin เข้าสู่ระบบ — มีคนลงทะเบียนใหม่จะมีป๊อปอัปแจ้ง และตัวเลขสีแดงที่เมนูซ้าย</div>
+      <div class="no-print" style="background:#fffaf0;border:1px solid #f0d77a;border-radius:12px;padding:10px 12px">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
           <b style="color:var(--pea)">👤 อนุมัติผู้ลงทะเบียนใหม่ <span id="apCount"></span></b>
           <button class="btn btn-outline btn-sm" id="btnApRefresh">⟳ โหลดรายชื่อ</button></div>
         <div id="apContent"><div class="note">เข้าสู่ระบบด้วยตำแหน่ง Admin เพื่อดูรายชื่อรออนุมัติ</div></div>
       </div>
+    </div>
+    <div class="card" id="sec-log" data-view="log">
+      <h2 style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>📜 บันทึกการเข้าใช้งาน (เฉพาะ Admin)</span>
+        <button class="btn btn-outline btn-sm no-print" id="btnLogRefresh">⟳ โหลดล่าสุด</button></h2>
       <div class="no-print" style="margin-bottom:14px;background:#f4f8fd;border:1px solid #cfe0f5;border-radius:12px;padding:10px 12px">
         <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
           <b style="color:#2c66ad">📥 บันทึกการดาวน์โหลดไฟล์งานสับเปลี่ยน <span id="dlCount" class="note"></span></b>
@@ -3189,6 +3209,7 @@ async function loadPendingUsers(){
     const r=await meterApi({action:'pendingusers', emp:mmSession.emp, pw:mmSession.pw});
     if(!r||!r.ok){ el.innerHTML='<div class="note" style="color:var(--danger)">โหลดไม่ได้: '+escHtml((r&&r.error)||'')+((r&&r.error)==='unknown action'?' (ยังไม่ได้ deploy Apps Script เวอร์ชันใหม่)':'')+'</div>'; return; }
     const L=r.rows||[], P=L.filter(x=>x.status==='รออนุมัติ'), H=L.filter(x=>x.status!=='รออนุมัติ').reverse().slice(0,30);
+    apNotify(P);
     const c=$('#apCount'); if(c) c.innerHTML=P.length?`<span style="background:var(--danger);color:#fff;border-radius:999px;padding:1px 9px;font-size:.78rem">${P.length} ราย</span>`:'';
     el.innerHTML=(P.length?P.map(x=>`<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px">
         ${x.photo?`<a href="${x.photo}" target="_blank" rel="noopener"><img src="${x.photo}" alt="รูปถ่าย ${escHtml(x.name)}" style="width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--border)"></a>`
@@ -3210,6 +3231,20 @@ async function approveUser(target, decision){
   loadPendingUsers();
 }
 if($('#btnApRefresh')) $('#btnApRefresh').onclick = loadPendingUsers;
+// แจ้งเตือน Admin: ตัวเลขแดงที่เมนู + ป๊อปอัปเมื่อมีรายชื่อรออนุมัติที่ยังไม่เคยแจ้ง · ตรวจซ้ำทุก 2 นาทีระหว่าง login
+let apSeen = new Set(), apTimer = null;
+function apNotify(P){
+  const nb=$('#nvAp'); if(nb){ nb.textContent=P.length; nb.classList.toggle('hidden', !P.length); }
+  const fresh=P.filter(x=>!apSeen.has(String(x.emp)));
+  P.forEach(x=>apSeen.add(String(x.emp)));
+  if(!fresh.length) return;
+  const names=fresh.slice(0,3).map(x=>escHtml(x.name||x.emp)+' ('+escHtml(x.role||'-')+(x.hub?' · '+escHtml(x.hub):'')+')').join('<br>');
+  $('#apToastMsg').innerHTML='รออนุมัติ <b>'+P.length+'</b> ราย'+(fresh.length<P.length?' (ใหม่ '+fresh.length+')':'')+'<br>'+names+(fresh.length>3?'<br>และอีก '+(fresh.length-3)+' ราย':'');
+  $('#apToast').classList.add('show');
+}
+function apToastHide(){ const t=$('#apToast'); if(t) t.classList.remove('show'); }
+function apStartWatch(){ apStopWatch(); apTimer=setInterval(()=>{ if(mmSession && !document.hidden) loadPendingUsers(); }, 120000); }
+function apStopWatch(){ if(apTimer) clearInterval(apTimer); apTimer=null; apSeen=new Set(); apToastHide(); const nb=$('#nvAp'); if(nb) nb.classList.add('hidden'); }
 // รูปถ่ายตอนลงทะเบียน: ย่อเป็น JPEG ด้านยาว ≤ 800px ก่อนส่ง
 let mmRegPhoto = '';
 function shrinkImage(file, max){ return new Promise((ok,ng)=>{ const rd=new FileReader(); rd.onerror=()=>ng(new Error('อ่านไฟล์ไม่ได้'));
@@ -3304,6 +3339,7 @@ if($('#mmLogout')) $('#mmLogout').onclick = ()=>{
   mmSession=null; caAuthed=false;
   loadDashboardData();   // PDPA: โหลดใหม่เป็นข้อมูลที่ปิดบังแล้ว (ไม่ค้างชื่อเต็มไว้ในหน้า)
   if($('#navLog')) $('#navLog').classList.add('hidden');   // ซ่อนเมนู log Admin เมื่อออกจากระบบ
+  if($('#navApprove')) $('#navApprove').classList.add('hidden'); apStopWatch();
   const uc=$('#uploadCard'); if(uc) uc.classList.add('hidden');
   if(typeof renderCA==='function') renderCA();
   $('#meterModal').classList.remove('show');   // ปิด modal — ภาพรวมยังดูได้ต่อ ไม่ต้อง login
@@ -3334,7 +3370,8 @@ if($('#mmDoLogin')) $('#mmDoLogin').onclick = async ()=>{
         caAuthed=true;
         const c=$('#uploadCard'); if(c){ c.classList.remove('hidden'); $('#uploadBody').classList.remove('hidden'); $('#uploadArrow').textContent='▾'; }
         if($('#navLog')) $('#navLog').classList.remove('hidden');   // เปิดเมนู log
-        loadLog(); loadPendingUsers(); loadDlLogs();
+        if($('#navApprove')) $('#navApprove').classList.remove('hidden');   // เปิดเมนูอนุมัติ
+        loadLog(); loadPendingUsers(); loadDlLogs(); apStartWatch();
       } else if(kind==='ca'){ caAuthed=true; }
       renderCA();
       // ไปหน้าตามประตูที่เข้ามา
