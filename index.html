@@ -1997,12 +1997,13 @@ function renderMeterFlow(){
   if(S && S.k==='swap' && meterFlowSub && SWAP_SUB[meterFlowSub]){ const ss=SWAP_SUB[meterFlowSub]; S={...S, L:S.L.filter(ss.f), l:S.l+' · '+ss.l}; }
   if(S){
     const g={}; S.L.forEach(r=>{ const hb=reqHub(r)||'ไม่ระบุจุดรวมงาน'; g[hb]=(g[hb]||0)+1; });
-    const E=Object.entries(g).sort((a,b)=>a[1]-b[1]||a[0].localeCompare(b[0],'th'));
+    // แกน X ฟิกรายชื่อจุดรวมงานตาม HUB_LIST ทุกสถานะ (ไม่มีงาน = 0) — เทียบข้ามการ์ดได้ · จุดกลาง กบล. แสดงเฉพาะเมื่อมีงาน · ไม่ระบุจุด ต่อท้าย
+    const E=HUB_LIST.filter(hb=>hb!==CENTRAL_HUB||g[hb]).map(hb=>[hb,g[hb]||0]).concat(Object.keys(g).filter(hb=>!HUB_LIST.includes(hb)).map(hb=>[hb,g[hb]]));
     const late=S.L.map(r=>({r,d:S.age(r)})).filter(x=>x.d!=null&&x.d>METER_AGE_WARN).sort((a,b)=>b.d-a.d);
     h += `<div style="margin-top:14px;background:#fff;border-radius:14px;padding:12px 14px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
         <b style="color:${(METER_STEPS.find(m=>m.k===S.k)||{}).c||'var(--pea)'}">📊 ${(METER_STEPS.find(m=>m.k===S.k)||{}).no||''} ${S.ic} ${S.l} — แยกจุดรวมงาน</b><button class="btn btn-outline btn-sm no-print" onclick="meterFlowPick(null)">✕ ปิด</button></div>
-      ${E.length?'<div style="position:relative;height:340px"><canvas id="meterFlowChart"></canvas></div>':'<div class="note">ไม่มีรายการในสถานะนี้</div>'}
+      ${S.L.length?'<div style="position:relative;height:340px"><canvas id="meterFlowChart"></canvas></div>':'<div class="note">ไม่มีรายการในสถานะนี้</div>'}
       ${['doc','alloc','swap','ca82'].includes(S.k)?meterFlowAreaHtml(S, S.k==='swap'?rows.filter(r=>(r.step===9||r.step===10)&&(r.meterPhase==='1P'||r.meterPhase==='3P')):null):''}
       ${S.since&&S.k!=='swap'?`<div style="margin-top:12px;font-weight:700">⚠ ค้างเกิน ${METER_AGE_WARN} วัน (นับจากวัน${S.since}) · ${fmtN(late.length)} ราย${late.length>50?' — แสดง 50 รายการที่ค้างนานสุด':''}</div>
       ${late.length?`<div style="overflow:auto;max-height:360px;margin-top:6px"><table style="font-size:.85rem"><thead><tr><th>เลขคำขอ</th><th>ผู้ยื่น</th><th>จุดรวมงาน</th><th>กฟฟ.</th><th style="text-align:right">ค้าง (วัน)</th><th>หมายเหตุ CA 82</th></tr></thead><tbody>
@@ -2015,7 +2016,7 @@ function renderMeterFlow(){
         </tbody></table></div>`:`<div class="note">${(typeof mmSession!=='undefined'&&mmSession)?'ยังไม่มีรายการที่ระบุหมายเหตุ':'ยังไม่มีรายการที่ระบุหมายเหตุ (หมายเหตุแสดงเฉพาะเมื่อ login — PDPA)'}</div>`}`; })():''}
     </div>`;
     el.innerHTML = h;
-    if(E.length) charts.mflow = new Chart($('#meterFlowChart'),{type:'bar',
+    if(S.L.length) charts.mflow = new Chart($('#meterFlowChart'),{type:'bar',
       data:{labels:E.map(e=>e[0]),datasets:[{label:'ราย',data:E.map(e=>e[1]),backgroundColor:((METER_STEPS.find(m=>m.k===S.k)||{}).c||'#7A34A6'),hoverBackgroundColor:'#3b3f46',borderRadius:4,maxBarThickness:36}]},
       options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},plugins:{legend:{display:false}},
         scales:{x:{grid:{display:false},ticks:{font:{size:12},autoSkip:false,maxRotation:60,minRotation:0}},y:{beginAtZero:true,ticks:{precision:0},grid:{color:'#eee'},title:{display:true,text:'ราย'}}}},
@@ -2194,7 +2195,7 @@ function renderMeterHowto(){
 function renderMeterMine(){
   const el=$('#meterMine'); if(!el) return;
   if(!mmSession){
-    el.innerHTML=`<div class="mh"><span>👤 งานของฉัน</span></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="note">เข้าสู่ระบบเจ้าหน้าที่ เพื่อดูงานที่ค้างของคุณ (ผมต. เห็นเฉพาะจุดร่วมงานของตน) และกดทำงานได้จากที่นี่</span><button class="btn btn-primary btn-sm" onclick="openMeterModal('meter')">🔐 เข้าสู่ระบบ</button></div>`;
+    el.innerHTML=`<div class="mh"><span>👤 งานของฉัน</span></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span>เข้าสู่ระบบเพื่อดูงานที่ต้องทำ</span><button class="btn btn-primary btn-sm" onclick="openMeterModal('meter')">🔐 เข้าสู่ระบบ</button></div>`;
     return;
   }
   const rl=String(mmSession.role||''), isAdm=rl.toLowerCase().indexOf('admin')>=0, isCa=!isAdm&&rl.indexOf('ผซฟ')>=0;
