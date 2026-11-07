@@ -1938,6 +1938,7 @@ const METER_STEPS = [
   {k:'cod', c:'#1F9D57', bg:'#ecf8f1', no:'🏁', how:'งานเสร็จสมบูรณ์', btn:'', go:'', long:''}
 ];
 function meterStepGo(k){ const s=METER_STEPS.find(x=>x.k===k); if(s&&s.go){ try{ (new Function(s.go))(); }catch(e){ alert('เปิดไม่สำเร็จ: '+e.message); } } }
+let mflowChart = null;   // กราฟแท็บมิเตอร์ (แยกจาก charts — renderCharts() ล้าง charts ทั้งหมด)
 let meterFlowSel = null, meterFlowSub = null, meterFlowArea = null;   // meterFlowArea: กฟฟ. ที่กดดูรายการ   // meterFlowSub: 'ready' | 'notready' (เฉพาะการ์ดรอสับเปลี่ยน)
 function meterFlowPick(k){ meterFlowSel = (meterFlowSel===k) ? null : k; meterFlowSub = null; meterFlowArea = null; renderMeterFlow(); }
 function meterFlowPickArea(a){ meterFlowArea = (meterFlowArea===a) ? null : a; renderMeterFlow(); const e=$('#mfAreaList'); if(e) e.scrollIntoView({behavior:'smooth',block:'nearest'}); }
@@ -1970,7 +1971,7 @@ function meterFlowPickSub(k){ if(meterFlowSel==='swap'&&meterFlowSub===k){ meter
 const SWAP_SUB = {ready:{l:'✅ พร้อมเปลี่ยน (มี CA 82 + จัดสรรแล้ว)', f:r=>r.caCreated}, notready:{l:'⛔ ยังไม่พร้อม (ขาด CA 82)', f:r=>!r.caCreated}};
 function renderMeterFlow(){
   const el=$('#meterFlow'); if(!el) return;
-  if(charts.mflow){ charts.mflow.destroy(); charts.mflow=null; }
+  if(mflowChart){ try{mflowChart.destroy();}catch(e){} mflowChart=null; }
   const st = METER_FLOW.map(x=>{ const L=rows.filter(x.f); const ages=L.map(x.age).filter(v=>v!=null);
     return {...x, L, n:L.length, over:ages.filter(v=>v>METER_AGE_WARN).length, max:ages.length?Math.max(...ages):null, avg:ages.length?Math.round(ages.reduce((a,b)=>a+b,0)/ages.length):null}; });
   const main = st.filter(x=>!x.parallel), par = st.filter(x=>x.parallel), tot = main.reduce((s,x)=>s+x.n,0);
@@ -2002,7 +2003,7 @@ function renderMeterFlow(){
     const late=S.L.map(r=>({r,d:S.age(r)})).filter(x=>x.d!=null&&x.d>METER_AGE_WARN).sort((a,b)=>b.d-a.d);
     h += `<div style="margin-top:14px;background:#fff;border-radius:14px;padding:12px 14px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-        <b style="color:${(METER_STEPS.find(m=>m.k===S.k)||{}).c||'var(--pea)'}">📊 ${(METER_STEPS.find(m=>m.k===S.k)||{}).no||''} ${S.ic} ${S.l} — แยกจุดรวมงาน</b><button class="btn btn-outline btn-sm no-print" onclick="meterFlowPick(null)">✕ ปิด</button></div>
+        <b style="color:${(METER_STEPS.find(m=>m.k===S.k)||{}).c||'var(--pea)'}">📊 ${(METER_STEPS.find(m=>m.k===S.k)||{}).no||''} ${S.ic} ${S.l} — แยกจุดรวมงาน</b><button class="btn btn-outline btn-sm no-print" onclick="meterFlowPick(null)">↩ กลับไปดูภาพรวมทุกขั้น</button></div>
       ${S.L.length?'<div style="position:relative;height:340px"><canvas id="meterFlowChart"></canvas></div>':'<div class="note">ไม่มีรายการในสถานะนี้</div>'}
       ${['doc','alloc','swap','ca82'].includes(S.k)?meterFlowAreaHtml(S, S.k==='swap'?rows.filter(r=>(r.step===9||r.step===10)&&(r.meterPhase==='1P'||r.meterPhase==='3P')):null):''}
       ${S.since&&S.k!=='swap'?`<div style="margin-top:12px;font-weight:700">⚠ ค้างเกิน ${METER_AGE_WARN} วัน (นับจากวัน${S.since}) · ${fmtN(late.length)} ราย${late.length>50?' — แสดง 50 รายการที่ค้างนานสุด':''}</div>
@@ -2016,13 +2017,34 @@ function renderMeterFlow(){
         </tbody></table></div>`:`<div class="note">${(typeof mmSession!=='undefined'&&mmSession)?'ยังไม่มีรายการที่ระบุหมายเหตุ':'ยังไม่มีรายการที่ระบุหมายเหตุ (หมายเหตุแสดงเฉพาะเมื่อ login — PDPA)'}</div>`}`; })():''}
     </div>`;
     el.innerHTML = h;
-    if(S.L.length) charts.mflow = new Chart($('#meterFlowChart'),{type:'bar',
+    if(S.L.length) mflowChart = new Chart($('#meterFlowChart'),{type:'bar',
       data:{labels:E.map(e=>e[0]),datasets:[{label:'ราย',data:E.map(e=>e[1]),backgroundColor:((METER_STEPS.find(m=>m.k===S.k)||{}).c||'#7A34A6'),hoverBackgroundColor:'#3b3f46',borderRadius:4,maxBarThickness:36}]},
       options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},plugins:{legend:{display:false}},
         scales:{x:{grid:{display:false},ticks:{font:{size:12},autoSkip:false,maxRotation:60,minRotation:0}},y:{beginAtZero:true,ticks:{precision:0},grid:{color:'#eee'},title:{display:true,text:'ราย'}}}},
       plugins:[{id:'barValues',afterDatasetsDraw(ch){ const {ctx}=ch; ctx.save(); ctx.font='700 12px sans-serif'; ctx.fillStyle='#3b3f46'; ctx.textAlign='center'; ctx.textBaseline='bottom';
         ch.getDatasetMeta(0).data.forEach((bar,i)=>ctx.fillText(fmtN(E[i][1]), bar.x, bar.y-4)); ctx.restore(); }}]});
-  } else el.innerHTML = h;
+  } else {
+    // ภาพรวมทุกขั้น (ยังไม่เลือกการ์ด): แท่งซ้อนแยกจุดรวมงาน สีตามขั้น 2–5 (+ COD ซ่อนไว้ กดคำอธิบายเพื่อแสดง)
+    // ขั้น 1 (CA 82) ทำคู่ขนาน นับซ้ำกับขั้นอื่น จึงไม่นำมาซ้อน
+    const ks=['doc','alloc','swap','pbs','cod'], hubOf=r=>reqHub(r)||'ไม่ระบุจุดรวมงาน';
+    const gp={}; ks.forEach(k=>{ const f=st.find(x=>x.k===k); (f?f.L:[]).forEach(r=>{ const hb=hubOf(r); (gp[hb]=gp[hb]||{})[k]=((gp[hb]||{})[k]||0)+1; }); });
+    const H=HUB_LIST.filter(hb=>hb!==CENTRAL_HUB||gp[hb]).concat(Object.keys(gp).filter(hb=>!HUB_LIST.includes(hb)));
+    h += `<div style="margin-top:14px;background:#fff;border-radius:14px;padding:12px 14px">
+      <div style="font-weight:800;color:var(--pea)">📊 ภาพรวมทุกขั้น — แยกจุดรวมงาน</div>
+      <div class="note" style="margin-bottom:6px">กดการ์ดด้านบนเพื่อดูทีละขั้น · กดชื่อขั้นใต้กราฟเพื่อซ่อน/แสดง (🏁 COD ซ่อนไว้) · ขั้น 1 (CA 82) ทำคู่ขนาน ไม่นำมาซ้อน</div>
+      <div style="position:relative;height:360px"><canvas id="meterFlowChart"></canvas></div></div>`;
+    el.innerHTML = h;
+    const lab=k=>{ const f=st.find(x=>x.k===k)||{}, m=METER_STEPS.find(x=>x.k===k)||{}; return (m.no&&m.no!=='🏁'?m.no+'. ':'🏁 ')+(f.l||k); };
+    mflowChart = new Chart($('#meterFlowChart'),{type:'bar',
+      data:{labels:H,datasets:ks.map(k=>({label:lab(k),data:H.map(hb=>(gp[hb]||{})[k]||0),backgroundColor:(METER_STEPS.find(m=>m.k===k)||{}).c,stack:'s',hidden:k==='cod',maxBarThickness:40,borderColor:'#fff',borderWidth:{top:1}}))},
+      options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},
+        onClick:(e,els,ch)=>{ if(els&&els.length){ const k=ks[els[0].datasetIndex]; meterFlowPick(k); } },
+        plugins:{legend:{position:'bottom',labels:{boxWidth:14,font:{size:12}}},tooltip:{mode:'index',intersect:false}},
+        scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:12},autoSkip:false,maxRotation:60,minRotation:0}},y:{stacked:true,beginAtZero:true,ticks:{precision:0},grid:{color:'#eee'},title:{display:true,text:'ราย'}}}},
+      plugins:[{id:'stackTotal',afterDatasetsDraw(ch){ const {ctx}=ch; ctx.save(); ctx.font='700 12px sans-serif'; ctx.fillStyle='#3b3f46'; ctx.textAlign='center'; ctx.textBaseline='bottom';
+        H.forEach((hb,i)=>{ let tot=0, top=null; ch.data.datasets.forEach((d,di)=>{ if(!ch.isDatasetVisible(di)) return; tot+=d.data[i]||0; const b=ch.getDatasetMeta(di).data[i]; if(b&&(d.data[i]||0)>0) top=top==null?b.y:Math.min(top,b.y); });
+          if(tot>0&&top!=null) ctx.fillText(fmtN(tot), ch.getDatasetMeta(0).data[i].x, top-4); }); ctx.restore(); }}]});
+  }
 }
 function renderMeters(){
   renderMeterFlow(); renderMeterMine(); renderMeterHowto();
@@ -3880,7 +3902,7 @@ function showView(v){
   document.querySelectorAll('#sidenav a[data-view]').forEach(a=>a.classList.toggle('nav-active', a.getAttribute('data-view')===v));
   document.body.classList.remove('nav-open');
   window.scrollTo({top:0});
-  setTimeout(()=>{ try{ [charts, (typeof mktCharts!=='undefined'?mktCharts:{}), (typeof meterCharts!=='undefined'?meterCharts:{})].forEach(g=>Object.values(g).forEach(c=>{ try{c.resize();}catch(e){} })); if(v==='mkt'&&typeof renderMkt==='function') renderMkt(); }catch(e){} }, 80);
+  setTimeout(()=>{ try{ [charts, (typeof mktCharts!=='undefined'?mktCharts:{}), (typeof meterCharts!=='undefined'?meterCharts:{}), {m:mflowChart}].forEach(g=>Object.values(g).forEach(c=>{ try{c.resize();}catch(e){} })); if(v==='mkt'&&typeof renderMkt==='function') renderMkt(); }catch(e){} }, 80);
 }
 document.querySelectorAll('#sidenav a[data-view]').forEach(a=>{
   a.addEventListener('click', e=>{ e.preventDefault(); showView(a.getAttribute('data-view')); });
