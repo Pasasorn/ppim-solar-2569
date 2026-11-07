@@ -26,6 +26,7 @@ var MAIN_TAB  = 'PPIM Solar Update';
 var EMP_TAB   = 'พนักงานมิเตอร์';
 var LOG_TAB   = 'ผลสับเปลี่ยนมิเตอร์';
 var LOG_USER_TAB = 'บันทึกการเข้าใช้งาน';   // log ผู้ใช้ (login/register/รายงาน) ใคร-เมื่อไหร่-ทำอะไร
+var DL_LOG_TAB   = 'บันทึกการดาวน์โหลด';   // log การดาวน์โหลดไฟล์งานสับเปลี่ยน (เก็บหลังบ้านเท่านั้น ไม่แสดงในหน้าเว็บ)
 var TICKER_TAB   = 'ประกาศวิ่ง';            // ข้อความแถบวิ่งด้านล่าง (Admin แก้ไขได้) เก็บใน A1
 var PHOTO_FOLDER_ID = '1iL62z_4VPx9DBFH4S482jhbJ3phnHyvK';        // โฟลเดอร์ Drive เก็บรูปสับเปลี่ยนมิเตอร์
 var REG_PHOTO_FOLDER = 'รูปถ่ายผู้ลงทะเบียน';   // โฟลเดอร์ย่อยใน PHOTO_FOLDER_ID เก็บรูปถ่ายตอนลงทะเบียน
@@ -112,6 +113,7 @@ function doPost(e) {
     if (body.action === 'register') return json(doRegister(body));
     if (body.action === 'resetpw')  return json(doResetPw(body));
     if (body.action === 'pendingusers') return json(doGetPendingUsers(body));
+    if (body.action === 'dllog')        return json(doLogDownload(body));
     if (body.action === 'approveuser')  return json(doApproveUser(body));
     if (body.action === 'report')   return json(doReport(body));
     if (body.action === 'revert')   return json(doRevert(body));
@@ -373,6 +375,25 @@ function isRegistered(emp, pw) {
     if (String(data[r][iE]).trim() === String(emp||'').trim() && pwMatch(data[r][iP], pw)) return true;
   }
   return false;
+}
+
+// บันทึกการดาวน์โหลดไฟล์งานสับเปลี่ยนมิเตอร์ — ใช้ข้อมูลผู้ใช้จากทะเบียน (ไม่เชื่อค่าที่หน้าเว็บส่งมา) · ไม่มี API อ่านกลับ
+function doLogDownload(b) {
+  var sh = sheet(EMP_TAB); if (!sh) return { ok:false, error:'forbidden' };
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iE = colIndex(h,'รหัสพนักงาน'), iP = colIndex(h,'password'), iN = colIndex(h,'ชื่อ-สกุล'), iR = colIndex(h,'ตำแหน่ง'), iH = colIndex(h,'จุดร่วมงาน');
+  var u = null;
+  for (var r=1;r<data.length;r++){
+    if (String(data[r][iE]).trim() === String(b.emp||'').trim() && pwMatch(data[r][iP], b.pw)) {
+      u = { emp:String(data[r][iE]), name:String(data[r][iN]||''), role:iR>=0?String(data[r][iR]||''):'', hub:iH>=0?String(data[r][iH]||''):'' }; break;
+    }
+  }
+  if (!u) return { ok:false, error:'forbidden' };
+  var reqs = (b.reqs instanceof Array) ? b.reqs.map(String).slice(0, 2000) : [];
+  var ss = SpreadsheetApp.openById(SHEET_ID), lg = ss.getSheetByName(DL_LOG_TAB);
+  if (!lg) { lg = ss.insertSheet(DL_LOG_TAB); lg.appendRow(['เวลา','รหัสพนักงาน','ชื่อ-สกุล','ตำแหน่ง','จุดร่วมงาน (ทะเบียน)','ขอบเขตที่ดาวน์โหลด','จำนวนรายการ','ชื่อไฟล์','เลขที่คำขอ']); }
+  lg.appendRow([ new Date(), u.emp, u.name, u.role, u.hub, String(b.scope||'').slice(0,200), reqs.length, String(b.file||'').slice(0,200), reqs.join(', ').slice(0, 45000) ]);
+  return { ok:true };
 }
 
 // อ่านค่าทั้งชีต → {headers, rows} (แปลงวันที่เป็นสตริง เพื่อให้ frontend parse ได้)

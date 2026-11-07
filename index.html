@@ -343,6 +343,9 @@ details summary{cursor:pointer;color:var(--navy);font-size:.85rem;font-weight:60
     <div id="mmReport" class="hidden">
       <div class="note" id="mmWho" style="margin:6px 0 4px"></div>
       <div id="mmHubOverview" style="margin:8px 0"></div>
+      <div id="mmDlWrap" class="hidden" style="margin:8px 0;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-outline btn-sm" id="mmDlJobs">📥 ดาวน์โหลดรายการงานสับเปลี่ยน (Excel)</button>
+        <span class="note" id="mmDlMsg"></span></div>
       <div id="mmAllocWrap" class="hidden" style="margin:8px 0;background:#eef4fc;border:1px solid #cfe0f5;border-radius:10px;padding:10px 12px">
         <div style="font-weight:700;margin-bottom:4px">📦 จัดสรรมิเตอร์ (ผมต.กบล.น1)</div>
         <div class="note" id="mmAllocInfo" style="margin-bottom:8px"></div>
@@ -2922,6 +2925,8 @@ function mmShowReport(){
     + HUB_LIST.map(h=>{ const n=cntByHub[h]||0; const me=seeAll||h===myHub;
         return `<span style="font-size:.75rem;padding:3px 7px;border-radius:6px;${me?'background:var(--pea);color:#fff;font-weight:700':'background:#eef0f2;color:#555'}">${h} ${n}</span>`;
       }).join('') + '</div>';
+  // ปุ่มดาวน์โหลดรายการงาน: ผมต. = เฉพาะจุดร่วมงานตัวเอง · กบล.กฟน.1/Admin = ทุก กฟฟ. · ผซฟ. (ดูอย่างเดียว) ไม่แสดง
+  const dw=$('#mmDlWrap'); if(dw){ dw.classList.toggle('hidden', isViewer || (!seeAll && !myHub)); $('#mmDlMsg').textContent=''; }
   // Admin/ผซฟ. เห็นทุก กฟฟ. · ผมต. เห็นเฉพาะจุดร่วมงานตัวเอง
   const wait = seeAll ? wait8 : wait8.filter(r=>reqHub(r)===myHub);
   $('#mmReq').innerHTML = wait.length
@@ -3211,6 +3216,37 @@ if($('#mmDoRegister')) $('#mmDoRegister').onclick = async ()=>{
     else if(r && r.error==='exists') $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">รหัสพนักงานนี้ลงทะเบียนแล้ว — กลับไปเข้าสู่ระบบ</span>';
     else $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">ลงทะเบียนไม่สำเร็จ: '+((r&&r.error)||'')+'</span>';
   }catch(e){ $('#mmRegMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
+};
+// ===== ดาวน์โหลดรายการงานสับเปลี่ยน (ขั้น 8–9) ตามจุดร่วมงาน · บันทึก log หลังบ้านก่อนสร้างไฟล์ =====
+if($('#mmDlJobs')) $('#mmDlJobs').onclick = async ()=>{
+  const msg=$('#mmDlMsg'); if(!mmSession){ msg.textContent='เข้าสู่ระบบก่อน'; return; }
+  if(typeof XLSX==='undefined'){ msg.textContent='โหลดไลบรารี Excel ไม่สำเร็จ — รีเฟรชหน้า'; return; }
+  const rl=(mmSession.role||''), isAdm=rl.toLowerCase().indexOf('admin')>=0, myHub=canonHub(mmSession.hub)||mmSession.hub||'';
+  if(!isAdm && rl.indexOf('ผซฟ')>=0){ msg.textContent='ผซฟ. ดูอย่างเดียว ดาวน์โหลดไม่ได้'; return; }
+  const all = isAdm || myHub===CENTRAL_HUB;
+  if(!all && !myHub){ msg.textContent='บัญชีนี้ไม่มีจุดร่วมงาน — ติดต่อ Admin'; return; }
+  const L = rows.filter(r=>(r.step===8||r.step===9) && (all || reqHub(r)===myHub))
+    .sort((a,b)=>(reqHub(a)||'').localeCompare(reqHub(b)||'','th')||a.step-b.step||String(a.reqNo).localeCompare(String(b.reqNo)));
+  if(!L.length){ msg.textContent='ไม่มีงานสับเปลี่ยนใน'+(all?'ระบบ':'จุดร่วมงานนี้'); return; }
+  const d=new Date(), p2=n=>String(n).padStart(2,'0'), stamp=`${d.getFullYear()+543}${p2(d.getMonth()+1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}`;
+  const scope = all ? 'ทุกจุดร่วมงาน' : myHub, file = `งานสับเปลี่ยนมิเตอร์_${all?'ทั้งหมด':myHub}_${stamp}.xlsx`;
+  msg.textContent='กำลังบันทึกการดาวน์โหลด...';
+  try{
+    const lg = await meterApi({action:'dllog', emp:mmSession.emp, pw:mmSession.pw, scope, file, reqs:L.map(r=>r.reqNo)});
+    if(!(lg&&lg.ok)){ msg.innerHTML='<span style="color:var(--danger)">ดาวน์โหลดไม่ได้: '+escHtml((lg&&lg.error)||'')+((lg&&lg.error)==='unknown action'?' (ระบบหลังบ้านยังไม่อัปเดต)':'')+'</span>'; return; }
+  }catch(e){ msg.innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้ — ดาวน์โหลดไม่ได้</span>'; return; }
+  const dtTh=`${d.getDate()}/${d.getMonth()+1}/${d.getFullYear()+543} ${p2(d.getHours())}:${p2(d.getMinutes())} น.`;
+  const aoa=[['ลำดับ','เลขที่คำขอ','ชื่อ-สกุล','CA','PEA No.','CA 82','กฟฟ.','จุดร่วมงาน','มิเตอร์ (เฟส/ขนาด)','จัดสรรมิเตอร์','สถานะ']]
+    .concat(L.map((r,i)=>[i+1, r.reqNo, r.custName||'', r.ca||'', r.peaNo||'', r.caCreated?(r.ca82NoSys||r.ca82No||'สร้างแล้ว'):'ยังไม่สร้าง',
+      r.areaCheck||r.area||'', reqHub(r)||'', [r.meterPhase, r.meterSize].filter(Boolean).join(' · '), r.allocStatus||'', r.step===9?'สับเปลี่ยนแล้ว รอ ผบส. กด COD':'รอสับเปลี่ยน']));
+  aoa.push([]); aoa.push(['ดาวน์โหลดโดย: '+mmSession.name+' ('+mmSession.emp+') · '+scope+' · '+dtTh+' · ข้อมูลส่วนบุคคล ใช้เพื่อปฏิบัติงานเท่านั้น']);
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[6,22,26,14,14,14,18,18,16,14,24].map(w=>({wch:w}));
+  // CA / PEA No. / CA 82 เป็นข้อความ (กัน Excel ตัดเลข 0 หน้า)
+  for(let r=1;r<=L.length;r++) [3,4,5].forEach(c=>{ const a=ws[XLSX.utils.encode_cell({r,c})]; if(a){ a.t='s'; a.v=String(a.v); } });
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'งานสับเปลี่ยน');
+  XLSX.writeFile(wb, file);
+  msg.innerHTML='<span style="color:var(--green)">✅ ดาวน์โหลด '+fmtN(L.length)+' รายการ ('+escHtml(scope)+')</span>';
 };
 // รายการที่ต้องจัดสรร แต่ยังไม่เคยถูกดึง (จานหมุน/E-meter · ขั้น 8 รอสับเปลี่ยน/รอ COD · ยังไม่ดึง/จัดสรร)
 function allocFresh(){ return rows.filter(r=>r.needSwap && r.step===8 && r.allocStatus==='ยังไม่จัดสรร'); }
