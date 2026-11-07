@@ -22,19 +22,23 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: ตรวจว่าตั้ง secrets แล้ว
         env:
           CLASPRC_JSON: ${{ secrets.CLASPRC_JSON }}
           GAS_SCRIPT_ID: ${{ secrets.GAS_SCRIPT_ID }}
         run: |
-          if [ -z "$CLASPRC_JSON" ] || [ -z "$GAS_SCRIPT_ID" ]; then
-            echo "::error::ยังไม่ได้ตั้ง secrets CLASPRC_JSON / GAS_SCRIPT_ID (Settings → Secrets and variables → Actions)"; exit 1; fi
+          bad=0
+          if [ -z "$CLASPRC_JSON" ]; then echo "::error::ยังไม่ได้ตั้ง secret CLASPRC_JSON (Settings → Secrets and variables → Actions)"; bad=1; fi
+          if [ -z "$GAS_SCRIPT_ID" ]; then echo "::error::ยังไม่ได้ตั้ง secret GAS_SCRIPT_ID — ใส่ Script ID จาก Apps Script → ⚙️ Project Settings → IDs → Script ID"; bad=1
+          elif [[ "$GAS_SCRIPT_ID" == AKfycb* ]]; then echo "::error::GAS_SCRIPT_ID ขึ้นต้น AKfycb… = Deployment ID (ผิดช่อง) — ต้องใช้ Script ID จาก ⚙️ Project Settings → IDs"; bad=1
+          elif ! [[ "$GAS_SCRIPT_ID" =~ ^[A-Za-z0-9_-]{40,80}$ ]]; then echo "::error::GAS_SCRIPT_ID รูปแบบไม่ถูกต้อง (ยาว ${#GAS_SCRIPT_ID} ตัว · มีช่องว่าง/อักขระแปลก?) — คัดลอก Script ID ใหม่ทั้งบรรทัด"; bad=1; fi
+          exit $bad
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
 
       - name: ตรวจ syntax .gs
         run: node -e "new Function(require('fs').readFileSync('apps-script-meter.gs','utf8'))"
