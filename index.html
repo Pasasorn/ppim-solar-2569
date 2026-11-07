@@ -119,6 +119,35 @@ body{padding-left:236px}
 .kpi{background:#f7f2fb;border-radius:18px;padding:15px 15px 14px;box-shadow:0 4px 14px rgba(107,44,145,.07);border:1px solid #0000000d;text-align:left;transition:.18s}
 .kpi:hover{box-shadow:0 10px 24px rgba(107,44,145,.15);transform:translateY(-3px)}
 .kpi.clk{cursor:pointer} .kpi.sel{outline:2.5px solid var(--pea);outline-offset:-1px;background:#efe4f7}
+/* แท็บสับเปลี่ยนมิเตอร์: ขั้นตอน ①→⑤ + งานของฉัน */
+.msteps{grid-template-columns:repeat(6,1fr)}
+@media(max-width:1100px){.msteps{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:620px){.msteps{grid-template-columns:1fr 1fr}}
+.mstep{position:relative;display:flex;flex-direction:column}
+.mstep .no{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--pea);color:#fff;font-weight:800;font-size:.85rem;flex:none}
+.mstep.done .no{background:#1f9d57}
+.mstep .how{font-size:.76rem;color:#4b5563;line-height:1.45;margin-top:6px;flex:1}
+.mstep .act{margin-top:8px;width:100%;font-size:.78rem;padding:6px 8px;white-space:normal;line-height:1.3}
+@media(min-width:1101px){.mstep:not(:last-child)::after{content:'➜';position:absolute;right:-12px;top:22px;color:#b79ad0;font-size:.9rem;z-index:1}}
+#meterMine{border-radius:14px;padding:12px 14px;margin-bottom:14px;background:linear-gradient(90deg,#fff8e6,#fdf3ff);border:1px solid #f0d77a}
+#meterMine .mh{font-weight:800;color:var(--pea);margin-bottom:8px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center}
+#meterMine .chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+#meterMine .chip{background:#fff;border:1px solid #e3d9f0;border-radius:12px;padding:6px 12px;cursor:pointer;font-size:.86rem}
+#meterMine .chip b{font-size:1.15rem;color:var(--pea);margin-right:2px}
+#meterMine .chip.warn b{color:var(--danger)}
+#meterMine .acts{display:flex;gap:8px;flex-wrap:wrap}
+details.mfold{margin-top:14px;border:1px solid var(--border);border-radius:12px;background:#fff}
+details.mfold>summary{cursor:pointer;padding:10px 14px;font-weight:800;color:var(--pea);list-style:none}
+details.mfold>summary::-webkit-details-marker{display:none}
+details.mfold>summary::before{content:'▸ ';}
+details.mfold[open]>summary::before{content:'▾ ';}
+details.mfold>.in{padding:0 14px 14px}
+.howto ol{padding-left:0;list-style:none;margin:0}
+.howto li{display:flex;gap:10px;padding:8px 0;border-bottom:1px dashed #eadff3}
+.howto li:last-child{border-bottom:0}
+.howto .t{font-weight:800}
+.howto .w{font-size:.75rem;font-weight:800;color:var(--pea);background:#f3ecfa;border-radius:999px;padding:1px 8px;margin-left:6px}
+.howto .d{font-size:.84rem;color:#374151;line-height:1.55;margin-top:2px}
 .kpisub{color:inherit;text-decoration:none;border-radius:6px;padding:0 3px;margin:0 -3px}.kpisub:hover{background:#efe4f7;text-decoration:underline}.kpisub.on{background:#e3d2f0;outline:1.5px solid var(--pea)}
 .kpi .ic{display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:13px;font-size:1.4rem;line-height:1;background:#fff;color:var(--pea);margin-bottom:10px;box-shadow:0 2px 6px rgba(0,0,0,.06)}
 .kpi .kh{display:flex;align-items:center;gap:8px;margin-bottom:10px} .kpi .kh .ic{margin-bottom:0}
@@ -532,9 +561,12 @@ window.splash=(function(){
     <div class="card" id="sec-meter" data-view="meter">
       <h2 style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>🔧 สถานะของการสับเปลี่ยนมิเตอร์</span>
         <button class="btn-3d no-print" id="btnMeterReport">📝 กดรายงานผลการสับเปลี่ยนมิเตอร์</button></h2>
-      <div class="note" style="margin-bottom:10px">🔧 สับเปลี่ยนแล้วจริง = COD แล้ว · 📈 คาดการณ์ = สถานะ “รอทดสอบเชื่อมต่อ/COD” (รอ ผมต. สับเปลี่ยนมิเตอร์) เท่านั้น · แยกเฟสจากคอลัมน์ “จำนวนเฟส”</div>
-      <div id="meterFlow" style="margin-bottom:14px"></div>
-      <div id="meterSummary"></div>
+      <div id="meterMine" class="no-print"></div>
+      <div id="meterFlow" style="margin-bottom:6px"></div>
+      <details class="mfold howto no-print" id="meterHowto"><summary>📖 คู่มือ: ทำงานแต่ละขั้นอย่างไร (กดเพื่อเปิด)</summary><div class="in" id="meterHowtoBody"></div></details>
+      <details class="mfold" id="meterStats"><summary>📊 สถิติและวางแผนมิเตอร์ (ส่วนที่ 1–3 · คาดการณ์ / จัดสรร / แยก กฟฟ.)</summary><div class="in">
+        <div class="note" style="margin-bottom:10px">🔧 สับเปลี่ยนแล้วจริง = COD แล้ว · 📈 คาดการณ์ = สถานะ “รอทดสอบเชื่อมต่อ/COD” (รอ ผมต. สับเปลี่ยนมิเตอร์) เท่านั้น · แยกเฟสจากคอลัมน์ “จำนวนเฟส”</div>
+        <div id="meterSummary"></div></div></details>
     </div>
 
     <!-- CA 82 ACCOUNT CREATION (ผซฟ. เท่านั้น) -->
@@ -1888,6 +1920,21 @@ const METER_FLOW = [
   {k:'cod',  ic:'🏁', l:'COD เรียบร้อย',          who:'',          f:r=>r.step===10,                         age:()=>null},
   {k:'ca82', ic:'🧾', l:'รอสร้าง CA 82',          who:'ผซฟ.กบฟ.', f:r=>r.step>=8&&!r.caCreated,             age:r=>r.step===8?r.swapWaitDays:null, since:'อนุมัติเชื่อมต่อ', parallel:true}
 ];
+// ขั้นตอนการทำงาน ①→⑤ (เรียงตามลำดับงานจริง) — วิธีทำ + ปุ่มลัด ของแต่ละการ์ด
+const METER_STEPS = [
+  {k:'ca82', no:'①', how:'ระบบสร้างบัญชี CA 82 ให้อัตโนมัติ — ตรวจสอบ/ใส่หมายเหตุถ้าติดปัญหา (ทำคู่ขนานกับขั้น ②–④ ได้)', btn:'🧾 ไปหน้าสร้างบัญชี CA 82', go:"showView('ca')",
+   long:'เมื่อคำขอได้รับอนุมัติเชื่อมต่อ (ขั้น 8) ระบบสร้างบัญชีแสดงสัญญาผู้ผลิตไฟฟ้า (CA 82) ให้อัตโนมัติ · ผซฟ. เข้าเมนู <b>สร้างบัญชี CA 82</b> เพื่อตรวจรายการที่ยังไม่มีเลข CA 82 และบันทึก <b>หมายเหตุ CA 82</b> ถ้าติดปัญหา (เอกสาร ผมต. ดูได้จากปุ่ม 📎) · ต้องมี CA 82 ก่อนจึงจะ “พร้อมเปลี่ยน” ในขั้น ④'},
+  {k:'doc',  no:'②', how:'รวบรวมคำขอที่อนุมัติเชื่อมต่อแล้ว → ออกเอกสารขอจัดสรรมิเตอร์ (PDF)', btn:'📄 ออกเอกสารขอจัดสรร', go:'exportAllocReport()',
+   long:'ผมต.กบล. กดปุ่ม <b>📄 ออกเอกสารขอจัดสรร</b> (ต้องเข้าสู่ระบบ) → เลือกรายการที่ยังไม่ดึง → ระบบออกเลขที่เอกสาร + PDF ความต้องการมิเตอร์ และย้ายรายการไปสถานะ “รอจัดสรร” · ยกเลิกเอกสารได้ที่ส่วนที่ 3 (ประวัติเอกสาร)'},
+  {k:'alloc',no:'③', how:'เมื่อ กบล. จัดสรรมิเตอร์แล้ว → บันทึกผลการจัดสรร อ้างอิงเลขที่เอกสาร', btn:'✅ บันทึกผลการจัดสรร', go:'openAllocDoneModal()',
+   long:'เมื่อได้รับมิเตอร์ตามเอกสารขอจัดสรร ผมต.กบล. กด <b>✅ บันทึกผลการจัดสรร</b> → เลือกเลขที่เอกสาร + กรอกเลขที่บันทึกผล → รายการจะเป็น “จัดสรรแล้ว” พร้อมให้ ผมม./ผมต. สับเปลี่ยน'},
+  {k:'swap', no:'④', how:'ดาวน์โหลดรายการงานของจุดร่วมงาน → สับเปลี่ยนหน้างาน → กดรายงานผล + แนบเอกสาร 3 รายการ', btn:'📝 รายงานผลการสับเปลี่ยน', go:"openMeterModal('meter')",
+   long:'ผมม./ผมต. เข้าสู่ระบบ → <b>📥 ดาวน์โหลดรายการงานสับเปลี่ยน</b> (เฉพาะจุดร่วมงานของตน) → ออกสับเปลี่ยนหน้างาน → กด <b>📝 รายงานผลการสับเปลี่ยน</b> เลือกเลขที่คำขอ ใส่วันที่สับเปลี่ยน และแนบ (1) แบบฟอร์มตรวจสอบการขนาน (2) แบบฟอร์มอ่าน TOU (3) รูปมิเตอร์เห็น PEA No. · รายการ “⛔ ไม่พร้อม” = ยังไม่มี CA 82 ให้ประสาน ผซฟ.'},
+  {k:'pbs',  no:'⑤', how:'ผบส. ตรวจรายงาน แล้วกด COD ในระบบ PPIM — Dashboard อัปเดตจาก PPIM อัตโนมัติ', btn:'', go:'',
+   long:'หลัง ผมต. รายงานผลแล้ว ผบส. ตรวจเอกสาร/รูปที่แนบ (ดูได้ในหน้ารายงาน) แล้วกด <b>COD</b> ในระบบ PPIM · เมื่อชีต PPIM Solar อัปเดต คำขอจะย้ายไป “COD เรียบร้อย” เอง'},
+  {k:'cod',  no:'🏁', how:'งานเสร็จสมบูรณ์', btn:'', go:'', long:''}
+];
+function meterStepGo(k){ const s=METER_STEPS.find(x=>x.k===k); if(s&&s.go){ try{ (new Function(s.go))(); }catch(e){ alert('เปิดไม่สำเร็จ: '+e.message); } } }
 let meterFlowSel = null, meterFlowSub = null, meterFlowArea = null;   // meterFlowArea: กฟฟ. ที่กดดูรายการ   // meterFlowSub: 'ready' | 'notready' (เฉพาะการ์ดรอสับเปลี่ยน)
 function meterFlowPick(k){ meterFlowSel = (meterFlowSel===k) ? null : k; meterFlowSub = null; meterFlowArea = null; renderMeterFlow(); }
 function meterFlowPickArea(a){ meterFlowArea = (meterFlowArea===a) ? null : a; renderMeterFlow(); const e=$('#mfAreaList'); if(e) e.scrollIntoView({behavior:'smooth',block:'nearest'}); }
@@ -1924,21 +1971,24 @@ function renderMeterFlow(){
   const st = METER_FLOW.map(x=>{ const L=rows.filter(x.f); const ages=L.map(x.age).filter(v=>v!=null);
     return {...x, L, n:L.length, over:ages.filter(v=>v>METER_AGE_WARN).length, max:ages.length?Math.max(...ages):null, avg:ages.length?Math.round(ages.reduce((a,b)=>a+b,0)/ages.length):null}; });
   const main = st.filter(x=>!x.parallel), par = st.filter(x=>x.parallel), tot = main.reduce((s,x)=>s+x.n,0);
-  const card = x=>`<div class="kpi clk${meterFlowSel===x.k?' sel':''}" onclick="meterFlowPick('${x.k}')" title="กดเพื่อดูแยกจุดรวมงาน + รายการค้างนาน"${x.parallel?' style="border:2px dashed #c9b3dd"':''}>
-      <div class="kh"><div class="ic">${x.ic}</div>${x.who?`<span class="dept">${x.who}</span>`:''}</div>
+  const card = x=>{ const M=METER_STEPS.find(m=>m.k===x.k)||{};
+    return `<div class="kpi clk mstep${meterFlowSel===x.k?' sel':''}${x.k==='cod'?' done':''}" onclick="meterFlowPick('${x.k}')" title="กดเพื่อดูแยกจุดรวมงาน + รายการค้าง"${x.parallel?' style="border:2px dashed #c9b3dd"':''}>
+      <div class="kh"><span class="no">${M.no||''}</span>${x.who?`<span class="dept">${x.who}</span>`:''}</div>
       <div class="v">${fmtN(x.n)}${!x.parallel&&tot?` <span class="pc">(${pctTxt(x.n/tot*100)})</span>`:''}</div>
-      <div class="l">${x.l}</div>
+      <div class="l">${x.ic} ${x.l}</div>
       <div class="d">${x.avg!=null?`รอเฉลี่ย ${fmtN(x.avg)} วัน · สูงสุด ${fmtN(x.max)} วัน`:(x.k==='cod'?'งานเสร็จสมบูรณ์':'-')}</div>
       ${x.k==='swap'&&x.n?(()=>{ const rd=x.L.filter(SWAP_SUB.ready.f).length, nr=x.n-rd;
         const ln=(k,c,t,v)=>`<a href="#" class="kpisub${meterFlowSel==='swap'&&meterFlowSub===k?' on':''}" onclick="event.stopPropagation();meterFlowPickSub('${k}');return false;" title="กดเพื่อดูแยกจุดรวมงาน + รายการ">${t} <span style="color:${c}">${fmtN(v)}</span> เครื่อง <span class="pc">(${pctTxt(v/x.n*100)})</span></a>`;
         return `<div style="margin-top:6px;line-height:1.65;font-weight:700;font-size:.82rem">${ln('ready','#1f9d57','✅ พร้อมเปลี่ยน',rd)}<br>${ln('notready','var(--danger)','⛔ ไม่พร้อม (ขาด CA 82)',nr)}
           <div style="height:7px;border-radius:99px;background:#f3c9c9;overflow:hidden;margin-top:4px"><div style="height:100%;width:${(rd/x.n*100).toFixed(1)}%;background:#22A45D"></div></div></div>`; })():''}
       ${x.over?`<div style="margin-top:6px"><span style="background:#fde8e8;color:var(--danger);border-radius:999px;padding:2px 9px;font-size:.76rem;font-weight:800">⚠ ค้างเกิน ${METER_AGE_WARN} วัน ${fmtN(x.over)} ราย</span></div>`:''}
-    </div>`;
-  let h = `<div style="font-weight:800;color:var(--pea);margin-bottom:6px">📋 สถานะงานมิเตอร์ (ขั้น 8 ขึ้นไป · รวม ${fmtN(tot)} ราย · 1 คำขอ = 1 สถานะ ตามงานถัดไปที่ต้องทำ)</div>
-    <div class="kpis" style="margin-bottom:8px">${main.map(card).join('')}</div>
-    <div class="note" style="margin:4px 0 6px">ทำคู่ขนานกับขั้นตอนด้านบน (ไม่นับรวมยอด):</div>
-    <div class="kpis" style="margin-bottom:0">${par.map(card).join('')}</div>`;
+      ${M.how?`<div class="how">${M.how}</div>`:''}
+      ${M.btn?`<button class="btn btn-outline btn-sm act no-print" onclick="event.stopPropagation();meterStepGo('${x.k}')">${M.btn}</button>`:''}
+    </div>`; };
+  const ordered = METER_STEPS.map(m=>st.find(x=>x.k===m.k)).filter(Boolean);
+  let h = `<div style="font-weight:800;color:var(--pea);margin-bottom:2px">🧭 ขั้นตอนการทำงานสับเปลี่ยนมิเตอร์ (① → ⑤)</div>
+    <div class="note" style="margin-bottom:8px">ตัวเลข = งานที่ค้างอยู่ในขั้นนั้นตอนนี้ (ขั้น 8 ขึ้นไป รวม ${fmtN(tot)} ราย · 1 คำขอ = 1 สถานะตามงานถัดไป · ① ทำคู่ขนาน ไม่นับรวมยอด) · <b>กดการ์ด</b>เพื่อดูแยกจุดรวมงาน + รายการค้าง</div>
+    <div class="kpis msteps" style="margin-bottom:0">${ordered.map(card).join('')}</div>`;
   let S = st.find(x=>x.k===meterFlowSel);
   if(S && S.k==='swap' && meterFlowSub && SWAP_SUB[meterFlowSub]){ const ss=SWAP_SUB[meterFlowSub]; S={...S, L:S.L.filter(ss.f), l:S.l+' · '+ss.l}; }
   if(S){
@@ -1970,7 +2020,7 @@ function renderMeterFlow(){
   } else el.innerHTML = h;
 }
 function renderMeters(){
-  renderMeterFlow();
+  renderMeterFlow(); renderMeterMine(); renderMeterHowto();
   const el = $('#meterSummary'); if(!el) return;
   // แยกเป็น "สับเปลี่ยนแล้วจริง" = COD แล้ว (ขั้น 10) กับ "คาดการณ์" = กำลังดำเนินการ ยังไม่ COD/ยกเลิก
   const swapped = {'1P':0,'3P':0}, fore = {'1P':0,'3P':0}, fore8 = {'1P':0,'3P':0}, alloc = {'1P':0,'3P':0};
@@ -2121,6 +2171,51 @@ function renderMeters(){
   drawHub('chMtrAlloc',hubAlloc);
   const bAlloc=$('#btnAllocReport'); if(bAlloc) bAlloc.onclick=exportAllocReport;
   const bDone=$('#btnAllocDone'); if(bDone) bDone.onclick=openAllocDoneModal;
+}
+// ดาวน์โหลดรายการงาน (ใช้ปุ่มเดิมในหน้ารายงาน — บันทึก log หลังบ้านเหมือนเดิม) แล้วแสดงข้อความผลในกล่องงานของฉัน
+function meterMineDl(){ const b=$('#mmDlJobs'), m=$('#mmMineMsg'); if(!b) return; if(m) m.textContent='กำลังเตรียมไฟล์...'; b.click();
+  let n=0; const t=setInterval(()=>{ const x=($('#mmDlMsg')||{}).textContent||''; if((x&&!/กำลัง/.test(x))||++n>40){ clearInterval(t); if(m) m.textContent=x; } },250); }
+// สถิติ (พับไว้): จำสถานะเปิด/ปิด · เปิดแล้วต้อง resize กราฟที่วาดตอนซ่อน
+(function(){ const d=document.getElementById('meterStats'); if(!d) return;
+  try{ if(localStorage.getItem('meter_stats_open')==='1') d.open=true; }catch(e){}
+  d.addEventListener('toggle',()=>{ try{ localStorage.setItem('meter_stats_open', d.open?'1':'0'); }catch(e){}
+    if(d.open) setTimeout(()=>{ try{ Object.values(meterCharts||{}).forEach(c=>{ try{c.resize();}catch(e){} }); }catch(e){} },40); }); })();
+// คู่มือขั้นตอน (พับได้)
+function renderMeterHowto(){
+  const el=$('#meterHowtoBody'); if(!el) return;
+  el.innerHTML='<ol>'+METER_STEPS.filter(m=>m.long).map(m=>{ const f=METER_FLOW.find(x=>x.k===m.k)||{};
+    return `<li><span class="no" style="display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--pea);color:#fff;font-weight:800;flex:none">${m.no}</span><div><div class="t">${f.ic||''} ${escHtml(f.l||'')}<span class="w">${escHtml(f.who||'')}</span></div><div class="d">${m.long}</div>${m.btn?`<button class="btn btn-outline btn-sm" style="margin-top:6px" onclick="meterStepGo('${m.k}')">${m.btn}</button>`:''}</div></li>`; }).join('')+'</ol>';
+}
+// กล่อง "งานของฉัน" — ตามตำแหน่ง/จุดร่วมงานของผู้ที่เข้าสู่ระบบ
+function renderMeterMine(){
+  const el=$('#meterMine'); if(!el) return;
+  if(!mmSession){
+    el.innerHTML=`<div class="mh"><span>👤 งานของฉัน</span></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="note">เข้าสู่ระบบเจ้าหน้าที่ เพื่อดูงานที่ค้างของคุณ (ผมต. เห็นเฉพาะจุดร่วมงานของตน) และกดทำงานได้จากที่นี่</span><button class="btn btn-primary btn-sm" onclick="openMeterModal('meter')">🔐 เข้าสู่ระบบ</button></div>`;
+    return;
+  }
+  const rl=String(mmSession.role||''), isAdm=rl.toLowerCase().indexOf('admin')>=0, isCa=!isAdm&&rl.indexOf('ผซฟ')>=0;
+  const myHub=canonHub(mmSession.hub)||mmSession.hub||'', central=isAdm||myHub===CENTRAL_HUB;
+  const mine=r=>central||isCa||reqHub(r)===myHub;
+  const cnt=k=>{ const f=METER_FLOW.find(x=>x.k===k); return f?rows.filter(r=>f.f(r)&&mine(r)):[]; };
+  const chip=(k,label,L,warn)=>`<span class="chip${warn&&L.length?' warn':''}" onclick="meterFlowPick('${k}');document.getElementById('meterFlow').scrollIntoView({behavior:'smooth'})" title="กดเพื่อดูรายการ"><b>${fmtN(L.length)}</b> ${label}</span>`;
+  const btn=(k,cls)=>{ const m=METER_STEPS.find(x=>x.k===k); return m&&m.btn?`<button class="btn ${cls||'btn-outline'} btn-sm" onclick="meterStepGo('${k}')">${m.btn}</button>`:''; };
+  const swapL=cnt('swap'), rd=swapL.filter(SWAP_SUB.ready.f);
+  let title, chips, acts;
+  if(isCa){
+    title='ผซฟ. — สร้างบัญชี CA 82';
+    chips=chip('ca82','รอสร้าง CA 82',cnt('ca82'),true)+chip('swap','จัดสรรแล้วแต่ขาด CA 82',swapL.filter(SWAP_SUB.notready.f),true);
+    acts=btn('ca82','btn-primary');
+  } else if(central){
+    title=(isAdm?'Admin':'ผมต.กบล.')+' — ทุกจุดร่วมงาน';
+    chips=chip('doc','② รอออกเอกสารขอจัดสรร',cnt('doc'),true)+chip('alloc','③ รอบันทึกผลจัดสรร',cnt('alloc'),true)+chip('swap','④ รอสับเปลี่ยน',swapL)+chip('pbs','⑤ รอ ผบส. กด COD',cnt('pbs'))+(isAdm?chip('ca82','① รอสร้าง CA 82',cnt('ca82')):'');
+    acts=btn('doc','btn-primary')+btn('alloc','btn-primary')+btn('swap')+`<button class="btn btn-outline btn-sm" onclick="meterMineDl()">📥 ดาวน์โหลดรายการงาน (Excel)</button>`;
+  } else {
+    title='ผมต. — จุดร่วมงาน '+(myHub||'(ไม่ระบุ — ติดต่อ Admin)');
+    const waitAlloc=cnt('doc').length+cnt('alloc').length;
+    chips=chip('swap','✅ พร้อมสับเปลี่ยน',rd)+chip('swap','⛔ จัดสรรแล้วแต่ขาด CA 82',swapL.filter(SWAP_SUB.notready.f),true)+`<span class="chip" onclick="meterFlowPick('doc')"><b>${fmtN(waitAlloc)}</b> รอ กบล. จัดสรรมิเตอร์</span>`+chip('pbs','รายงานแล้ว รอ ผบส. กด COD',cnt('pbs'));
+    acts=`<button class="btn btn-primary btn-sm" onclick="openMeterModal('meter')">📝 รายงานผลการสับเปลี่ยน</button><button class="btn btn-outline btn-sm" onclick="meterMineDl()">📥 ดาวน์โหลดรายการงานของฉัน (Excel)</button>`;
+  }
+  el.innerHTML=`<div class="mh"><span>👤 งานของฉัน · ${escHtml(mmSession.name||'')} <span class="note" style="font-weight:600">(${escHtml(title)})</span></span></div><div class="chips">${chips}</div><div class="acts">${acts}</div><div class="note" id="mmMineMsg" style="margin-top:6px"></div>`;
 }
 function mtrTab(t){
   const A=$('#mtrTabA'), B=$('#mtrTabB'), C=$('#mtrTabC'), ta=$('#mtabA'), tb=$('#mtabB'), tc=$('#mtabC');
