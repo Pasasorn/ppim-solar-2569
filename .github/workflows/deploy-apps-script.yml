@@ -69,7 +69,9 @@ jobs:
           [ -z "$ids" ] && { echo "::error::ไม่พบโปรเจกต์ Apps Script ในบัญชีของ CLASPRC_JSON (โปรเจกต์อาจผูกกับชีต — ต้องตั้ง secret GAS_SCRIPT_ID เอง)"; exit 1; }
           for id in $ids; do
             d=$(mktemp -d); printf '{"scriptId":"%s","rootDir":"."}' "$id" > "$d/.clasp.json"
-            if (cd "$d" && clasp list-deployments 2>/dev/null) | grep -q "$GAS_DEPLOYMENT_ID"; then
+            out=$(cd "$d" && clasp list-deployments 2>&1 || true)
+            echo "── $id: $(echo "$out" | grep -oE 'AKfycb[A-Za-z0-9_-]{6}|[Ee]rror.*' | head -5 | tr '\n' ' ')"
+            if echo "$out" | grep -q "$GAS_DEPLOYMENT_ID"; then
               echo "พบ Script ID ของ Dashboard: $id"; echo "::notice::Script ID ของ Dashboard = $id (นำไปตั้งเป็น secret GAS_SCRIPT_ID ได้ จะเร็วขึ้น)"
               echo "SCRIPT_ID=$id" >> "$GITHUB_ENV"; exit 0; fi
           done
