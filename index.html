@@ -3551,6 +3551,13 @@ if($('#mmDlJobs')) $('#mmDlJobs').onclick = async ()=>{
   msg.innerHTML='<span style="color:var(--green)">✅ ดาวน์โหลด '+fmtN(L.length)+' รายการ ('+escHtml(scope)+')</span>';
 };
 // รายการที่ต้องจัดสรร แต่ยังไม่เคยถูกดึง (จานหมุน/E-meter · ขั้น 8 รอสับเปลี่ยน/รอ COD · ยังไม่ดึง/จัดสรร)
+// กฟฟ. ที่แสดงในรายงานจัดสรร: ใช้คอลัมน์ AZ "กฟฟ." (หน่วยย่อย) เฉพาะเมื่ออยู่ในจุดร่วมงานเดียวกับ "กฟฟ.ที่ตรวจสอบ" (คอลัมน์ K)
+// ไม่สอดคล้อง (เช่น K = หางดง แต่ AZ = แม่สาย) → ใช้คอลัมน์ K แทน และนับเป็นรายการที่ต้องตรวจ
+function officeHub(name){ const k=hubKey(name); if(!k) return ''; const m=hubMapping(); const key=Object.keys(m).find(x=>hubKey(x)===k); return canonHub(key?m[key]:name); }
+function allocOffice(r){ const az=String(r.respOffice||'').trim(), k=String(r.areaCheck||r.area||'').trim(), hub=reqHub(r);
+  if(az && (!hub || officeHub(az)===hub)) return {name:az, bad:false};
+  return {name:k||az, bad:!!az, az}; }
+function allocMismatch(list){ return list.map(r=>({r, o:allocOffice(r)})).filter(x=>x.o.bad); }
 function allocFresh(){ return rows.filter(r=>r.needSwap && r.step===8 && r.allocStatus==='ยังไม่จัดสรร'); }
 // สร้างเอกสาร PDF (เปิดหน้าพิมพ์ → บันทึกเป็น PDF) สรุปความต้องการมิเตอร์เพื่อจัดสรร
 function openAllocPdf(list, docNo, opts){
@@ -3572,9 +3579,9 @@ function openAllocPdf(list, docNo, opts){
   let run=0;
   const attachRows=hubs.map(h=>{const o=byHub[h];
     // กฟส./กฟย. ที่รับผิดชอบในจุดรวมงานนี้ (คอลัมน์ J) — เรียงรายการตาม กฟส./กฟย. แล้วตามเฟส
-    const offices=[...new Set(o.items.map(r=>peaName(r.respOffice||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
-    const its=o.items.slice().sort((a,b)=>(peaName(a.respOffice||'').localeCompare(peaName(b.respOffice||''),'th'))||((a.swapPhase==='3P'?1:0)-(b.swapPhase==='3P'?1:0)));
-    const body=its.map(r=>{run++;const is3=r.swapPhase==='3P';return `<tr><td class=n>${run}</td><td class=n>${esc(r.reqNo)}</td><td class=mt>${esc(peaName(r.respOffice)||'-')}</td><td class=mt>${esc(r.meterModel||r.meterSize)}</td><td class=n>${is3?'-':'1'}</td><td class=n>${is3?'1':'-'}</td></tr>`;}).join('');
+    const offices=[...new Set(o.items.map(r=>peaName(allocOffice(r).name||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
+    const its=o.items.slice().sort((a,b)=>(peaName(allocOffice(a).name||'').localeCompare(peaName(allocOffice(b).name||''),'th'))||((a.swapPhase==='3P'?1:0)-(b.swapPhase==='3P'?1:0)));
+    const body=its.map(r=>{run++;const is3=r.swapPhase==='3P';return `<tr><td class=n>${run}</td><td class=n>${esc(r.reqNo)}</td><td class=mt>${esc(peaName(allocOffice(r).name)||'-')}</td><td class=mt>${esc(r.meterModel||r.meterSize)}</td><td class=n>${is3?'-':'1'}</td><td class=n>${is3?'1':'-'}</td></tr>`;}).join('');
     const offTxt=offices.length?` <span style="font-weight:normal;font-size:13pt;color:#444">— รับผิดชอบโดย ${esc(offices.join(', '))}</span>`:'';
     return `<tr class="grp"><td colspan=6>▍ ${esc(peaName(h))}${offTxt}</td></tr>${body}<tr class="sub"><td colspan=4>รวม</td><td class=n>${o.p1}</td><td class=n>${o.p3}</td></tr>`;}).join('');
   const docYear = new Date().getFullYear()+543;                       // ปี พ.ศ. อัตโนมัติ (2569 → ปีถัดไปเปลี่ยนเอง)
@@ -3687,6 +3694,10 @@ async function fetchSignature(c){
 async function exportAllocReport(){
   const list = allocFresh();
   if(!list.length){ alert('ไม่มีรายการใหม่ให้จัดสรร — ทุกคำขอขั้น 8 ถูกดึง/จัดสรรแล้ว'); return; }
+  const mm=allocMismatch(list);
+  if(mm.length && !confirm('⚠ พบ '+mm.length+' รายการที่คอลัมน์ "กฟฟ." (AZ) ไม่ตรงกับ "กฟฟ.ที่ตรวจสอบ" (K) — ในเอกสารจะใช้ กฟฟ.ที่ตรวจสอบ แทน:\n\n'
+      +mm.slice(0,15).map(x=>'• '+x.r.reqNo+' : K = '+(x.r.areaCheck||'-')+' · AZ = '+x.o.az).join('\n')+(mm.length>15?'\n… และอีก '+(mm.length-15)+' ราย':'')
+      +'\n\nควรแก้คอลัมน์ AZ ในชีต PPIM Solar ให้ถูก · กด OK เพื่อดำเนินการต่อ')) return;
   const c=getAllocCreds(); if(!c) return;
   if(!confirm('ออกเอกสารขอจัดสรรมิเตอร์ '+list.length+' ราย?\nระบบจะออกเลขที่เอกสารอัตโนมัติ และทำเครื่องหมาย "รอจัดสรรมิเตอร์" (ไม่ถูกดึงซ้ำ)')) return;
   let docNo=null;
