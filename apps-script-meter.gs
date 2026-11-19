@@ -118,6 +118,7 @@ function doPost(e) {
     if (body.action === 'dllog')        return json(doLogDownload(body));
     if (body.action === 'dllogs')       return json(doGetDownloadLogs(body));
     if (body.action === 'approveuser')  return json(doApproveUser(body));
+    if (body.action === 'deleteuser')   return json(doDeleteUser(body));
     if (body.action === 'report')   return json(doReport(body));
     if (body.action === 'revert')   return json(doRevert(body));
     if (body.action === 'ca82')     return json(doCreateCA82(body));
@@ -346,12 +347,14 @@ function doGetPendingUsers(b) {
   var iE = colIndex(h,'รหัสพนักงาน'), iN = colIndex(h,'ชื่อ-สกุล'), iR = colIndex(h,'ตำแหน่ง'), iD = colIndex(h,'สังกัด'), iH = colIndex(h,'จุดร่วมงาน'),
       iS = colIndex(h,COL_ACC_STATUS), iPh = colIndex(h,COL_ACC_PHOTO), iRd = colIndex(h,COL_ACC_REGDATE), iAp = colIndex(h,COL_ACC_APPROVER), iAd = colIndex(h,COL_ACC_APPDATE);
   if (iS < 0) return { ok:true, rows:[] };
-  var out = [];
+  var out = [], cnt = {};
+  for (var q=1;q<data.length;q++){ var k=String(data[q][iE]||'').trim(); if (k) cnt[k]=(cnt[k]||0)+1; }   // นับรหัสซ้ำทั้งแท็บ (รวมบัญชีเดิม)
   for (var r=1;r<data.length;r++){
     var st = String(data[r][iS]||''); if (!st) continue;   // บัญชีเดิม (ไม่มีสถานะ) ไม่ต้องแสดง
     var x = { emp:String(data[r][iE]||''), name:String(data[r][iN]||''), role:iR>=0?String(data[r][iR]||''):'', dept:iD>=0?String(data[r][iD]||''):'',
       hub:iH>=0?String(data[r][iH]||''):'', status:st, regDate:iRd>=0?String(data[r][iRd]||''):'', approver:iAp>=0?String(data[r][iAp]||''):'',
-      appDate:iAd>=0?String(data[r][iAd]||''):'', photoUrl:iPh>=0?String(data[r][iPh]||''):'', photo:'' };
+      appDate:iAd>=0?String(data[r][iAd]||''):'', photoUrl:iPh>=0?String(data[r][iPh]||''):'', photo:'',
+      row:r+1, dup:cnt[String(data[r][iE]||'').trim()]||1 };   // row = เลขแถวในชีต (ใช้ลบแถวที่ซ้ำให้ตรงแถว)
     if (st === ACC_PENDING && x.photoUrl) {   // ส่งรูปเฉพาะบัญชีรออนุมัติ (ลดขนาด response)
       try { var bl = DriveApp.getFileById(driveIdFromUrl(x.photoUrl)).getBlob(); x.photo = 'data:' + bl.getContentType() + ';base64,' + Utilities.base64Encode(bl.getBytes()); } catch (e) {}
     }
@@ -361,6 +364,32 @@ function doGetPendingUsers(b) {
 }
 
 // Admin: อนุมัติ / ไม่อนุมัติ บัญชี
+// ลบรายการลงทะเบียน (เช่น ข้อมูลซ้ำ) — Admin เท่านั้น · ระบุแถวด้วย row + รหัสพนักงาน + วันที่ลงทะเบียน ต้องตรงกันทั้งหมด (กันลบผิดแถวเมื่อแถวเลื่อน)
+// ลบเฉพาะแถวที่ลงทะเบียนผ่านระบบ (มีสถานะบัญชี) · รูปถ่ายย้ายไปถังขยะ Drive ถ้าไม่มีแถวอื่นใช้รูปเดียวกัน · บันทึก log พร้อมเหตุผล
+function doDeleteUser(b) {
+  if (!isAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  var lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    var sh = sheet(EMP_TAB); if (!sh) return { ok:false, error:'ไม่พบแท็บ '+EMP_TAB };
+    var data = sh.getDataRange().getValues(), h = data[0];
+    var iE = colIndex(h,'รหัสพนักงาน'), iN = colIndex(h,'ชื่อ-สกุล'), iS = colIndex(h,COL_ACC_STATUS), iPh = colIndex(h,COL_ACC_PHOTO), iRd = colIndex(h,COL_ACC_REGDATE);
+    var row = Number(b.row), target = String(b.target||'').trim();
+    if (!(row >= 2 && row <= data.length)) return { ok:false, error:'ไม่พบแถวที่ระบุ — โหลดรายชื่อใหม่แล้วลองอีกครั้ง' };
+    var d = data[row-1];
+    if (String(d[iE]||'').trim() !== target) return { ok:false, error:'ข้อมูลแถวเปลี่ยนไปแล้ว — โหลดรายชื่อใหม่แล้วลองอีกครั้ง' };
+    if (iRd >= 0 && String(d[iRd]||'') !== String(b.regDate||'')) return { ok:false, error:'ข้อมูลแถวเปลี่ยนไปแล้ว — โหลดรายชื่อใหม่แล้วลองอีกครั้ง' };
+    if (iS < 0 || !String(d[iS]||'')) return { ok:false, error:'ลบได้เฉพาะรายการที่ลงทะเบียนผ่านระบบ (บัญชีเดิมให้แก้ในชีตโดยตรง)' };
+    if (target === String(b.emp||'').trim()) return { ok:false, error:'ลบบัญชีของตัวเองไม่ได้' };
+    var name = iN>=0 ? String(d[iN]||'') : '', photo = iPh>=0 ? String(d[iPh]||'') : '';
+    sh.deleteRow(row);
+    if (photo) {
+      var shared = false; for (var r=1;r<data.length;r++){ if (r !== row-1 && String(data[r][iPh]||'') === photo) { shared = true; break; } }
+      if (!shared) { try { DriveApp.getFileById(driveIdFromUrl(photo)).setTrashed(true); } catch (e) {} }
+    }
+    logUser(b.emp, b.name, 'Admin', '', 'ลบรายการลงทะเบียน: ' + target + ' (' + name + ') แถว ' + row + ' · เหตุผล: ' + String(b.reason||'-').slice(0,200));
+    return { ok:true };
+  } finally { lock.releaseLock(); }
+}
 function doApproveUser(b) {
   if (!isAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
   var target = String(b.target||'').trim(), approve = b.decision === 'approve';
@@ -369,7 +398,9 @@ function doApproveUser(b) {
   function ensureCol(nm){ var i=colIndex(h,nm); if(i<0){ i=h.length; sh.getRange(1,i+1).setValue(nm); h.push(nm);} return i; }
   var iE = colIndex(h,'รหัสพนักงาน'), iN = colIndex(h,'ชื่อ-สกุล'), iP = colIndex(h,'password'),
       iS = ensureCol(COL_ACC_STATUS), iAp = ensureCol(COL_ACC_APPROVER), iAd = ensureCol(COL_ACC_APPDATE);
+  var only = Number(b.row) >= 2 && Number(b.row) <= data.length && String(data[Number(b.row)-1][iE]).trim() === target ? Number(b.row)-1 : -1;   // มีเลขแถว = อนุมัติแถวนั้น (กรณีรหัสซ้ำ)
   for (var r=1;r<data.length;r++){
+    if (only >= 0 && r !== only) continue;
     if (String(data[r][iE]).trim() !== target) continue;
     var pw = String(data[r][iP]==null?'':data[r][iP]), raw = pw.indexOf(PENDING_PREFIX)===0 ? pw.slice(PENDING_PREFIX.length) : pw;
     sh.getRange(r+1, iP+1).setValue(approve ? raw : PENDING_PREFIX + raw);

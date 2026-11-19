@@ -3376,24 +3376,36 @@ async function loadPendingUsers(){
   try{
     const r=await meterApi({action:'pendingusers', emp:mmSession.emp, pw:mmSession.pw});
     if(!r||!r.ok){ el.innerHTML='<div class="note" style="color:var(--danger)">โหลดไม่ได้: '+escHtml((r&&r.error)||'')+((r&&r.error)==='unknown action'?' (ยังไม่ได้ deploy Apps Script เวอร์ชันใหม่)':'')+'</div>'; return; }
-    const L=r.rows||[], P=L.filter(x=>x.status==='รออนุมัติ'), H=L.filter(x=>x.status!=='รออนุมัติ').reverse().slice(0,30);
+    const L=r.rows||[]; apRows=L; const P=L.filter(x=>x.status==='รออนุมัติ'), H=L.filter(x=>x.status!=='รออนุมัติ').reverse().slice(0,30);
     apNotify(P);
     const c=$('#apCount'); if(c) c.innerHTML=P.length?`<span style="background:var(--danger);color:#fff;border-radius:999px;padding:1px 9px;font-size:.78rem">${P.length} ราย</span>`:'';
     el.innerHTML=(P.length?P.map(x=>`<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:8px">
         ${x.photo?`<a href="${x.photo}" target="_blank" rel="noopener"><img src="${x.photo}" alt="รูปถ่าย ${escHtml(x.name)}" style="width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--border)"></a>`
           :`<div style="width:96px;height:96px;border-radius:10px;background:#f1f2f4;display:grid;place-items:center;color:#999;font-size:.75rem;text-align:center">${x.photoUrl?`<a href="${escHtml(x.photoUrl)}" target="_blank" rel="noopener">เปิดรูปใน Drive</a>`:'ไม่มีรูป'}</div>`}
-        <div style="flex:1;min-width:200px;line-height:1.6;font-size:.88rem"><b>${escHtml(x.name)}</b> · รหัส ${escHtml(x.emp)}<br>ตำแหน่ง ${escHtml(x.role||'-')} · สังกัด ${escHtml(x.dept||'-')}<br>จุดร่วมงาน ${escHtml(x.hub||'-')} · ลงทะเบียน ${fmtLogTime(x.regDate)}</div>
-        <div style="display:flex;flex-direction:column;gap:6px"><button class="btn btn-primary btn-sm" onclick="approveUser('${escHtml(x.emp)}','approve')">✅ อนุมัติ</button><button class="btn btn-outline btn-sm" style="color:var(--danger)" onclick="approveUser('${escHtml(x.emp)}','reject')">✕ ไม่อนุมัติ</button></div>
+        <div style="flex:1;min-width:200px;line-height:1.6;font-size:.88rem"><b>${escHtml(x.name)}</b> · รหัส ${escHtml(x.emp)}${x.dup>1?` <span style="background:#fde8e8;color:var(--danger);border-radius:999px;padding:1px 8px;font-size:.75rem;font-weight:800">⚠ รหัสซ้ำ ${x.dup} แถว</span>`:''}<br>ตำแหน่ง ${escHtml(x.role||'-')} · สังกัด ${escHtml(x.dept||'-')}<br>จุดร่วมงาน ${escHtml(x.hub||'-')} · ลงทะเบียน ${fmtLogTime(x.regDate)}</div>
+        <div style="display:flex;flex-direction:column;gap:6px"><button class="btn btn-primary btn-sm" onclick="approveUser('${escHtml(x.emp)}','approve',${x.row||0})">✅ อนุมัติ</button><button class="btn btn-outline btn-sm" style="color:var(--danger)" onclick="approveUser('${escHtml(x.emp)}','reject',${x.row||0})">✕ ไม่อนุมัติ</button><button class="btn btn-outline btn-sm" style="color:#6b7280;border-color:#cbd5e1" onclick="deleteRegUser(${x.row||0})" title="ลบรายการนี้ออกจากชีต (เช่น ลงทะเบียนซ้ำ)">🗑 ลบ (ซ้ำ)</button></div>
       </div>`).join(''):'<div class="note">✅ ไม่มีบัญชีรออนุมัติ</div>')
       +(H.length?`<details style="margin-top:6px"><summary class="note" style="cursor:pointer">ประวัติการอนุมัติล่าสุด (${H.length})</summary><div style="overflow-x:auto"><table style="font-size:.82rem"><thead><tr><th>รหัส</th><th>ชื่อ-สกุล</th><th>ตำแหน่ง</th><th>สถานะ</th><th>ผู้อนุมัติ</th><th>เมื่อ</th><th>รูป</th><th></th></tr></thead><tbody>
-        ${H.map(x=>`<tr><td>${escHtml(x.emp)}</td><td>${escHtml(x.name)}</td><td>${escHtml(x.role)}</td><td style="font-weight:700;color:${x.status==='ไม่อนุมัติ'?'var(--danger)':'var(--green)'}">${escHtml(x.status)}</td><td>${escHtml(x.approver||'-')}</td><td>${x.appDate?fmtLogTime(x.appDate):'-'}</td><td>${x.photoUrl?`<a href="${escHtml(x.photoUrl)}" target="_blank" rel="noopener">เปิด</a>`:'-'}</td><td>${x.status==='ไม่อนุมัติ'?`<button class="btn btn-outline btn-sm" onclick="approveUser('${escHtml(x.emp)}','approve')">อนุมัติ</button>`:''}</td></tr>`).join('')}
+        ${H.map(x=>`<tr><td>${escHtml(x.emp)}</td><td>${escHtml(x.name)}</td><td>${escHtml(x.role)}</td><td style="font-weight:700;color:${x.status==='ไม่อนุมัติ'?'var(--danger)':'var(--green)'}">${escHtml(x.status)}</td><td>${escHtml(x.approver||'-')}</td><td>${x.appDate?fmtLogTime(x.appDate):'-'}</td><td>${x.photoUrl?`<a href="${escHtml(x.photoUrl)}" target="_blank" rel="noopener">เปิด</a>`:'-'}</td><td style="white-space:nowrap">${x.status==='ไม่อนุมัติ'?`<button class="btn btn-outline btn-sm" onclick="approveUser('${escHtml(x.emp)}','approve',${x.row||0})">อนุมัติ</button> `:''}<button class="btn btn-outline btn-sm" style="color:#6b7280" onclick="deleteRegUser(${x.row||0})" title="ลบรายการนี้ออกจากชีต">🗑</button>${x.dup>1?' <span style="color:var(--danger);font-size:.75rem;font-weight:800">ซ้ำ</span>':''}</td></tr>`).join('')}
         </tbody></table></div></details>`:'');
   }catch(e){ el.innerHTML='<div class="note" style="color:var(--danger)">เชื่อมต่อไม่ได้: '+escHtml(e.message)+'</div>'; }
 }
-async function approveUser(target, decision){
+let apRows = [];   // รายการล่าสุดจาก pendingusers (ใช้ยืนยันแถวตอนลบ)
+async function deleteRegUser(row){
+  if(!mmSession) return;
+  const x=apRows.find(z=>z.row===row); if(!x){ alert('ไม่พบรายการ — กด ⟳ โหลดรายชื่อ แล้วลองใหม่'); return; }
+  if(!confirm('ลบรายการลงทะเบียนนี้ออกจากชีต?\n\nรหัส '+x.emp+' · '+x.name+'\nตำแหน่ง '+(x.role||'-')+' · จุดร่วมงาน '+(x.hub||'-')+'\nสถานะ '+x.status+' · ลงทะเบียน '+fmtLogTime(x.regDate)
+    +(x.status==='อนุมัติแล้ว'?'\n\n⚠ บัญชีนี้อนุมัติแล้ว — ลบแล้วจะเข้าสู่ระบบไม่ได้':'')+(x.dup>1?'\n\n(รหัสนี้มี '+x.dup+' แถว — ลบเฉพาะแถวนี้)':'')+'\n\nลบแล้วกู้คืนไม่ได้ (รูปถ่ายย้ายไปถังขยะ Drive)')) return;
+  const reason=prompt('เหตุผลการลบ:','ข้อมูลซ้ำ'); if(reason===null) return;
+  try{ const r=await meterApi({action:'deleteuser', emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name, row:x.row, target:x.emp, regDate:x.regDate, reason});
+    if(!(r&&r.ok)) alert('ลบไม่สำเร็จ: '+((r&&r.error)==='unknown action'?'Apps Script ยังไม่ใช่เวอร์ชันใหม่':((r&&r.error)||'')));
+  }catch(e){ alert('เชื่อมต่อไม่ได้'); }
+  loadPendingUsers();
+}
+async function approveUser(target, decision, row){
   if(!mmSession) return;
   if(!confirm((decision==='approve'?'อนุมัติ':'ไม่อนุมัติ')+'บัญชีรหัส '+target+' ?')) return;
-  try{ const r=await meterApi({action:'approveuser', emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name, target, decision});
+  try{ const r=await meterApi({action:'approveuser', emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name, target, decision, row:row||0});
     if(!(r&&r.ok)) alert('ไม่สำเร็จ: '+((r&&r.error)||''));
   }catch(e){ alert('เชื่อมต่อไม่ได้'); }
   loadPendingUsers();
