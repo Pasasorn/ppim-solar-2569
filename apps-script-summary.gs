@@ -268,9 +268,12 @@ function buildRowsFrom(rawArr, map){
     o.allocDate = parseDate(get('allocDate'));
     o.pullDate = parseDate(get('pullDate'));
     o.allocRuleTxt = clean(get('allocRule'));                              // ประเภทการจัดสรรที่ ผมต.กบล. กำหนดตอนออกเอกสาร (เลข 1–6 นำหน้า)
-    o.allocated = !!o.allocDate;                                           // มีวันที่จัดสรร = จัดสรรมิเตอร์แล้ว
+    // ประเภทการจัดสรร: เลข 1–6 ที่บันทึกตอนออกเอกสาร · ยังไม่บันทึก → ดูจากมิเตอร์เดิม (ตรงกับ ALLOC_AUTO: จานหมุน 1 · TOU 5(100) 2 · TOU อื่น 3 · E-meter 4)
+    o.allocRuleNo = (String(o.allocRuleTxt||'').match(/^\s*([1-6])/)||[])[1] || ({'จานหมุน':'1','TOU 5(100)':'2','TOU ขนาดอื่น':'3','E-meter':'4'})[o.meterType] || '';
+    o.noAlloc = !o.allocDate && (o.allocRuleNo==='2'||o.allocRuleNo==='4');   // ไม่ต้องจัดสรร → ข้ามขั้นขอ/รอจัดสรร ไปรอสับเปลี่ยน/Re-Program
+    o.allocated = !!o.allocDate || o.noAlloc;                              // มีวันที่จัดสรร (หรือไม่ต้องจัดสรร) = พร้อมสับเปลี่ยน
     o.pulled = !o.allocated && !!o.pullDate;                               // ดึงไปแล้ว ยังไม่จัดสรร = รอจัดสรรมิเตอร์
-    o.allocStatus = o.allocated ? 'จัดสรรแล้ว' : o.pulled ? 'รอจัดสรรมิเตอร์' : 'ยังไม่จัดสรร';
+    o.allocStatus = o.allocDate ? 'จัดสรรแล้ว' : o.noAlloc ? 'ไม่ต้องจัดสรร' : o.pulled ? 'รอจัดสรรมิเตอร์' : 'ยังไม่จัดสรร';
     computeSla(o);   // SLA — 2 จุดควบคุม (แยกเป็นฟังก์ชันเพื่อคำนวณซ้ำได้หลังเติมวันที่ข้ามชีต)
     // กรอบเวลา COD: ต้อง COD ภายในสิ้นปี 2570 (31 ธ.ค. 2027) เตือนล่วงหน้า 3 เดือน
     // ครอบคลุมรายที่ทำสัญญาแล้วแต่ยังไม่ COD (ขั้น 4-8) และไม่ยกเลิก
