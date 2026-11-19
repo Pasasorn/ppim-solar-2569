@@ -1,7 +1,7 @@
 /**
  * ชีตสรุป Dashboard PPIM Solar 2569 (กฟน.1) — สำหรับนำไปทำกราฟใน Canva
  * -----------------------------------------------------------------------
- * ⚠ ไฟล์นี้สร้างอัตโนมัติด้วย `node tools/build-summary-gs.js` (build 2026-11-07)
+ * ⚠ ไฟล์นี้สร้างอัตโนมัติด้วย `node tools/build-summary-gs.js` (build 2026-11-19)
  *   ห้ามแก้ไฟล์ apps-script-summary.gs ตรง ๆ — แก้ที่ tools/summary-template.gs แล้ว build ใหม่
  *   ตรรกะจัดขั้น/จุดรวมงาน/SLA/มิเตอร์ คัดลอกจาก index.html ทุกครั้งที่ build → ตัวเลขตรงกับ Dashboard
  *
@@ -68,6 +68,7 @@ const FIELDS = [
   {key:'meterSize', label:'ขนาด/ชนิดมิเตอร์เดิม', kw:['ขนาด/ชนิด','ขนาดชนิด','ขนาด/ ชนิด']},
   {key:'meterModel', label:'ประเภทมิเตอร์ (รุ่น/ขนาด)', kw:['ประเภทมิเตอร์']},
   {key:'allocDate', label:'วันที่จัดสรรมิเตอร์', kw:['วันที่จัดสรรมิเตอร์','วันที่จัดสรร','จัดสรรมิเตอร์']},
+  {key:'allocRule', label:'ประเภทการจัดสรร (ระบบ)', kw:['ประเภทการจัดสรร']},
   {key:'pullDate', label:'วันที่ดึงข้อมูลจัดสรร', kw:['วันที่ดึงข้อมูลจัดสรร','วันที่ดึงจัดสรร','ดึงข้อมูลจัดสรร']},
   {key:'ca',      label:'หมายเลขผู้ใช้ไฟฟ้า (CA)', kw:['หมายเลขผู้ใช้ไฟฟ้า','ผู้ใช้ไฟฟ้า (ca','ca']},
   {key:'peaNo',   label:'PEA No.',             kw:['pea no.','pea no','peano']},
@@ -266,6 +267,7 @@ function buildRowsFrom(rawArr, map){
                 : (o.meterPhase==='1P'||o.meterPhase==='3P') ? o.meterPhase : '';
     o.allocDate = parseDate(get('allocDate'));
     o.pullDate = parseDate(get('pullDate'));
+    o.allocRuleTxt = clean(get('allocRule'));                              // ประเภทการจัดสรรที่ ผมต.กบล. กำหนดตอนออกเอกสาร (เลข 1–6 นำหน้า)
     o.allocated = !!o.allocDate;                                           // มีวันที่จัดสรร = จัดสรรมิเตอร์แล้ว
     o.pulled = !o.allocated && !!o.pullDate;                               // ดึงไปแล้ว ยังไม่จัดสรร = รอจัดสรรมิเตอร์
     o.allocStatus = o.allocated ? 'จัดสรรแล้ว' : o.pulled ? 'รอจัดสรรมิเตอร์' : 'ยังไม่จัดสรร';

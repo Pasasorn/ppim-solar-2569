@@ -48,6 +48,7 @@ var COL_CA82_NO     = 'เลขที่ CA 82 (ระบบ)';            // �
 var COL_CA82_DATE   = 'วันที่สร้างบัญชี CA 82';          // วันที่บันทึกการสร้างบัญชี
 var COL_CA82_NOTE   = 'หมายเหตุ CA 82 (ระบบ)';           // หมายเหตุของ ผซฟ. (บันทึกได้ทุกเมื่อ แม้ยังไม่สร้าง CA 82)
 var CENTRAL_HUB     = 'กบล.กฟน.1';                       // จุดกลาง — จัดสรรมิเตอร์ได้ทุก กฟฟ.
+var COL_ALLOC_RULE  = 'ประเภทการจัดสรร (ระบบ)';         // 1–6 + คำอธิบาย (กำหนดตอนออกเอกสารขอจัดสรร)
 var COL_ALLOC_PULL  = 'วันที่ดึงข้อมูลจัดสรร';           // ดึงไป Export แล้ว = รอจัดสรรมิเตอร์
 var COL_ALLOC_DATE  = 'วันที่จัดสรรมิเตอร์';             // จัดสรรจริงแล้ว
 var COL_COD_DATE  = 'วันที่เชื่อมต่อเข้าระบบ';   // คอลัมน์วัน COD (ถ้ามี จะเขียนตอน ผบส. ยืนยัน)
@@ -703,11 +704,14 @@ function doMarkPull(b) {
   var iReq = colIndex(h,'เลขที่คำขอ'); if (iReq < 0) return { ok:false, error:'ไม่พบคอลัมน์ เลขที่คำขอ' };
   function ensureCol(nm){ var i=colIndex(h,nm); if(i<0){ i=h.length; sh.getRange(1,i+1).setValue(nm); h.push(nm);} return i; }
   var iPull = ensureCol(COL_ALLOC_PULL);
+  var rules = (b.rules && typeof b.rules === 'object') ? b.rules : null;
+  var iRule = rules ? ensureCol(COL_ALLOC_RULE) : -1;
   var set = {}; reqNos.forEach(function(x){ set[String(x).trim()] = true; });
   var now = new Date(), n = 0;
   for (var r=1;r<data.length;r++){
     var rq = String(data[r][iReq]).trim();
     if (set[rq] && !String(data[r][iPull]||'').trim()) { sh.getRange(r+1, iPull+1).setValue(now); n++; }
+    if (set[rq] && iRule >= 0 && rules[rq] != null) sh.getRange(r+1, iRule+1).setValue(String(rules[rq]).slice(0,120));
   }
   var docNo = nextDocNo();
   saveAllocDoc(docNo, b.emp, b.name, n, reqNos);

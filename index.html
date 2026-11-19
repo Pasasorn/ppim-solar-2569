@@ -792,6 +792,7 @@ const FIELDS = [
   {key:'meterSize', label:'ขนาด/ชนิดมิเตอร์เดิม', kw:['ขนาด/ชนิด','ขนาดชนิด','ขนาด/ ชนิด']},
   {key:'meterModel', label:'ประเภทมิเตอร์ (รุ่น/ขนาด)', kw:['ประเภทมิเตอร์']},
   {key:'allocDate', label:'วันที่จัดสรรมิเตอร์', kw:['วันที่จัดสรรมิเตอร์','วันที่จัดสรร','จัดสรรมิเตอร์']},
+  {key:'allocRule', label:'ประเภทการจัดสรร (ระบบ)', kw:['ประเภทการจัดสรร']},
   {key:'pullDate', label:'วันที่ดึงข้อมูลจัดสรร', kw:['วันที่ดึงข้อมูลจัดสรร','วันที่ดึงจัดสรร','ดึงข้อมูลจัดสรร']},
   {key:'ca',      label:'หมายเลขผู้ใช้ไฟฟ้า (CA)', kw:['หมายเลขผู้ใช้ไฟฟ้า','ผู้ใช้ไฟฟ้า (ca','ca']},
   {key:'peaNo',   label:'PEA No.',             kw:['pea no.','pea no','peano']},
@@ -1265,6 +1266,7 @@ function buildRowsFrom(rawArr, map){
                 : (o.meterPhase==='1P'||o.meterPhase==='3P') ? o.meterPhase : '';
     o.allocDate = parseDate(get('allocDate'));
     o.pullDate = parseDate(get('pullDate'));
+    o.allocRuleTxt = clean(get('allocRule'));                              // ประเภทการจัดสรรที่ ผมต.กบล. กำหนดตอนออกเอกสาร (เลข 1–6 นำหน้า)
     o.allocated = !!o.allocDate;                                           // มีวันที่จัดสรร = จัดสรรมิเตอร์แล้ว
     o.pulled = !o.allocated && !!o.pullDate;                               // ดึงไปแล้ว ยังไม่จัดสรร = รอจัดสรรมิเตอร์
     o.allocStatus = o.allocated ? 'จัดสรรแล้ว' : o.pulled ? 'รอจัดสรรมิเตอร์' : 'ยังไม่จัดสรร';
@@ -3558,15 +3560,68 @@ function allocOffice(r){ const az=String(r.respOffice||'').trim(), k=String(r.ar
   if(az && (!hub || officeHub(az)===hub)) return {name:az, bad:false};
   return {name:k||az, bad:!!az, az}; }
 function allocMismatch(list){ return list.map(r=>({r, o:allocOffice(r)})).filter(x=>x.o.bad); }
+// ===== ประเภทการจัดสรรมิเตอร์ (กำหนดตอนออกเอกสารขอจัดสรร · บันทึกในคอลัมน์ "ประเภทการจัดสรร (ระบบ)") =====
+// give: 'E' = จัดสรร METER (E) · 'T' = จัดสรร TOU 5(100) · '' = ไม่ต้องจัดสรร (แสดงในเอกสารพร้อมหมายเหตุ แต่ไม่นับยอด)
+const ALLOC_RULES = [
+  {c:'1', l:'เดิมจานหมุน → จัดสรร METER (E)',           give:'E'},
+  {c:'2', l:'เดิม TOU 5(100) → ไม่ต้องจัดสรร (Re-Program)', give:''},
+  {c:'3', l:'เดิม TOU 5(45) → จัดสรร TOU 5(100)',        give:'T'},
+  {c:'4', l:'เดิม METER (E) → ไม่ต้องจัดสรร',            give:''},
+  {c:'5', l:'ติดตั้งใหม่ เรท TOU → จัดสรร TOU',          give:'T'},
+  {c:'6', l:'ติดตั้งใหม่ เรทปกติ → จัดสรร METER (E)',     give:'E'}
+];
+const ALLOC_AUTO = {'จานหมุน':'1','TOU 5(100)':'2','TOU ขนาดอื่น':'3','E-meter':'4'};   // ไม่ระบุ = ต้องเลือกเอง (มักเป็นติดตั้งใหม่ 5/6)
+function allocRuleCode(r){ const m=String(r.allocRuleTxt||'').match(/^\s*([1-6])/); return m?m[1]:(ALLOC_AUTO[r.meterType]||''); }
+function allocRule(r){ const c=allocRuleCode(r); return ALLOC_RULES.find(x=>x.c===c)||null; }
+const ALLOC_GIVE_NAME = {E:'METER (E)', T:'TOU 5(100)'};
+// หน้าตรวจรายชื่อก่อนออกเอกสาร: กำหนดประเภทการจัดสรรรายคำขอ (1–4 ระบบเลือกให้ · ไม่ระบุ ต้องเลือก 5/6 หรืออื่น ๆ)
+function openAllocCheck(list){
+  return new Promise(resolve=>{
+    let ov=$('#allocCheckBg');
+    if(!ov){ ov=document.createElement('div'); ov.id='allocCheckBg'; ov.className='mmodal-bg'; document.body.appendChild(ov); }
+    const sel={}; list.forEach(r=>sel[r.reqNo]=allocRuleCode(r));
+    const byHub={}; list.forEach(r=>{ const h=reqHub(r)||r.areaCheck||'ไม่ระบุ'; (byHub[h]=byHub[h]||[]).push(r); });
+    const hubs=Object.keys(byHub).sort((a,b)=>a.localeCompare(b,'th'));
+    const opt=c=>`<option value="">— เลือก —</option>`+ALLOC_RULES.map(x=>`<option value="${x.c}"${x.c===c?' selected':''}>${x.c}. ${x.l}</option>`).join('');
+    ov.innerHTML=`<div class="mmodal" style="max-width:920px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h3>📋 ตรวจรายชื่อ + กำหนดประเภทการจัดสรร (${list.length} ราย)</h3><button class="btn btn-outline btn-sm" id="acClose">✕</button></div>
+      <div class="note" style="margin:4px 0 8px;background:#fff8e6;border-left:3px solid #E8A100;padding:6px 9px;border-radius:6px">ระบบเลือกให้จากมิเตอร์เดิม (ข้อ 1–4) · <b>แถวสีเหลือง = ไม่ทราบมิเตอร์เดิม ต้องเลือกเอง</b> (มักเป็นติดตั้งใหม่ ข้อ 5/6) · ข้อ 2, 4 แสดงในเอกสารแต่ไม่นับยอดขอจัดสรร</div>
+      <div id="acSum" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px"></div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><span class="note">ตั้งค่าทุกแถวที่ยังไม่เลือก เป็น</span><select id="acBulk" style="width:auto">${opt('')}</select><button class="btn btn-outline btn-sm" id="acBulkGo">ใช้กับแถวที่ยังว่าง</button></div>
+      <div style="overflow:auto;max-height:55vh"><table style="font-size:.84rem"><thead><tr><th>เลขที่คำขอ</th><th>กฟฟ.</th><th>เฟส</th><th>มิเตอร์เดิม</th><th style="min-width:280px">ประเภทการจัดสรร</th></tr></thead><tbody>
+      ${hubs.map(h=>`<tr><td colspan=5 style="background:#f3ecfa;font-weight:800;color:var(--pea)">▍ ${escHtml(h)} (${byHub[h].length})</td></tr>`+byHub[h].map(r=>`<tr data-rq="${escHtml(r.reqNo)}"><td><b>${escHtml(r.reqNo)}</b></td><td>${escHtml(allocOffice(r).name||'-')}</td><td>${escHtml(r.swapPhase||'-')}</td><td>${escHtml(r.meterSize||r.meterModel||'ไม่ระบุ')}</td><td><select class="acSel" data-rq="${escHtml(r.reqNo)}" style="width:100%">${opt(sel[r.reqNo])}</select></td></tr>`).join('')).join('')}
+      </tbody></table></div>
+      <div class="mmsg" id="acMsg"></div>
+      <div class="toolbar" style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end"><button class="btn btn-outline" id="acCancel">ยกเลิก</button><button class="btn btn-primary" id="acGo">📄 ออกเอกสารขอจัดสรร</button></div></div>`;
+    ov.style.display='flex';
+    const paint=()=>{ const n={E1:0,E3:0,T1:0,T3:0,skip:0,none:0};
+      list.forEach(r=>{ const c=sel[r.reqNo], x=ALLOC_RULES.find(z=>z.c===c); const tr=ov.querySelector(`tr[data-rq="${CSS.escape(r.reqNo)}"]`);
+        if(tr) tr.style.background=c?'':'#fff3cd';
+        if(!x){ n.none++; return; } if(!x.give){ n.skip++; return; } n[x.give+(r.swapPhase==='3P'?'3':'1')]++; });
+      const chip=(t,v,c)=>`<span style="background:#fff;border:1px solid #e3d9f0;border-left:5px solid ${c};border-radius:10px;padding:4px 10px;font-size:.85rem"><b>${v}</b> ${t}</span>`;
+      $('#acSum').innerHTML=chip('METER (E) 1P',n.E1,'#2F7FD1')+chip('METER (E) 3P',n.E3,'#2F7FD1')+chip('TOU 1P',n.T1,'#8A4DB0')+chip('TOU 3P',n.T3,'#8A4DB0')+chip('ไม่ต้องจัดสรร',n.skip,'#999')+chip('ยังไม่เลือก',n.none,'#E8A100');
+      return n; };
+    ov.querySelectorAll('.acSel').forEach(e=>e.onchange=()=>{ sel[e.dataset.rq]=e.value; paint(); });
+    $('#acBulkGo').onclick=()=>{ const v=$('#acBulk').value; if(!v) return; ov.querySelectorAll('.acSel').forEach(e=>{ if(!e.value){ e.value=v; sel[e.dataset.rq]=v; } }); paint(); };
+    paint();
+    const done=v=>{ ov.style.display='none'; resolve(v); };
+    $('#acClose').onclick=$('#acCancel').onclick=()=>done(null);
+    $('#acGo').onclick=()=>{ const n=paint(); if(n.none){ $('#acMsg').innerHTML='<span style="color:var(--danger)">ยังไม่ได้เลือกประเภทการจัดสรร '+n.none+' ราย (แถวสีเหลือง)</span>'; return; } done({...sel}); };
+  });
+}
 function allocFresh(){ return rows.filter(r=>r.needSwap && r.step===8 && r.allocStatus==='ยังไม่จัดสรร'); }
 // สร้างเอกสาร PDF (เปิดหน้าพิมพ์ → บันทึกเป็น PDF) สรุปความต้องการมิเตอร์เพื่อจัดสรร
 function openAllocPdf(list, docNo, opts){
   opts = opts || {};
   const readOnly = !!opts.readOnly;
   const byHub={};
-  list.forEach(r=>{ const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; const o=byHub[h]=byHub[h]||{p1:0,p3:0,items:[]}; if(r.swapPhase==='3P')o.p3++; else o.p1++; o.items.push(r); });
+  // นับยอดตามประเภทที่จัดสรร (E = METER (E) · T = TOU 5(100)) × เฟส · ไม่ต้องจัดสรร (ข้อ 2/4) / ยังไม่กำหนด = แสดงแต่ไม่นับ
+  list.forEach(r=>{ const h=reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ'; const o=byHub[h]=byHub[h]||{E1:0,E3:0,T1:0,T3:0,skip:0,p1:0,p3:0,items:[]};
+    const ru=allocRule(r), g=ru?ru.give:'', ph=r.swapPhase==='3P'?'3':'1';
+    if(g){ o[g+ph]++; ph==='3'?o.p3++:o.p1++; } else o.skip++; o.items.push(r); });
   const hubs=Object.keys(byHub).sort((a,b)=>(byHub[b].p1+byHub[b].p3)-(byHub[a].p1+byHub[a].p3));
-  let t1=0,t3=0; hubs.forEach(h=>{t1+=byHub[h].p1;t3+=byHub[h].p3;});
+  let t1=0,t3=0; const T={E1:0,E3:0,T1:0,T3:0,skip:0}; hubs.forEach(h=>{const o=byHub[h]; t1+=o.p1; t3+=o.p3; Object.keys(T).forEach(k=>T[k]+=o[k]);});
+  const tE=T.E1+T.E3, tT=T.T1+T.T3;
   const today=new Date().toLocaleDateString('th-TH',{year:'numeric',month:'long',day:'numeric'});
   const nowTime=new Date().toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
   const esc=s=>String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
@@ -3574,20 +3629,22 @@ function openAllocPdf(list, docNo, opts){
   const peaName=s=>String(s||'').replace(/กฟอ\./g,'กฟส.')
     .replace(/กฟ[สอยจ]\.\s*(เมือง)?เชียงใหม่\s*[2๒]/g,'กฟส.เมืองเชียงใหม่ 2')   // ชื่อจริงของจุดรวมงานเชียงใหม่ 2
     .replace(/กฟ[สอย]\.\s*(เชียงใหม่|เชียงราย|ลำพูน|ลำปาง|แม่ฮ่องสอน|พะเยา)(?![ก-๙])/g,(m,p)=>'กฟจ.'+p);
-  const rowsHtml=hubs.map((h,i)=>{const o=byHub[h];return `<tr><td class=n>${i+1}</td><td>${esc(peaName(h))}</td><td class=n>${o.p1||'-'}</td><td class=n>${o.p3||'-'}</td><td class=n><b>${o.p1+o.p3}</b></td></tr>`;}).join('');
+  const rowsHtml=hubs.map((h,i)=>{const o=byHub[h];return `<tr><td class=n>${i+1}</td><td>${esc(peaName(h))}</td><td class=n>${o.E1||'-'}</td><td class=n>${o.E3||'-'}</td><td class=n>${o.T1||'-'}</td><td class=n>${o.T3||'-'}</td><td class=n><b>${o.p1+o.p3}</b></td></tr>`;}).join('');
   // เอกสารแนบ 1: ตารางรายคำขอ แยกตาม กฟฟ. มี subtotal แต่ละ กฟฟ. (1 เฟส/3 เฟส/รวม)
   let run=0;
   const attachRows=hubs.map(h=>{const o=byHub[h];
     // กฟส./กฟย. ที่รับผิดชอบในจุดรวมงานนี้ (คอลัมน์ J) — เรียงรายการตาม กฟส./กฟย. แล้วตามเฟส
     const offices=[...new Set(o.items.map(r=>peaName(allocOffice(r).name||'')).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'th'));
     const its=o.items.slice().sort((a,b)=>(peaName(allocOffice(a).name||'').localeCompare(peaName(allocOffice(b).name||''),'th'))||((a.swapPhase==='3P'?1:0)-(b.swapPhase==='3P'?1:0)));
-    const body=its.map(r=>{run++;const is3=r.swapPhase==='3P';return `<tr><td class=n>${run}</td><td class=n>${esc(r.reqNo)}</td><td class=mt>${esc(peaName(allocOffice(r).name)||'-')}</td><td class=mt>${esc(r.meterModel||r.meterSize)}</td><td class=n>${is3?'-':'1'}</td><td class=n>${is3?'1':'-'}</td></tr>`;}).join('');
+    const body=its.map(r=>{run++;const is3=r.swapPhase==='3P', ru=allocRule(r), g=ru?ru.give:'';
+      const rm=ru?`<b>${ALLOC_GIVE_NAME[g]||'ไม่ต้องจัดสรร'}</b><br><span class=rmk>${esc(ru.c+'. '+ru.l)}</span>`:'<span class=rmk>ยังไม่กำหนด</span>';
+      return `<tr${g?'':' class="skip"'}><td class=n>${run}</td><td class=n>${esc(r.reqNo)}</td><td class=mt>${esc(peaName(allocOffice(r).name)||'-')}</td><td class=mt>${esc(r.meterModel||r.meterSize||'-')}</td><td class=n>${g&&!is3?'1':'-'}</td><td class=n>${g&&is3?'1':'-'}</td><td class=rm>${rm}</td></tr>`;}).join('');
     const offTxt=offices.length?` <span style="font-weight:normal;font-size:13pt;color:#444">— รับผิดชอบโดย ${esc(offices.join(', '))}</span>`:'';
-    return `<tr class="grp"><td colspan=6>▍ ${esc(peaName(h))}${offTxt}</td></tr>${body}<tr class="sub"><td colspan=4>รวม</td><td class=n>${o.p1}</td><td class=n>${o.p3}</td></tr>`;}).join('');
+    return `<tr class="grp"><td colspan=7>▍ ${esc(peaName(h))}${offTxt}</td></tr>${body}<tr class="sub"><td colspan=4>รวม (นับเฉพาะที่ต้องจัดสรร)</td><td class=n>${o.p1}</td><td class=n>${o.p3}</td><td class=mt>${o.skip?'ไม่ต้องจัดสรร '+o.skip+' ราย':''}</td></tr>`;}).join('');
   const docYear = new Date().getFullYear()+543;                       // ปี พ.ศ. อัตโนมัติ (2569 → ปีถัดไปเปลี่ยนเอง)
   const docTxt = String(docNo||1).padStart(3,'0')+'/'+docYear;        // เริ่ม 001 ถ้ายังไม่มีเลขจริง
   let logoUrl; try{ logoUrl = new URL('pea-logo.png', location.href).href; }catch(e){ logoUrl = 'pea-logo.png'; }
-  const html=`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>ขอจัดสรรมิเตอร์ TOU ${docTxt}</title>
+  const html=`<!doctype html><html lang="th"><head><meta charset="utf-8"><title>ขอจัดสรรมิเตอร์ ${docTxt}</title>
   <link href="https://cdn.jsdelivr.net/npm/font-th-sarabun-new@1.0.0/css/th-sarabun-new.css" rel="stylesheet">
   <style>
    @page{size:A4;margin:2.5cm 2cm 2cm 3cm}
@@ -3605,6 +3662,7 @@ function openAllocPdf(list, docNo, opts){
    table{width:100%;border-collapse:collapse;margin:10px 0;font-size:15.5pt}
    th,td{border:1px solid #000;padding:4px 8px} th{background:#f0ebf7;text-align:center;font-weight:bold}
    td.n{text-align:center} tr.total td{background:#f4eefb;font-weight:bold}
+   .rmk{font-size:12.5pt;color:#444} td.rm{white-space:normal;line-height:1.25;font-size:13pt} tr.skip td{color:#666;background:#f6f6f6} .note2{font-size:14pt;margin:-4px 0 8px;color:#333}
    tr.grp td{background:#efe8f6;font-weight:bold;color:#3f1d63} tr.sub td{background:#f7f3fb;font-weight:bold}
    .note{margin:10px 0;text-indent:2.5em}
    .code{font-size:14.5pt;margin-top:8px}
@@ -3644,19 +3702,21 @@ function openAllocPdf(list, docNo, opts){
    </div>
    <div class="fld"><b>ที่</b>&nbsp; กวว.(น1) ${docTxt}</div>
    <div class="fld" style="text-align:center"><b>ลงวันที่</b>&nbsp; ${today}</div>
-   <div class="fld"><b>เรื่อง</b>&nbsp; ขอจัดสรรมิเตอร์ TOU สำหรับโครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์ภาคประชาชน ปี ${docYear}</div>
+   <div class="fld"><b>เรื่อง</b>&nbsp; ขอจัดสรรมิเตอร์ สำหรับโครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์ภาคประชาชน ปี ${docYear}</div>
    <div class="fld"><b>เรียน</b>&nbsp; อก.บล.(น1)</div>
    <hr style="border:none;border-top:1px solid #000;margin:8px 0 12px">
    <div class="intro">ตามที่การไฟฟ้าส่วนภูมิภาคดำเนินโครงการผลิตไฟฟ้าจากพลังงานแสงอาทิตย์ที่ติดตั้งบนหลังคาสำหรับภาคประชาชนประเภทบ้านอยู่อาศัย ปี ${docYear} ซึ่งผู้เข้าร่วมโครงการที่ได้ลงนามในสัญญาซื้อขายไฟฟ้าแล้ว จะต้องดำเนินการสับเปลี่ยนเครื่องวัดหน่วยไฟฟ้าเดิมเพื่อรองรับการจ่ายไฟฟ้าเข้าระบบเชิงพาณิชย์ (COD) นั้น</div>
    <div class="intro">กวว.(น1) ได้ตรวจสอบข้อมูลการ COD และการสับเปลี่ยนมิเตอร์ ของ กฟฟ.(L,M,S) ณ วันที่ 1 กรกฎาคม ${docYear} ถึงวันที่ ${today} พบว่ามีจำนวนสัญญาที่รอการจัดสรรมิเตอร์ จำนวน <b>${t1+t3}</b> ราย สรุปได้ดังนี้ (รายละเอียดตามเอกสารแนบ 1)</div>
-   <table class="sumtbl"><thead><tr><th style="width:8%">ลำดับ</th><th>จุดร่วมงาน / การไฟฟ้า</th><th style="width:16%">1 เฟส (เครื่อง)</th><th style="width:16%">3 เฟส (เครื่อง)</th><th style="width:14%">รวม</th></tr></thead>
-   <tbody>${rowsHtml}<tr class="total"><td class=n></td><td>รวมทั้งสิ้น ${hubs.length} จุดร่วมงาน</td><td class=n>${t1}</td><td class=n>${t3}</td><td class=n>${t1+t3}</td></tr></tbody></table>
+   <table class="sumtbl"><thead><tr><th rowspan=2 style="width:7%">ลำดับ</th><th rowspan=2>จุดร่วมงาน / การไฟฟ้า</th><th colspan=2>METER (E)</th><th colspan=2>TOU 5(100)</th><th rowspan=2 style="width:10%">รวม</th></tr>
+     <tr><th style="width:10%">1 เฟส</th><th style="width:10%">3 เฟส</th><th style="width:10%">1 เฟส</th><th style="width:10%">3 เฟส</th></tr></thead>
+   <tbody>${rowsHtml}<tr class="total"><td class=n></td><td>รวมทั้งสิ้น ${hubs.length} จุดร่วมงาน</td><td class=n>${T.E1}</td><td class=n>${T.E3}</td><td class=n>${T.T1}</td><td class=n>${T.T3}</td><td class=n>${t1+t3}</td></tr></tbody></table>
+   ${T.skip?`<div class="note2">หมายเหตุ: มีคำขอที่ไม่ต้องจัดสรรมิเตอร์ ${T.skip} ราย (มิเตอร์เดิม TOU 5(100) → Re-Program / มิเตอร์เดิม METER (E)) แสดงในเอกสารแนบ 1 แต่ไม่นับรวมยอด</div>`:''}
    <div class="code"><b>รหัสพัสดุ:</b> มิเตอร์ TOU 1P2W 5(100)A = <b>1060070703</b> &nbsp;·&nbsp; มิเตอร์ TOU 3P4W 5(100)A = <b>1060070709</b></div>
-   <div class="intro">จึงเรียนมาเพื่อโปรดพิจารณาจัดสรรมิเตอร์ TOU จำนวน <b>${t1+t3}</b> เครื่อง ตามรายละเอียดเอกสารแนบ 1 ต่อไป</div>
+   <div class="intro">จึงเรียนมาเพื่อโปรดพิจารณาจัดสรรมิเตอร์ จำนวน <b>${t1+t3}</b> เครื่อง (METER (E) ${tE} เครื่อง · TOU 5(100) ${tT} เครื่อง) ตามรายละเอียดเอกสารแนบ 1 ต่อไป</div>
    <div style="overflow:hidden"><div class="sign">${opts.signature?`<div class="sigwrap" contenteditable="false"><img src="${opts.signature}" alt="ลายเซ็น"><div class="sigwm">ลงนามอิเล็กทรอนิกส์ · กวว.(น1) ${docTxt} · ${today}</div></div>`:'ลงชื่อ&nbsp; นายศุภวัฒิ กินีสี'}<br>( นายศุภวัฒิ กินีสี )<br>วิศวกร ระดับ 6 ผสอ.กวว.(น1)${opts.signature?'':`<div class="noprint" style="font-size:11px;color:#b00020;line-height:1.3;margin-top:6px;font-family:Sarabun,Tahoma,sans-serif">⚠ ไม่แสดงรูปลายเซ็น: ${esc(_sigError||'ไม่ทราบสาเหตุ')}<br><span style="color:#777">(ข้อความนี้ไม่พิมพ์ออกมา)</span></div>`}</div></div>
    <div class="attach"><div class="atHead">เอกสารแนบ 1</div><div class="atSub">รายการมิเตอร์ที่ต้องขอรับการจัดสรร แยกตามจุดร่วมงาน/การไฟฟ้า (รวม ${list.length} ราย)</div>
-   <table class="attbl"><thead><tr><th style="width:7%">ลำดับ</th><th style="width:20%">เลขที่คำขอ (PPIM)</th><th style="width:17%">กฟส./กฟย. รับผิดชอบ</th><th>ประเภทมิเตอร์เดิม</th><th style="width:9%">1 เฟส</th><th style="width:9%">3 เฟส</th></tr></thead>
-   <tbody>${attachRows}<tr class="total"><td colspan=4>รวม</td><td class=n>${t1}</td><td class=n>${t3}</td></tr></tbody></table></div>
+   <table class="attbl"><thead><tr><th style="width:6%">ลำดับ</th><th style="width:16%">เลขที่คำขอ (PPIM)</th><th style="width:14%">กฟส./กฟย. รับผิดชอบ</th><th>ประเภทมิเตอร์เดิม</th><th style="width:7%">1 เฟส</th><th style="width:7%">3 เฟส</th><th style="width:22%">หมายเหตุ (ประเภทที่จัดสรร)</th></tr></thead>
+   <tbody>${attachRows}<tr class="total"><td colspan=4>รวม (METER (E) ${tE} · TOU 5(100) ${tT})</td><td class=n>${t1}</td><td class=n>${t3}</td><td class=mt>${T.skip?'ไม่ต้องจัดสรร '+T.skip+' ราย':''}</td></tr></tbody></table></div>
    </div>
    </td></tr></tbody></table>
    ${opts.autoPrint?`<script>(function(){function p(){try{window.focus();window.print();}catch(e){}}var done=false;function go(){if(done)return;done=true;p();}if(document.fonts&&document.fonts.ready){document.fonts.ready.then(function(){setTimeout(go,300);});}setTimeout(go,1600);})();<\/script>`:''}
@@ -3694,6 +3754,8 @@ async function fetchSignature(c){
 async function exportAllocReport(){
   const list = allocFresh();
   if(!list.length){ alert('ไม่มีรายการใหม่ให้จัดสรร — ทุกคำขอขั้น 8 ถูกดึง/จัดสรรแล้ว'); return; }
+  const rules=await openAllocCheck(list); if(!rules) return;
+  const ruleTxt={}; list.forEach(r=>{ const x=ALLOC_RULES.find(z=>z.c===rules[r.reqNo]); ruleTxt[r.reqNo]=x?(x.c+'. '+x.l):''; });
   const mm=allocMismatch(list);
   if(mm.length && !confirm('⚠ พบ '+mm.length+' รายการที่คอลัมน์ "กฟฟ." (AZ) ไม่ตรงกับ "กฟฟ.ที่ตรวจสอบ" (K) — ในเอกสารจะใช้ กฟฟ.ที่ตรวจสอบ แทน:\n\n'
       +mm.slice(0,15).map(x=>'• '+x.r.reqNo+' : K = '+(x.r.areaCheck||'-')+' · AZ = '+x.o.az).join('\n')+(mm.length>15?'\n… และอีก '+(mm.length-15)+' ราย':'')
@@ -3701,10 +3763,11 @@ async function exportAllocReport(){
   const c=getAllocCreds(); if(!c) return;
   if(!confirm('ออกเอกสารขอจัดสรรมิเตอร์ '+list.length+' ราย?\nระบบจะออกเลขที่เอกสารอัตโนมัติ และทำเครื่องหมาย "รอจัดสรรมิเตอร์" (ไม่ถูกดึงซ้ำ)')) return;
   let docNo=null;
-  try{ const r=await meterApi({action:'markpull', emp:c.emp, pw:c.pw, name:c.name, reqNos:list.map(x=>x.reqNo)});
+  try{ const r=await meterApi({action:'markpull', emp:c.emp, pw:c.pw, name:c.name, reqNos:list.map(x=>x.reqNo), rules:ruleTxt});
     if(r&&r.ok){ docNo=r.docNo; }
     else { const e=(r&&r.error)||''; alert('❌ ออกเอกสารไม่ได้: '+(e==='forbidden'?'ไม่มีสิทธิ์ — เฉพาะ ผมต.กบล./Admin เท่านั้น (ตรวจรหัสพนักงาน/รหัสผ่าน)':e==='unknown action'?'Apps Script ยังเป็นเวอร์ชันเก่า ต้อง redeploy':e)); return; }
   }catch(e){ alert('❌ เชื่อมต่อไม่สำเร็จ: '+e.message); return; }
+  list.forEach(r=>{ r.allocRuleTxt=ruleTxt[r.reqNo]; });   // ใช้ประเภทที่เลือกในเอกสารทันที (ก่อนโหลดข้อมูลใหม่)
   const signature=await fetchSignature(c);
   openAllocPdf(list, docNo, {autoPrint:true, signature});
   await loadDashboardData(); renderAllocDocs();   // รีเฟรชสถานะ + ประวัติหลังบันทึกการดึง
