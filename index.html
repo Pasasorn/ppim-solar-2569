@@ -539,7 +539,7 @@ window.splash=(function(){
     </div>
 
     <!-- KPI -->
-    <div class="card no-print" id="ovFilterBar" data-view="overview" style="padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <div class="card no-print" id="ovFilterBar" style="padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
       <b style="color:var(--pea)">🔎 กรองตาม กฟฟ.</b>
       <select id="ovFilter" style="width:auto;min-width:260px;max-width:100%"><option value="">ทั้งหมด (ทุก กฟฟ.)</option></select>
       <button class="btn btn-outline btn-sm hidden" id="ovFilterClear">✕ ล้างตัวกรอง</button>
@@ -1954,7 +1954,7 @@ const METER_STEPS = [
 function meterStockHtml(){
   const isT=c=>c==='3'||c==='5';
   const S={}; METERS.forEach(m=>S[m.key]={m,used:0,wait:0,unk:0});
-  rows.forEach(r=>{ if(r.step===0) return; const ph=r.swapPhase==='3P'?'3P':r.swapPhase==='1P'?'1P':''; if(!S[ph]) return;
+  allRows().forEach(r=>{ if(r.step===0) return; const ph=r.swapPhase==='3P'?'3P':r.swapPhase==='1P'?'1P':''; if(!S[ph]) return;   // สต็อกรวมทั้งเขต ไม่ใช้ตัวกรอง กฟฟ.
     if(r.allocDate){ if(!r.allocRuleTxt || isT(r.allocRuleNo)) S[ph].used++; return; }
     if(r.step===8 && !r.noAlloc){ if(isT(r.allocRuleNo)) S[ph].wait++; else if(!r.allocRuleNo) S[ph].unk++; } });
   const box=x=>{ const left=x.m.alloc-x.used, after=left-x.wait, low=after<0?'var(--danger)':after<=x.m.alloc*0.1?'#D98A00':'#1f9d57';
@@ -1968,7 +1968,7 @@ function meterStockHtml(){
       ${after<0?`<div style="margin-top:6px;color:var(--danger);font-weight:800;font-size:.84rem">⚠ ไม่พอ — ขาด ${fmtN(-after)} เครื่อง · พิจารณาเปลี่ยนประเภทจัดสรร / ขอจัดสรรเพิ่ม</div>`:after<=x.m.alloc*0.1?`<div style="margin-top:6px;color:#B07C00;font-weight:800;font-size:.84rem">⚠ ใกล้หมด (เหลือ ≤ 10%)</div>`:''}</div>`; };
   return `<div style="margin-top:12px"><div style="font-weight:800;color:var(--pea);margin-bottom:6px">📦 สต็อกมิเตอร์ TOU — ใช้ไปแล้ว / รอขอจัดสรร / คงเหลือ</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap">${['3P','1P'].map(k=>box(S[k])).join('')}</div>
-    <div class="note" style="margin-top:4px">นับ “รอขอจัดสรร” เฉพาะคำขอขั้น 8 ที่ประเภทการจัดสรร = TOU (ข้อ 3, 5) · จานหมุน/ติดตั้งใหม่เรทปกติ ใช้ METER (E) ไม่หักสต็อก TOU · ตัวเลขได้รับจัดสรรแก้ได้ที่ <code>METERS</code></div></div>`;
+    <div class="note" style="margin-top:4px">รวมทั้งเขต (ไม่ขึ้นกับตัวกรอง กฟฟ.) · นับ “รอขอจัดสรร” เฉพาะคำขอขั้น 8 ที่ประเภทการจัดสรร = TOU (ข้อ 3, 5) · จานหมุน/ติดตั้งใหม่เรทปกติ ใช้ METER (E) ไม่หักสต็อก TOU · ตัวเลขได้รับจัดสรรแก้ได้ที่ <code>METERS</code></div></div>`;
 }
 function meterStepGo(k){ const s=METER_STEPS.find(x=>x.k===k); if(s&&s.go){ try{ (new Function(s.go))(); }catch(e){ alert('เปิดไม่สำเร็จ: '+e.message); } } }
 let mflowChart = null;   // กราฟแท็บมิเตอร์ (แยกจาก charts — renderCharts() ล้าง charts ทั้งหมด)
@@ -2547,11 +2547,12 @@ let ovFilterVal = ''; try{ ovFilterVal = localStorage.getItem('ov_filter')||''; 
 const ovOffice = r => r.areaCheck||r.area||'';
 function ovMatch(r){ if(!ovFilterVal) return true; const t=ovFilterVal.slice(2);
   return ovFilterVal[0]==='H' ? (reqHub(r)||'ไม่ระบุจุดรวมงาน')===t : ovOffice(r)===t; }
-let ovDepth = 0;
-function withOv(fn){ if(!ovFilterVal || ovDepth) return fn(); const keep=rows; ovDepth++; rows=keep.filter(ovMatch);
-  try{ return fn(); } finally { rows=keep; ovDepth--; } }
+let ovDepth = 0, ovBase = null, ovAuto = false;   // ovBase = ข้อมูลทั้งหมด (ใช้ในส่วนที่ต้องไม่ถูกกรอง เช่น สต็อกมิเตอร์) · ovAuto = ตั้งให้อัตโนมัติจากจุดร่วมงาน ผมต.
+const allRows = () => ovBase || rows;
+function withOv(fn){ if(!ovFilterVal || ovDepth) return fn(); const keep=rows; ovDepth++; ovBase=keep; rows=keep.filter(ovMatch);
+  try{ return fn(); } finally { rows=keep; ovBase=null; ovDepth--; } }
 function buildOvFilter(){
-  const el=$('#ovFilter'); if(!el||!rows) return;
+  const el=$('#ovFilter'); if(!el||!rows) return;   // เรียกนอก withOv → rows = ข้อมูลทั้งหมด
   const g={}; rows.forEach(r=>{ const h=reqHub(r)||'ไม่ระบุจุดรวมงาน', o=ovOffice(r); const x=g[h]=g[h]||{n:0,o:{}}; x.n++; if(o) x.o[o]=(x.o[o]||0)+1; });
   const H=HUB_LIST.filter(h=>g[h]).concat(Object.keys(g).filter(h=>!HUB_LIST.includes(h)));
   el.innerHTML='<option value="">ทั้งหมด (ทุก กฟฟ.) · '+fmtN(rows.length)+' ราย</option>'+H.map(h=>`<optgroup label="${escHtml(h)}"><option value="H:${escHtml(h)}">▸ ${escHtml(h)} — ทุก กฟฟ. ในจุดนี้ (${fmtN(g[h].n)})</option>`
@@ -2561,10 +2562,11 @@ function buildOvFilter(){
 }
 function ovFilterPaint(){ const n=ovFilterVal?rows.filter(ovMatch).length:0;
   const c=$('#ovFilterClear'); if(c) c.classList.toggle('hidden',!ovFilterVal);
-  const t=$('#ovFilterNote'); if(t) t.innerHTML=ovFilterVal?`แสดงเฉพาะ <b>${escHtml(ovFilterVal.slice(2))}</b> · ${fmtN(n)} ราย (มีผลเฉพาะหน้านี้)`:'';
+  const t=$('#ovFilterNote'); if(t) t.innerHTML=ovFilterVal?`แสดงเฉพาะ <b>${escHtml(ovFilterVal.slice(2))}</b> · ${fmtN(n)} ราย${ovAuto?' (ตั้งตามจุดร่วมงานของคุณ)':''} · มีผลทุกหน้า + ปุ่ม Export <span title="ออกเอกสารขอจัดสรร / บันทึกผลจัดสรร / ดาวน์โหลดงานสับเปลี่ยน / สต็อกมิเตอร์ ใช้ข้อมูลทั้งหมดเสมอ">(ยกเว้นงานจัดสรร/ดาวน์โหลด ⓘ)</span>`:'';
   const b=$('#ovFilterBar'); if(b) b.style.background=ovFilterVal?'#fff8e6':''; }
-function setOvFilter(v){ ovFilterVal=v||''; try{ localStorage.setItem('ov_filter',ovFilterVal); }catch(e){}
-  if(typeof sdHub!=='undefined') sdHub=''; renderPipeline(); renderStepDetail(); renderKpis(); renderOvSla(); if(typeof kpiSel!=='undefined'&&kpiSel) drawKpiChart(); ovFilterPaint(); }
+function setOvFilter(v, auto){ ovFilterVal=v||''; ovAuto=!!(auto&&v); if(!auto){ try{ localStorage.setItem('ov_filter',ovFilterVal); }catch(e){} }
+  if(typeof sdHub!=='undefined') sdHub=''; if(typeof meterFlowArea!=='undefined') meterFlowArea=null; page=1;
+  if(rows && rows.length) renderAll(); else ovFilterPaint(); }
 if($('#ovFilter')) $('#ovFilter').onchange=e=>setOvFilter(e.target.value);
 if($('#ovFilterClear')) $('#ovFilterClear').onclick=()=>{ $('#ovFilter').value=''; setOvFilter(''); };
 
@@ -3503,6 +3505,7 @@ loadTicker();
 if($('#mmClose')) $('#mmClose').onclick = ()=>$('#meterModal').classList.remove('show');
 if($('#mmLogout')) $('#mmLogout').onclick = ()=>{
   mmSession=null; caAuthed=false;
+  if(ovAuto){ let v=''; try{ v=localStorage.getItem('ov_filter')||''; }catch(e){} ovFilterVal=v; ovAuto=false; }   // คืนตัวกรองเดิมของเครื่อง
   loadDashboardData();   // PDPA: โหลดใหม่เป็นข้อมูลที่ปิดบังแล้ว (ไม่ค้างชื่อเต็มไว้ในหน้า)
   if($('#navLog')) $('#navLog').classList.add('hidden');   // ซ่อนเมนู log Admin เมื่อออกจากระบบ
   if($('#navApprove')) $('#navApprove').classList.add('hidden'); apStopWatch();
@@ -3527,6 +3530,8 @@ if($('#mmDoLogin')) $('#mmDoLogin').onclick = async ()=>{
         return;
       }
       mmSession={emp, name:r.name, dept:r.dept, hub:r.hub, role:r.role, pw}; $('#mmPw').value='';
+      { const rl0=String(r.role||''), hb0=canonHub(r.hub)||'';   // ผมต. จุดร่วมงานทั่วไป → ตั้งตัวกรองเป็นจุดของตนให้อัตโนมัติ (เปลี่ยนเองได้)
+        if(rl0.indexOf('ผมต')>=0 && rl0.toLowerCase().indexOf('admin')<0 && hb0 && hb0!==CENTRAL_HUB) setOvFilter('H:'+hb0, true); }
       $('#mmLoginMsg').textContent='กำลังโหลดข้อมูล...';
       await loadDashboardData();   // โหลดข้อมูลผ่าน API (ต้อง login ก่อน)
       const rl=(mmSession.role||'');
@@ -4041,9 +4046,12 @@ document.querySelectorAll('#sidenav a[data-view]').forEach(a=>{
   a.addEventListener('click', e=>{ e.preventDefault(); showView(a.getAttribute('data-view')); });
 });
 // ห่อฟังก์ชันวาดของหน้าสถานะงานทั้งหมดด้วยตัวกรอง กฟฟ.
-['renderPipeline','renderStepDetail','renderKpis','renderOvSla','drawKpiChart'].forEach(n=>{ const f=window[n]; if(typeof f!=='function') return;
+['renderSidenav','renderOvSla','renderExec','renderSummary','renderCodDeadline','renderWeekly','renderTarget','renderTransformers','renderHubOverview','renderHubs',
+ 'renderCA','renderCaDetail','renderMeterFlow','renderMeters','renderMeterHowto','renderMeterMine','renderKpis','drawKpiChart','renderPipeline','renderStepDetail',
+ 'renderSla','renderCharts','buildFilterOptions','renderTable','renderCEO','renderMgr','renderMkt','exportHubSummary','mtrTab'].forEach(n=>{ const f=window[n]; if(typeof f!=='function') return;
   window[n]=function(){ const a=arguments; return withOv(()=>f.apply(this,a)); }; });
 { const _ra=renderAll; window.renderAll=function(){ _ra.apply(this,arguments); buildOvFilter(); }; }
+{ const b=$('#btnExport'); if(b&&b.onclick){ const _h=b.onclick; b.onclick=function(e){ return withOv(()=>_h.call(this,e)); }; } }   // Export CSV ตารางคำขอ = ตามตัวกรอง
 showView('overview');   // หน้าเริ่มต้น
 
 // โหลดภาพรวมได้เลยไม่ต้อง login (อ่านผ่าน Apps Script — ชีตยัง private ได้) · login เฉพาะมิเตอร์+CA82
