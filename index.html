@@ -539,6 +539,12 @@ window.splash=(function(){
     </div>
 
     <!-- KPI -->
+    <div class="card no-print" id="ovFilterBar" data-view="overview" style="padding:10px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <b style="color:var(--pea)">🔎 กรองตาม กฟฟ.</b>
+      <select id="ovFilter" style="width:auto;min-width:260px;max-width:100%"><option value="">ทั้งหมด (ทุก กฟฟ.)</option></select>
+      <button class="btn btn-outline btn-sm hidden" id="ovFilterClear">✕ ล้างตัวกรอง</button>
+      <span class="note" id="ovFilterNote"></span>
+    </div>
     <div class="card" id="sec-pipeline" data-view="overview">
       <h2 style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px"><span>สถานะงานทั้งหมดใน Pipeline</span><span class="note" style="font-weight:400">คลิกขั้นตอนเพื่อดูแยกตาม กฟฟ. และรายการคำขอ</span></h2>
       <div class="pipeline" id="pipeline"></div>
@@ -2535,6 +2541,32 @@ function renderStepDetail(){
   box.innerHTML=`<div class="sdgrid">${left}${right}</div>`;
 }
 let sdHub='', sdQuery='';
+// ===== ตัวกรอง กฟฟ. หน้าสถานะงานทั้งหมด (Pipeline + รายละเอียดขั้น + การ์ด KPI/กราฟ) =====
+// ค่า: '' = ทั้งหมด · 'H:<จุดร่วมงาน>' = ทุก กฟฟ. ในจุดนั้น · 'O:<กฟฟ.ที่ตรวจสอบ>' = กฟฟ. เดียว · ไม่กระทบหน้าอื่น
+let ovFilterVal = ''; try{ ovFilterVal = localStorage.getItem('ov_filter')||''; }catch(e){}
+const ovOffice = r => r.areaCheck||r.area||'';
+function ovMatch(r){ if(!ovFilterVal) return true; const t=ovFilterVal.slice(2);
+  return ovFilterVal[0]==='H' ? (reqHub(r)||'ไม่ระบุจุดรวมงาน')===t : ovOffice(r)===t; }
+let ovDepth = 0;
+function withOv(fn){ if(!ovFilterVal || ovDepth) return fn(); const keep=rows; ovDepth++; rows=keep.filter(ovMatch);
+  try{ return fn(); } finally { rows=keep; ovDepth--; } }
+function buildOvFilter(){
+  const el=$('#ovFilter'); if(!el||!rows) return;
+  const g={}; rows.forEach(r=>{ const h=reqHub(r)||'ไม่ระบุจุดรวมงาน', o=ovOffice(r); const x=g[h]=g[h]||{n:0,o:{}}; x.n++; if(o) x.o[o]=(x.o[o]||0)+1; });
+  const H=HUB_LIST.filter(h=>g[h]).concat(Object.keys(g).filter(h=>!HUB_LIST.includes(h)));
+  el.innerHTML='<option value="">ทั้งหมด (ทุก กฟฟ.) · '+fmtN(rows.length)+' ราย</option>'+H.map(h=>`<optgroup label="${escHtml(h)}"><option value="H:${escHtml(h)}">▸ ${escHtml(h)} — ทุก กฟฟ. ในจุดนี้ (${fmtN(g[h].n)})</option>`
+    +Object.keys(g[h].o).sort((a,b)=>a.localeCompare(b,'th')).map(o=>`<option value="O:${escHtml(o)}">&nbsp;&nbsp;&nbsp;${escHtml(o)} (${fmtN(g[h].o[o])})</option>`).join('')+'</optgroup>').join('');
+  if(ovFilterVal && ![...el.options].some(x=>x.value===ovFilterVal)) ovFilterVal='';
+  el.value=ovFilterVal; ovFilterPaint();
+}
+function ovFilterPaint(){ const n=ovFilterVal?rows.filter(ovMatch).length:0;
+  const c=$('#ovFilterClear'); if(c) c.classList.toggle('hidden',!ovFilterVal);
+  const t=$('#ovFilterNote'); if(t) t.innerHTML=ovFilterVal?`แสดงเฉพาะ <b>${escHtml(ovFilterVal.slice(2))}</b> · ${fmtN(n)} ราย (มีผลเฉพาะหน้านี้)`:'';
+  const b=$('#ovFilterBar'); if(b) b.style.background=ovFilterVal?'#fff8e6':''; }
+function setOvFilter(v){ ovFilterVal=v||''; try{ localStorage.setItem('ov_filter',ovFilterVal); }catch(e){}
+  if(typeof sdHub!=='undefined') sdHub=''; renderPipeline(); renderStepDetail(); renderKpis(); renderOvSla(); if(typeof kpiSel!=='undefined'&&kpiSel) drawKpiChart(); ovFilterPaint(); }
+if($('#ovFilter')) $('#ovFilter').onchange=e=>setOvFilter(e.target.value);
+if($('#ovFilterClear')) $('#ovFilterClear').onclick=()=>{ $('#ovFilter').value=''; setOvFilter(''); };
 
 const BAND_ICON = {green:'🟢',yellow:'🟡',red:'🔴',over:'⛔'};
 function renderSla(){
@@ -4008,6 +4040,10 @@ function showView(v){
 document.querySelectorAll('#sidenav a[data-view]').forEach(a=>{
   a.addEventListener('click', e=>{ e.preventDefault(); showView(a.getAttribute('data-view')); });
 });
+// ห่อฟังก์ชันวาดของหน้าสถานะงานทั้งหมดด้วยตัวกรอง กฟฟ.
+['renderPipeline','renderStepDetail','renderKpis','renderOvSla','drawKpiChart'].forEach(n=>{ const f=window[n]; if(typeof f!=='function') return;
+  window[n]=function(){ const a=arguments; return withOv(()=>f.apply(this,a)); }; });
+{ const _ra=renderAll; window.renderAll=function(){ _ra.apply(this,arguments); buildOvFilter(); }; }
 showView('overview');   // หน้าเริ่มต้น
 
 // โหลดภาพรวมได้เลยไม่ต้อง login (อ่านผ่าน Apps Script — ชีตยัง private ได้) · login เฉพาะมิเตอร์+CA82
