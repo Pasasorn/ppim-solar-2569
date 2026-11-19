@@ -810,7 +810,7 @@ const FIELDS = [
   {key:'dAnnounce',label:'วันที่ประกาศผล',      kw:['วันที่ประกาศผล','ประกาศ','วันที่อนุมัติผล']},
   {key:'dSign',   label:'วันที่ลงนามสัญญา',     kw:['วันที่ลงนาม','ลงนาม','วันที่ทำสัญญา']},
   {key:'dPay',    label:'วันที่ชำระเงิน',       kw:['วันที่ชำระเงิน','ชำระเงิน']},
-  {key:'dConnReq',label:'วันที่ยื่นขอเชื่อมต่อ', kw:['วันที่ยื่นขอเชื่อมต่อ','ยื่นขอเชื่อมต่อ','ยื่นเชื่อมต่อ']},
+  {key:'dConnReq',label:'วันที่ยื่นขอเชื่อมต่อ', kw:['วันที่ยื่นขออนุมัติเชื่อมต่อ','วันที่ยื่นขอเชื่อมต่อ','ยื่นขอเชื่อมต่อ','ยื่นเชื่อมต่อ']},
   {key:'dConnApprove',label:'วันที่อนุมัติเชื่อมต่อ',kw:['วันที่อนุมัติเชื่อมต่อ','อนุมัติเชื่อมต่อ']},
   {key:'dCod',    label:'วันที่ COD/เชื่อมต่อเข้าระบบ', kw:['วันที่เชื่อมต่อเข้าระบบ','วันที่ cod','cod','เริ่มต้นซื้อขาย']},
   {key:'dSwapReport', label:'วันที่รายงานสับเปลี่ยน', kw:['วันที่รายงานสับเปลี่ยน','รายงานสับเปลี่ยน']},
@@ -2459,6 +2459,23 @@ function drawKpiChart(){
 // ชื่อขั้นตอนสำหรับแสดงในแถบ Pipeline (รูปแบบตาม mockup)
 const STEP_DISP={1:'รอตรวจสอบคำขอ',2:'รออนุมัติผลการพิจารณา',3:'รอทำสัญญา/ชำระเงิน',4:'รอยื่นคำขอเชื่อมต่อ',5:'รอแก้ไขคำขอเชื่อมต่อ',6:'รอตรวจคำขอเชื่อมต่อ',7:'รออนุมัติเชื่อมต่อ',8:'รอสับเปลี่ยนมิเตอร์/COD',9:'รอแจ้งผล COD',10:'เริ่ม COD'};
 const STEP_SLA={1:'SLA 30 วัน',2:'SLA 30 วัน',3:'SLA 30 วัน'};   // ใช้ SLA เดิม: ช่วงตรวจสอบ (ขั้น 1-2) และทำสัญญา (ขั้น 3)
+// ===== ระยะเวลารอดำเนินการ (ขั้นที่ไม่มี SLA: 4–9) — นับจากวันที่เข้าขั้นนั้น (ใช้วันที่ล่าสุดที่มีในรายการ) =====
+const STEP_WAIT_FROM = {
+  4:[['dSign','ลงนามสัญญา'],['dPay','ชำระเงิน']],        // รอยื่นคำขอเชื่อมต่อ ← หลังทำสัญญา/ชำระเงิน
+  5:[['dConnReq','ยื่นขอเชื่อมต่อ']],                     // รอแก้ไขคำขอเชื่อมต่อ
+  6:[['dConnReq','ยื่นขอเชื่อมต่อ']],                     // รอตรวจคำขอเชื่อมต่อ
+  7:[['dConnReq','ยื่นขอเชื่อมต่อ']],                     // รออนุมัติเชื่อมต่อ
+  8:[['dConnApprove','อนุมัติเชื่อมต่อ']],                // รอสับเปลี่ยนมิเตอร์/COD
+  9:[['dSwapReport','รายงานสับเปลี่ยน']]                  // รอ ผบส. แจ้งผล COD
+};
+const WAIT_WARN = 30, WAIT_LONG = 60;   // วัน: > 30 = เริ่มนาน (เหลือง) · > 60 = ค้างนาน (แดง) — ไม่ใช่ SLA ใช้เพื่อติดตามงาน
+function stepWait(r){ const m=STEP_WAIT_FROM[r.step]; if(!m) return null; let d=null, lab='';
+  m.forEach(([k,l])=>{ const v=r[k]; if(v instanceof Date && !isNaN(v) && (!d||v>d)){ d=v; lab=l; } });
+  return d ? {days:daysSince(d), from:lab, date:d} : {days:null, from:m.map(x=>x[1]).join('/')}; }
+function waitTag(w){ if(!w) return '<span class="sdtag none">ไม่กำหนด SLA</span>';
+  if(w.days==null) return `<span class="sdtag none" title="ไม่มีวันที่${w.from}">รอ – วัน</span>`;
+  const c=w.days>WAIT_LONG?'over':w.days>WAIT_WARN?'near':'ok';
+  return `<span class="sdtag ${c}" title="นับจากวันที่${w.from} ${fmtD(w.date)} · ไม่มี SLA (แสดงเพื่อติดตาม)">⏱ รอ ${fmtN(w.days)} วัน</span>`; }
 function renderPipeline(){
   const p = $('#pipeline'); if(!p) return;
   const cards=[];
@@ -2472,7 +2489,10 @@ function renderPipeline(){
       <div class="pt">${STEP_DISP[st.id]||st.name}</div>
       <div class="pc">${fmtN(L.length)}</div>
       <div class="pk">${fmtN(Math.round(kw*10)/10)} kW</div>
-      <div class="pchips">${sla?`<span class="chip sla">${sla}</span>`:'<span class="chip none">ไม่กำหนด SLA</span>'}${over?`<span class="chip over">${fmtN(over)} เกิน SLA</span>`:''}</div>
+      <div class="pchips">${sla?`<span class="chip sla">${sla}</span>`:(()=>{ const W=L.map(stepWait).filter(w=>w&&w.days!=null).map(w=>w.days);
+        if(!STEP_WAIT_FROM[st.id]||!W.length) return '<span class="chip none">ไม่กำหนด SLA</span>';
+        const avg=Math.round(W.reduce((a,b)=>a+b,0)/W.length), lg=W.filter(v=>v>WAIT_LONG).length;
+        return `<span class="chip none" title="ไม่มี SLA · นับจากวันที่${STEP_WAIT_FROM[st.id].map(x=>x[1]).join('/')}">⏱ รอเฉลี่ย ${fmtN(avg)} วัน</span>${lg?`<span class="chip red" title="รอเกิน ${WAIT_LONG} วัน">${fmtN(lg)} ราย &gt; ${WAIT_LONG} วัน</span>`:''}`; })()}${over?`<span class="chip over">${fmtN(over)} เกิน SLA</span>`:''}</div>
     </div>`);
   }
   const tot=rows.length, kwAll=rows.filter(r=>r.step!==0).reduce((s,r)=>s+(r.kw||0),0);
@@ -2526,15 +2546,16 @@ function renderStepDetail(){
   let L=list.slice();
   if(sdHub) L=L.filter(r=>(reqHub(r)||r.areaCheck||r.area||'ไม่ระบุ')===sdHub);
   if(q) L=L.filter(r=>[r.reqNo,r.custName,r.area,r.areaCheck,reqHub(r),r.installer,r.receiver].some(v=>String(v||'').toLowerCase().includes(q)));
-  const bandRank={over:0,red:1,yellow:2,green:3}; L.sort((a,b)=>((a.sla&&bandRank[a.sla.band])??9)-((b.sla&&bandRank[b.sla.band])??9)||((b.sla&&b.sla.elapsed)||0)-((a.sla&&a.sla.elapsed)||0));
+  const bandRank={over:0,red:1,yellow:2,green:3}, wd=r=>{ const w=stepWait(r); return w&&w.days!=null?w.days:-1; };
+  L.sort((a,b)=>((a.sla&&bandRank[a.sla.band])??9)-((b.sla&&bandRank[b.sla.band])??9)||((b.sla&&b.sla.elapsed)||0)-((a.sla&&a.sla.elapsed)||0)||wd(b)-wd(a));   // ขั้นไม่มี SLA: เรียงรอนานสุดก่อน
   const show=L.slice(0,40);
-  const slaCell=r=>{ if(!r.sla||!r.sla.band) return '<span class="sdtag none">ไม่กำหนด SLA</span>'; const e=r.sla.elapsed; if(r.sla.band==='over') return `<span class="sdtag over">เกิน · ${e} วัน</span>`; if(r.sla.band==='red') return `<span class="sdtag near">ใกล้ครบ · ${e} วัน</span>`; return `<span class="sdtag ok">ปกติ · ${e} วัน</span>`; };
+  const slaCell=r=>{ if(!r.sla||!r.sla.band) return waitTag(stepWait(r)); const e=r.sla.elapsed; if(r.sla.band==='over') return `<span class="sdtag over">เกิน · ${e} วัน</span>`; if(r.sla.band==='red') return `<span class="sdtag near">ใกล้ครบ · ${e} วัน</span>`; return `<span class="sdtag ok">ปกติ · ${e} วัน</span>`; };
   const hasMkt=!!(mapping&&(mapping.receiver||mapping.installer));
   const right=`<div class="sdcard">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><div class="sdh" style="margin:0">รายการคำขอ (${fmtN(L.length)})</div>
       <input value="${esc(sdQuery||'')}" placeholder="ค้นหาเลขคำขอ / ชื่อ / กฟฟ." oninput="sdQuery=this.value;renderStepDetail();this.focus();this.setSelectionRange(this.value.length,this.value.length)" style="padding:7px 12px;border:1px solid var(--border);border-radius:10px;min-width:220px"></div>
     ${STEP_SLA[sel]?`<div class="note" style="background:#fff6d5;border-radius:8px;padding:6px 10px;margin:8px 0">${STEP_SLA[sel]} นับจากวันที่${sel===3?'ประกาศผล/อนุมัติ':'ลูกค้ายื่นคำขอ'} (ขั้นที่ ${sel===3?'3':'1–2'} ใช้กำหนดเดียวกัน)</div>`:''}
-    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0 8px;font-size:.8rem"><span class="sdtag ok">ปกติ</span><span class="note">เหลือเวลามากกว่า 10 วัน</span><span class="sdtag near">ใกล้ครบ</span><span class="note">10 วันสุดท้าย</span><span class="sdtag over">เกิน</span><span class="note">เกิน SLA</span><span class="sdtag none">ไม่กำหนด</span><span class="note">แสดงวันในขั้นตอน</span></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0 8px;font-size:.8rem"><span class="sdtag ok">ปกติ</span><span class="note">เหลือเวลามากกว่า 10 วัน</span><span class="sdtag near">ใกล้ครบ</span><span class="note">10 วันสุดท้าย</span><span class="sdtag over">เกิน</span><span class="note">เกิน SLA</span><span class="sdtag none">ไม่กำหนด</span><span class="note">ขั้นไม่มี SLA: ⏱ รอ … วัน (เขียว ≤ ${WAIT_WARN} · เหลือง ${WAIT_WARN+1}–${WAIT_LONG} · แดง &gt; ${WAIT_LONG})${STEP_WAIT_FROM[sel]?' นับจากวันที่'+STEP_WAIT_FROM[sel].map(x=>x[1]).join('/'):''}</span></div>
     <div style="overflow:auto;max-height:520px"><table style="font-size:.85rem"><thead><tr><th>เลขคำขอ PPIM</th>${hasMkt?'<th>ผู้รับงาน</th><th>ผู้ติดตั้ง</th>':''}<th>ผู้ยื่น${(mmSession&&mmSession.emp)?'':' <span class="note" title="ปิดบังตาม PDPA">🔒</span>'}</th><th>กฟฟ.</th><th style="text-align:right">kW</th><th>SLA</th></tr></thead><tbody>
       ${show.map(r=>`<tr><td><b>${esc(r.reqNo)}</b></td>${hasMkt?`<td><span class="sdtag ${/pea|กฟภ/i.test(r.receiver||'')?'pea':'ven'}">${/pea|กฟภ/i.test(r.receiver||'')?'PEA.':'Vendor'}</span></td><td>${esc(r.installer||'-')}</td>`:''}<td>${esc(maskName(r.custName))}</td><td>${esc(reqHub(r)||r.areaCheck||r.area||'-')}</td><td style="text-align:right">${r.kw||'-'}</td><td>${slaCell(r)}</td></tr>`).join('')||`<tr><td colspan="${hasMkt?7:5}" class="note" style="text-align:center">— ไม่พบรายการ —</td></tr>`}
     </tbody></table></div>
