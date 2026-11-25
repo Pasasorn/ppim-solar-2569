@@ -512,6 +512,20 @@ window.splash=(function(){
         <button class="btn btn-outline btn-sm" id="mmLogout">ออกจากระบบ</button>
         <button class="btn btn-outline btn-sm" id="mmGoChangePw2">🔑 เปลี่ยนรหัสผ่าน</button>
       </div>
+      <!-- แก้ไขเอกสารที่แนบแล้ว (แนบผิด) — งานที่รายงานแล้ว รอ ผบส. -->
+      <div id="mmFixWrap" class="hidden" style="margin-top:16px;border-top:1px dashed var(--border);padding-top:12px">
+        <div class="note" style="background:#fff8e6;border-left:4px solid #E8A100;padding:8px 10px;border-radius:6px;margin-bottom:8px">✏️ <b>แก้ไขเอกสารที่แนบแล้ว</b> — แนบเอกสารผิด/ไม่ชัด แนบใหม่ได้เฉพาะข้อที่ต้องการแก้ พร้อมระบุเหตุผล (เอกสารเดิมเก็บไว้เป็นประวัติ ไม่แสดงต่อ)</div>
+        <label>เลือกงานที่รายงานไปแล้ว (รอ ผบส. กด COD)</label><select id="mmFixReq"></select>
+        <div style="margin-top:8px">
+          <div class="mmdoc"><div class="mmdoc-t"><b>1.</b> แบบฟอร์มตรวจสอบการขอขนานฯ <span class="note">(PDF หรือรูป)</span></div><input class="mmFixIn" data-slot="1" type="file" accept="image/*,.pdf,application/pdf"><div class="note mmFixPrev" data-slot="1"></div></div>
+          <div class="mmdoc"><div class="mmdoc-t"><b>2.</b> แบบฟอร์มการอ่าน TOU มิเตอร์ <span class="note">(PDF หรือรูป)</span></div><input class="mmFixIn" data-slot="2" type="file" accept="image/*,.pdf,application/pdf"><div class="note mmFixPrev" data-slot="2"></div></div>
+          <div class="mmdoc"><div class="mmdoc-t"><b>3.</b> รูปถ่ายมิเตอร์ที่เห็น PEA No. <span class="note">(รูปภาพ)</span></div><input class="mmFixIn" data-slot="3" type="file" accept="image/*"><div class="note mmFixPrev" data-slot="3"></div></div>
+        </div>
+        <label style="margin-top:6px">เหตุผลการขอแก้ไขเอกสาร <span style="color:var(--danger)">*</span></label>
+        <textarea id="mmFixReason" rows="2" style="width:100%;resize:vertical" placeholder="เช่น แนบแบบฟอร์มผิดราย / รูปไม่ชัด มองไม่เห็น PEA No."></textarea>
+        <div class="mmsg" id="mmFixMsg"></div>
+        <div class="toolbar" style="margin-top:10px"><button class="btn btn-sm" id="mmFixBtn" style="background:#E8A100;color:#fff">📎 แนบเอกสารใหม่</button></div>
+      </div>
       <!-- แผงย้อนสถานะ (เฉพาะ Admin) -->
       <div id="mmRevertWrap" class="hidden" style="margin-top:16px;border-top:1px dashed var(--border);padding-top:12px">
         <div class="note" style="background:#fff4f4;border-left:4px solid var(--danger);padding:8px 10px;border-radius:6px;margin-bottom:8px">↩ <b>ย้อนสถานะการสับเปลี่ยน (เฉพาะ Admin)</b> — ดึงงานที่รายงานไปแล้ว (รอ ผบส.) กลับเป็น “รอสับเปลี่ยนมิเตอร์” กรณีรายงานผิด</div>
@@ -3273,6 +3287,10 @@ function mmShowReport(){
   const dw=$('#mmDlWrap'); if(dw){ dw.classList.toggle('hidden', isViewer || (!seeAll && !myHub)); $('#mmDlMsg').textContent=''; }
   // Admin/ผซฟ. เห็นทุก กฟฟ. · ผมต. เห็นเฉพาะจุดร่วมงานตัวเอง
   const wait = seeAll ? wait8 : wait8.filter(r=>reqHub(r)===myHub);
+  // แก้ไขเอกสาร: งานที่รายงานแล้ว (ขั้น 9 รอ ผบส.) ในขอบเขตของผู้ใช้ · ผซฟ. ไม่เห็น
+  { const fw=$('#mmFixWrap'); const done9=rows.filter(r=>r.step===9 && (seeAll || reqHub(r)===myHub));
+    if(fw){ fw.classList.toggle('hidden', isViewer); $('#mmFixReq').innerHTML = done9.length ? '<option value="">— เลือกเลขที่คำขอ —</option>'+done9.map(r=>`<option value="${escHtml(r.reqNo)}">${escHtml(r.reqNo)} · ${escHtml(r.areaCheck||r.area||'')}${r.dSwapReport?' · รายงาน '+fmtD(r.dSwapReport):''}</option>`).join('') : '<option value="">— ไม่มีงานที่รายงานแล้ว —</option>';
+      mmFix={1:null,2:null,3:null}; document.querySelectorAll('.mmFixPrev').forEach(e=>e.textContent=''); document.querySelectorAll('.mmFixIn').forEach(e=>e.value=''); $('#mmFixReason').value=''; $('#mmFixMsg').textContent=''; } }
   $('#mmReq').innerHTML = wait.length
     ? wait.map(r=>`<option value="${r.reqNo}">${r.reqNo} · ${r.areaCheck||r.area}</option>`).join('')
     : '<option value="">'+(seeAll?'— ไม่มีงานรอสับเปลี่ยน —':'— ไม่มีงานรอสับเปลี่ยนในจุดร่วมงานของท่าน —')+'</option>';
@@ -4044,6 +4062,32 @@ if($('#mmRevertBtn')) $('#mmRevertBtn').onclick = async ()=>{
       if(mmSession) mmShowReport();
     } else $('#mmRevertMsg').innerHTML='<span style="color:var(--danger)">ไม่สำเร็จ: '+((r&&r.error)||'')+'</span>';
   }catch(e){ $('#mmRevertMsg').innerHTML='<span style="color:var(--danger)">เชื่อมต่อไม่ได้: '+e.message+'</span>'; }
+};
+// ===== แก้ไขเอกสารที่แนบแล้ว =====
+let mmFix={1:null,2:null,3:null};
+document.querySelectorAll('.mmFixIn').forEach(inp=>inp.onchange=async e=>{
+  const k=+e.target.dataset.slot, f=e.target.files&&e.target.files[0], pv=document.querySelector('.mmFixPrev[data-slot="'+k+'"]');
+  mmFix[k]=null; if(pv) pv.textContent=''; if(!f) return;
+  const isPdf=/pdf$/i.test(f.type)||/\.pdf$/i.test(f.name);
+  if(isPdf && k===3){ alert('ข้อ 3 ต้องเป็นรูปภาพเท่านั้น'); e.target.value=''; return; }
+  if(isPdf && f.size>6*1024*1024){ alert('ไฟล์ PDF ใหญ่เกิน 6 MB'); e.target.value=''; return; }
+  const data = isPdf ? await mmReadFileAsDataUrl(f) : await mmResizeImg(f);
+  if(!data){ alert('อ่านไฟล์ไม่สำเร็จ'); e.target.value=''; return; }
+  mmFix[k]={data,name:f.name}; if(pv) pv.innerHTML='✅ '+escHtml(f.name)+' — จะแทนที่เอกสารข้อ '+k+' เดิม';
+});
+if($('#mmFixBtn')) $('#mmFixBtn').onclick = async ()=>{
+  const msg=$('#mmFixMsg'), err=t=>msg.innerHTML='<span style="color:var(--danger)">'+t+'</span>';
+  const reqNo=$('#mmFixReq').value, reason=$('#mmFixReason').value.trim(), ks=[1,2,3].filter(k=>mmFix[k]);
+  if(!reqNo) return err('เลือกเลขที่คำขอ');
+  if(!ks.length) return err('แนบเอกสารใหม่อย่างน้อย 1 ข้อ');
+  if(reason.length<3) return err('ระบุเหตุผลการขอแก้ไขเอกสาร');
+  if(!confirm('แนบเอกสารใหม่แทนข้อ '+ks.join(', ')+' ของคำขอ '+reqNo+'?\nเหตุผล: '+reason)) return;
+  msg.textContent='กำลังอัปโหลด...';
+  try{ const r=await meterApi({action:'redoc', emp:mmSession.emp, pw:mmSession.pw, name:mmSession.name, reqNo, reason, photos:ks.map(k=>({tag:MM_DOC_TAGS[k], data:mmFix[k].data}))});
+    if(r&&r.ok){ msg.innerHTML='<span style="color:var(--green)">✅ แนบเอกสารใหม่แล้ว '+fmtN(r.saved)+' ไฟล์'+(r.replaced?' · ย้ายเอกสารเดิม '+fmtN(r.replaced)+' ไฟล์ไปเก็บเป็นประวัติ':'')+'</span>';
+      mmFix={1:null,2:null,3:null}; document.querySelectorAll('.mmFixIn').forEach(e=>e.value=''); document.querySelectorAll('.mmFixPrev').forEach(e=>e.textContent=''); $('#mmFixReason').value=''; }
+    else err('ไม่สำเร็จ: '+((r&&r.error)==='unknown action'?'Apps Script ยังไม่ใช่เวอร์ชันใหม่':((r&&r.error)||'')));
+  }catch(e){ err('เชื่อมต่อไม่ได้: '+e.message); }
 };
 if($('#mmDoReport')) $('#mmDoReport').onclick = async ()=>{
   const reqNo=$('#mmReq').value, codDate=$('#mmCod').value;

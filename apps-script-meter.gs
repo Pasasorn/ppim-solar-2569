@@ -121,6 +121,7 @@ function doPost(e) {
     if (body.action === 'deleteuser')   return json(doDeleteUser(body));
     if (body.action === 'report')   return json(doReport(body));
     if (body.action === 'revert')   return json(doRevert(body));
+    if (body.action === 'redoc')    return json(doRedoc(body));
     if (body.action === 'ca82')     return json(doCreateCA82(body));
     if (body.action === 'ca82note') return json(doCa82Note(body));
     if (body.action === 'files')    return json(doGetFiles(body));
@@ -953,6 +954,54 @@ function doGetFiles(b) {
 }
 
 // ย้อนสถานะสับเปลี่ยน (เฉพาะ Admin): รอ ผบส. (ขั้น 9) → รอสับเปลี่ยน (ขั้น 8) + ล้างวันที่รายงาน
+// แนบเอกสารการสับเปลี่ยนใหม่ (แนบผิด) พร้อมเหตุผล — งานที่รายงานแล้ว (รอ ผบส.) เท่านั้น
+// สิทธิ์: Admin / ผมต. จุดกลาง กบล. = ทุกจุด · ผมต. = เฉพาะจุดร่วมงานของตน · ผซฟ. ไม่ได้
+// ไฟล์เดิมของข้อที่แทนที่ ย้ายไปโฟลเดอร์ย่อย "เอกสารที่ถูกแทนที่" (ไม่ลบ · หน้าเว็บไม่แสดง) · บันทึกแถวใหม่ใน tab ผลสับเปลี่ยน + เหตุผล
+var REPLACED_FOLDER = 'เอกสารที่ถูกแทนที่';
+function doRedoc(b) {
+  var u = getAuthUser(b.emp, b.pw); if (!u) return { ok:false, error:'forbidden' };
+  var rl = String(u.role||''), isAdm = rl.toLowerCase().indexOf('admin') >= 0;
+  if (!isAdm && rl.indexOf('ผซฟ') >= 0) return { ok:false, error:'ผซฟ. แก้ไขเอกสารไม่ได้' };
+  var reqNo = String(b.reqNo||'').trim(), reason = String(b.reason||'').trim();
+  if (!reqNo) return { ok:false, error:'missing reqNo' };
+  if (reason.length < 3) return { ok:false, error:'กรุณาระบุเหตุผลการแก้ไขเอกสาร' };
+  var photos = (b.photos instanceof Array) ? b.photos : [];
+  if (!photos.length) return { ok:false, error:'ยังไม่ได้แนบเอกสารใหม่' };
+  var sh = sheet(MAIN_TAB); if (!sh) return { ok:false, error:'ไม่พบแท็บ '+MAIN_TAB };
+  var data = sh.getDataRange().getValues(), h = data[0];
+  var iReq = colIndex(h,'เลขที่คำขอ'), iSw = colIndex(h, COL_SWAP_STATUS), row = null;
+  for (var r=1;r<data.length;r++){ if (String(data[r][iReq]).trim() === reqNo) { row = data[r]; break; } }
+  if (!row) return { ok:false, error:'ไม่พบคำขอ '+reqNo };
+  if (iSw < 0 || !String(row[iSw]||'').trim()) return { ok:false, error:'คำขอนี้ยังไม่ได้รายงานผลสับเปลี่ยน — ใช้การรายงานผลตามปกติ' };
+  var myHub = canonHub(u.hub) || '';
+  if (!isAdm && myHub !== CENTRAL_HUB && rowHub(row, hubCols(h)) !== myHub) return { ok:false, error:'คำขอนี้ไม่อยู่ในจุดร่วมงานของท่าน' };
+  // ย้ายไฟล์เดิมของข้อที่แทนที่ (ชื่อ PPIMxxx_<ข้อ>_... หรือ PPIMxxx_<ข้อ>.ext)
+  var slots = {}; photos.forEach(function(p){ var m = String(p && p.tag || '').match(/^(\d)/); if (m) slots[m[1]] = true; });
+  var folder = DriveApp.getFolderById(PHOTO_FOLDER_ID), moved = 0;
+  var it2 = folder.getFoldersByName(REPLACED_FOLDER), old = it2.hasNext() ? it2.next() : folder.createFolder(REPLACED_FOLDER);
+  var ts = Utilities.formatDate(new Date(), 'Asia/Bangkok', 'yyyyMMdd_HHmm'), key = reqNo.toUpperCase() + '_';
+  var files = folder.getFiles();
+  while (files.hasNext()) {
+    var f = files.next(), nm = f.getName(), up = nm.toUpperCase();
+    if (up.indexOf(key) !== 0) continue;
+    var k = up.slice(key.length).charAt(0);
+    if (!slots[k] || !/[_.]/.test(up.slice(key.length+1, key.length+2))) continue;
+    try { f.setName('แทนที่' + ts + '_' + nm); f.moveTo(old); moved++; } catch (e) {}
+  }
+  var links = savePhotos(photos, reqNo);
+  var log = sheet(LOG_TAB);
+  if (log) {
+    var lh = log.getRange(1, 1, 1, Math.max(1, log.getLastColumn())).getValues()[0], iNote = -1;
+    for (var c=0;c<lh.length;c++) if (String(lh[c]).trim() === 'หมายเหตุ') iNote = c;
+    if (iNote < 0) { iNote = lh.length; log.getRange(1, iNote+1).setValue('หมายเหตุ'); }
+    var rowOut = [ new Date(), reqNo, '', '', '', '', '', '', String(b.emp||''), String(b.name||u.name||''), links.join('\n') ];
+    while (rowOut.length < iNote) rowOut.push('');
+    rowOut[iNote] = 'แก้ไขเอกสารข้อ ' + Object.keys(slots).sort().join(', ') + ' · เหตุผล: ' + reason.slice(0, 300);
+    log.appendRow(rowOut);
+  }
+  logUser(b.emp, b.name || u.name, rl, u.hub, 'แก้ไขเอกสารสับเปลี่ยน ' + reqNo + ' ข้อ ' + Object.keys(slots).sort().join(',') + ' · ' + reason.slice(0, 120));
+  return { ok:true, saved:links.length, replaced:moved };
+}
 function doRevert(b) {
   if (!isAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
   var reqNo = String(b.reqNo||'').trim();
