@@ -261,12 +261,13 @@ function doLogin(b) {
   var iE = colIndex(h,'รหัสพนักงาน'), iN = colIndex(h,'ชื่อ-สกุล'), iR = colIndex(h,'ตำแหน่ง'),
       iD = colIndex(h,'สังกัด'), iH = colIndex(h,'จุดร่วมงาน'), iP = colIndex(h,'password');
   var iS = colIndex(h, COL_ACC_STATUS);
+  // รหัสซ้ำหลายแถว (เช่น ลงทะเบียนซ้ำ): ให้แถวที่ใช้งานได้ (ไม่ขึ้นต้น pending:) ชนะก่อน แล้วค่อยตอบ รออนุมัติ/ไม่อนุมัติ
+  var pendingHit = null;
   for (var r=1;r<data.length;r++){
     var st = String(data[r][iP]==null?'':data[r][iP]);
     if (String(data[r][iE]).trim() === emp && st.indexOf(PENDING_PREFIX) === 0 && pwMatch(st.slice(PENDING_PREFIX.length), pw)) {
-      var acc = iS>=0 ? String(data[r][iS]||'') : ACC_PENDING;
-      if (acc === ACC_REJECTED) return { ok:false, error:'rejected', msg:'บัญชีนี้ไม่ได้รับการอนุมัติ ติดต่อ ผสอ.กวว.น.1 โทร 10130' };
-      return { ok:false, error:'pending', msg:PENDING_CONTACT, name:String(data[r][iN]||'') };
+      if (!pendingHit) pendingHit = r;
+      continue;
     }
     if (String(data[r][iE]).trim() === emp && pwMatch(data[r][iP], pw)) {
       if (!isHashed(data[r][iP])) sh.getRange(r+1, iP+1).setValue(makeHash(pw));   // รหัสแบบเดิม → แปลงเป็น hash อัตโนมัติ
@@ -274,6 +275,11 @@ function doLogin(b) {
       logUser(emp, nm, rl, hb, 'เข้าสู่ระบบ');
       return { ok:true, name:nm, dept:String(data[r][iD]||''), hub:hb, role:rl };
     }
+  }
+  if (pendingHit) {
+    var acc = iS>=0 ? String(data[pendingHit][iS]||'') : ACC_PENDING;
+    if (acc === ACC_REJECTED) return { ok:false, error:'rejected', msg:'บัญชีนี้ไม่ได้รับการอนุมัติ ติดต่อ ผสอ.กวว.น.1 โทร 10130' };
+    return { ok:false, error:'pending', msg:PENDING_CONTACT, name:String(data[pendingHit][iN]||'') };
   }
   return { ok:false, error:'invalid' };
 }

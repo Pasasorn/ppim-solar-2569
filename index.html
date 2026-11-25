@@ -3206,9 +3206,21 @@ function reqHub(r){
   return canonHub(r.areaCheck) || canonHub(r.area) || canonHub(r.hub)
       || canonHub(hubMapping()[r.area]) || canonHub(hubMapping()[r.areaCheck]) || '';
 }
+// เรียก Apps Script · เครือข่ายสะดุด ("Failed to fetch") → ลองซ้ำอัตโนมัติ 1 ครั้ง เฉพาะ action อ่านข้อมูล/เข้าสู่ระบบ (กันบันทึกซ้ำ)
+const API_RETRY_OK = {login:1,data:1,pendingusers:1,files:1,log:1,dllogs:1,redoclogs:1,allocdocs:1,donedocs:1,ticker:1,signature:1};
 async function meterApi(payload){
-  const res = await fetch(METER_API_URL, {method:'POST', body:JSON.stringify(payload)});
-  return res.json();
+  const go = () => fetch(METER_API_URL, {method:'POST', body:JSON.stringify(payload)});
+  let res;
+  try { res = await go(); }
+  catch(e){
+    if(!API_RETRY_OK[payload&&payload.action]) throw new Error('ติดต่อเซิร์ฟเวอร์ (Google Apps Script) ไม่ได้ — ตรวจอินเทอร์เน็ต แล้วลองใหม่ ('+e.message+')');
+    await new Promise(r=>setTimeout(r,1500));
+    try { res = await go(); }
+    catch(e2){ throw new Error('ติดต่อเซิร์ฟเวอร์ (Google Apps Script) ไม่ได้ — ตรวจอินเทอร์เน็ต/ลองเครือข่ายอื่น หรือกดรีเฟรชแล้วลองใหม่ ('+e2.message+')'); }
+  }
+  const txt = await res.text();
+  try { return JSON.parse(txt); }
+  catch(e){ throw new Error('Apps Script ตอบกลับไม่ใช่ข้อมูล (HTTP '+res.status+') — อาจต้องให้เจ้าของสคริปต์อนุญาตสิทธิ์ใหม่ หรือระบบ Google ขัดข้องชั่วคราว'); }
 }
 // เปลี่ยนรหัสผ่านเอง (ทุกตำแหน่ง · ใช้ได้ทั้งก่อนและหลัง login)
 let mmCBackTo = 'login';
