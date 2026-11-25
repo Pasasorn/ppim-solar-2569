@@ -122,6 +122,7 @@ function doPost(e) {
     if (body.action === 'report')   return json(doReport(body));
     if (body.action === 'revert')   return json(doRevert(body));
     if (body.action === 'redoc')    return json(doRedoc(body));
+    if (body.action === 'redoclogs')return json(doGetRedocLogs(body));
     if (body.action === 'ca82')     return json(doCreateCA82(body));
     if (body.action === 'ca82note') return json(doCa82Note(body));
     if (body.action === 'files')    return json(doGetFiles(body));
@@ -1001,6 +1002,23 @@ function doRedoc(b) {
   }
   logUser(b.emp, b.name || u.name, rl, u.hub, 'แก้ไขเอกสารสับเปลี่ยน ' + reqNo + ' ข้อ ' + Object.keys(slots).sort().join(',') + ' · ' + reason.slice(0, 120));
   return { ok:true, saved:links.length, replaced:moved };
+}
+// ประวัติการแก้ไขเอกสารสับเปลี่ยน (Admin) — แถวใน tab ผลสับเปลี่ยนที่คอลัมน์ "หมายเหตุ" ขึ้นต้น "แก้ไขเอกสาร"
+function doGetRedocLogs(b) {
+  if (!isAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
+  var lg = sheet(LOG_TAB); if (!lg) return { ok:true, rows:[] };
+  var d = lg.getDataRange().getValues(), h = d[0], iNote = -1;
+  for (var c=0;c<h.length;c++) if (String(h[c]).trim() === 'หมายเหตุ') iNote = c;
+  if (iNote < 0) return { ok:true, rows:[] };
+  var tz = Session.getScriptTimeZone(), out = [];
+  for (var r=1;r<d.length;r++){
+    var note = String(d[r][iNote]||''); if (note.indexOf('แก้ไขเอกสาร') !== 0) continue;
+    var m = note.match(/^แก้ไขเอกสารข้อ\s*([^·]*)·\s*เหตุผล:\s*([\s\S]*)$/);
+    out.push({ time: d[r][0] instanceof Date ? Utilities.formatDate(d[r][0], tz, 'yyyy-MM-dd HH:mm:ss') : String(d[r][0]),
+      reqNo:String(d[r][1]||''), emp:String(d[r][8]||''), name:String(d[r][9]||''), files:String(d[r][10]||'').split('\n').filter(String),
+      slots: m ? m[1].trim() : '', reason: m ? m[2].trim() : note });
+  }
+  return { ok:true, rows: out.slice(-1000) };
 }
 function doRevert(b) {
   if (!isAdmin(b.emp, b.pw)) return { ok:false, error:'forbidden' };
